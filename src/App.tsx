@@ -4,25 +4,21 @@ import {
   detectHands,
   HAND_CONNECTIONS,
 } from './handTracker';
-import { audioEngine } from './audioEngine';
+import { audioEngine, TIMBRE_OPTIONS, type TimbreType } from './audioEngine';
 import {
   DIATONIC_CHORDS,
   getChordName,
 } from './chords';
 import {
   FINGER_TO_CHORD_INDEX,
-  FINGER_TO_WAVEFORM,
-  TIMBRE_LABELS,
   type GestureState,
   type HandData,
   type SynthState,
-  type WaveformType,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
 
-/* ─── Gesture Synth Weld — Main Application ────────────────────────── */
+/* ─── Gesture Synth Weld — Full-Screen Layout ───────────────────────── */
 
-/** Helper: extract a readable error message from any thrown value */
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Unknown error';
   if (typeof err === 'string') return err;
@@ -35,7 +31,6 @@ function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
-/** Helper: check if error has a specific DOMException name */
 function isDomError(err: unknown, name: string): boolean {
   return err instanceof Error && err.name === name;
 }
@@ -45,7 +40,6 @@ export default function App() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const analyserCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafIdRef = useRef<number>(0);
   const lastDetectRef = useRef<number>(0);
@@ -62,33 +56,42 @@ export default function App() {
     chordIndex: 0,
     chordName: 'C',
     volume: 0.6,
-    waveform: 'sawtooth',
-    timbreLabel: 'Bright Saw',
     mode: 'neutral',
     isPlaying: false,
   });
   const [isRecording, setIsRecording] = useState(false);
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
+  const [currentTimbre, setCurrentTimbre] = useState<TimbreType>('piano');
+  const [pianoLoaded, setPianoLoaded] = useState(false);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
+  const [keyboardMode, setKeyboardMode] = useState(false);
 
-  // Refs for values accessed inside the animation loop
   const gestureRef = useRef(gesture);
   gestureRef.current = gesture;
 
   const synthRef = useRef(synthState);
   synthRef.current = synthState;
 
+  /* ─── Initialize audio + load piano samples ─────────────────────────── */
+
+  useEffect(() => {
+    // Pre-load piano samples in background
+    audioEngine.init().then(() => {
+      audioEngine.loadPianoSamples(() => {
+        setPianoLoaded(true);
+      });
+    });
+  }, []);
+
   /* ─── Process Detected Hands ───────────────────────────────────────── */
 
-  /** Pure function — called from inside the animation loop via ref */
   const processHandsRef = useRef<(hands: HandData[]) => void>();
   processHandsRef.current = (hands: HandData[]) => {
     let leftHand: HandData | null = null;
     let rightHand: HandData | null = null;
 
     for (const hand of hands) {
-      // Hand on the right side of the raw image = left side of the mirrored view
-      // → that's the user's left hand
       if (hand.positionX > 0.5) {
         leftHand = hand;
       } else {
@@ -104,7 +107,6 @@ export default function App() {
     let chordIndex = prev.chordIndex;
     let mode: 'major' | 'minor' | 'neutral' = 'neutral';
     let volume = prev.volume;
-    let waveform: WaveformType = prev.waveform;
     let isPlaying = false;
 
     if (leftHand) {
@@ -123,31 +125,24 @@ export default function App() {
     if (rightHand) {
       const normalizedY = rightHand.positionY;
       volume = Math.max(0.02, Math.min(1.0, 1.1 - normalizedY));
-      waveform = FINGER_TO_WAVEFORM[rightHand.fingerCount] ?? 'sawtooth';
       if (!leftHand) isPlaying = true;
     }
 
     const chordName = getChordName(chordIndex, mode === 'neutral' ? undefined : mode);
-    const timbreLabel = TIMBRE_LABELS[waveform];
 
     const newSynth: SynthState = {
       chordIndex,
       chordName,
       volume,
-      waveform,
-      timbreLabel,
       mode,
       isPlaying,
     };
     setSynthState(newSynth);
 
-    audioEngine.setVolume(volume);
-    audioEngine.setWaveform(waveform);
-
     if (isPlaying) {
       audioEngine.playChord(
         chordIndex,
-        waveform,
+        'sine', // waveform param kept for API compat
         mode === 'neutral' ? undefined : mode,
         rightHand ? Math.min(rightHand.fingerCount, 3) : 0,
       );
@@ -156,7 +151,7 @@ export default function App() {
     }
   };
 
-  /* ─── Draw helpers (refs so the loop always sees latest) ──────────── */
+  /* ─── Draw helpers ──────────────────────────────────────────────────── */
 
   const drawOverlayRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number) => void>();
   drawOverlayRef.current = (ctx, w, h) => {
@@ -165,47 +160,7 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
   };
 
-  const drawAnalyserRef = useRef<() => void>();
-  drawAnalyserRef.current = () => {
-    const canvas = analyserCanvasRef.current;
-    const analyser = audioEngine.getAnalyser();
-    if (!canvas || !analyser) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (canvas.width !== canvas.clientWidth * 2 || canvas.height !== canvas.clientHeight * 2) {
-      canvas.width = canvas.clientWidth * 2;
-      canvas.height = canvas.clientHeight * 2;
-    }
-
-    const bufLen = analyser.frequencyBinCount;
-    const data = new Uint8Array(bufLen);
-    analyser.getByteTimeDomainData(data);
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#00ffcc';
-    ctx.shadowColor = '#00ffcc';
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-
-    const slice = canvas.width / bufLen;
-    let x = 0;
-    for (let i = 0; i < bufLen; i++) {
-      const v = data[i] / 128.0;
-      const y = (v * canvas.height) / 2;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-      x += slice;
-    }
-    ctx.lineTo(canvas.width, canvas.height / 2);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  };
-
-  /* ─── Animation loop (single effect, cleanup on stop) ─────────────── */
+  /* ─── Animation loop ───────────────────────────────────────────────── */
 
   useEffect(() => {
     if (!isRunning) return;
@@ -230,17 +185,14 @@ export default function App() {
         canvas.height = video.videoHeight || 480;
       }
 
-      // Mirrored video
       ctx.save();
       ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
 
-      // Cyberpunk overlay
       ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Hand detection (throttled ~30fps)
       if (!isDetectingRef.current && timestamp - lastDetectRef.current > 33) {
         lastDetectRef.current = timestamp;
         isDetectingRef.current = true;
@@ -255,7 +207,6 @@ export default function App() {
       }
 
       drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
-      drawAnalyserRef.current?.();
     };
 
     rafIdRef.current = requestAnimationFrame(loop);
@@ -272,27 +223,21 @@ export default function App() {
   const startCamera = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setKeyboardMode(false);
 
     try {
-      // 1. Check browser support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error(
-          'Your browser does not support camera access. Please use Chrome, Edge, or Firefox on HTTPS.'
-        );
+        throw new Error('Your browser does not support camera access. Please use Chrome, Edge, or Firefox on HTTPS.');
       }
 
-      // 2. Init hand tracking model (downloads ~5MB WASM)
-      setIsLoading(true);
       await initHandTracking();
 
-      // 3. Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
         audio: false,
       });
       streamRef.current = stream;
 
-      // 4. Set up video element
       const video = videoRef.current;
       if (!video) throw new Error('Video element not found');
 
@@ -320,18 +265,14 @@ export default function App() {
         }, 10000);
       });
 
-      // video.play() can reject with an Event object in some browsers
       try {
         await video.play();
       } catch (playErr) {
         throw new Error(`Video playback failed: ${getErrorMessage(playErr)}`);
       }
 
-      // 5. Init audio context (user gesture context)
       await audioEngine.init();
-      audioEngine.setVolume(synthRef.current.volume);
 
-      // 6. Go!
       setIsRunning(true);
       setIsLoading(false);
     } catch (err: unknown) {
@@ -341,16 +282,22 @@ export default function App() {
       if (isDomError(err, 'NotAllowedError')) {
         setError('Camera access was denied. Please allow camera permission in your browser settings and try again.');
       } else if (isDomError(err, 'NotFoundError')) {
-        setError('No camera found. You can still use keyboard shortcuts (1-7 for chords, ↑↓ for volume).');
+        setError('No camera found. You can still use keyboard shortcuts.');
       } else if (isDomError(err, 'NotReadableError')) {
         setError('Camera is in use by another application. Please close it and try again.');
-      } else if (isDomError(err, 'NotAllowedError') || isDomError(err, 'SecurityError')) {
-        setError('Camera access blocked. Make sure you are on HTTPS and have granted permission.');
       } else {
         const msg = getErrorMessage(err);
         setError(`Failed to start: ${msg}`);
       }
     }
+  }, []);
+
+  /* ─── Keyboard Mode (no camera) ────────────────────────────────────── */
+
+  const enterKeyboardMode = useCallback(() => {
+    setKeyboardMode(true);
+    setIsRunning(false);
+    setError(null);
   }, []);
 
   /* ─── Stop Camera ──────────────────────────────────────────────────── */
@@ -379,6 +326,7 @@ export default function App() {
     setHasLeftHand(false);
     setHasRightHand(false);
     setIsRunning(false);
+    setKeyboardMode(false);
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
@@ -404,6 +352,13 @@ export default function App() {
     }
   }, [isRecording]);
 
+  /* ─── Timbre Switch ────────────────────────────────────────────────── */
+
+  const switchTimbre = useCallback(async (timbre: TimbreType) => {
+    await audioEngine.setTimbre(timbre);
+    setCurrentTimbre(timbre);
+  }, []);
+
   /* ─── Keyboard Shortcuts ───────────────────────────────────────────── */
 
   useEffect(() => {
@@ -415,7 +370,7 @@ export default function App() {
         const chordName = getChordName(idx, modeArg);
         setSynthState((prev) => ({ ...prev, chordIndex: idx, chordName, isPlaying: true }));
         audioEngine.init().then(() => {
-          audioEngine.playChord(idx, s.waveform, modeArg);
+          audioEngine.playChord(idx, 'sine', modeArg);
         });
         return;
       }
@@ -423,14 +378,12 @@ export default function App() {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         const v = Math.min(1, synthRef.current.volume + 0.1);
-        audioEngine.setVolume(v);
         setSynthState((prev) => ({ ...prev, volume: v }));
         return;
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         const v = Math.max(0, synthRef.current.volume - 0.1);
-        audioEngine.setVolume(v);
         setSynthState((prev) => ({ ...prev, volume: v }));
         return;
       }
@@ -439,7 +392,7 @@ export default function App() {
         setSynthState((prev) => {
           const next = { ...prev, mode: 'major' as const };
           next.chordName = getChordName(prev.chordIndex, 'major');
-          if (prev.isPlaying) audioEngine.playChord(prev.chordIndex, prev.waveform, 'major');
+          if (prev.isPlaying) audioEngine.playChord(prev.chordIndex, 'sine', 'major');
           return next;
         });
         return;
@@ -448,17 +401,17 @@ export default function App() {
         setSynthState((prev) => {
           const next = { ...prev, mode: 'minor' as const };
           next.chordName = getChordName(prev.chordIndex, 'minor');
-          if (prev.isPlaying) audioEngine.playChord(prev.chordIndex, prev.waveform, 'minor');
+          if (prev.isPlaying) audioEngine.playChord(prev.chordIndex, 'sine', 'minor');
           return next;
         });
         return;
       }
 
-      const wfMap: Record<string, WaveformType> = { q: 'sine', w: 'triangle', e: 'sawtooth', r: 'square' };
-      const wf = wfMap[e.key.toLowerCase()];
-      if (wf) {
-        audioEngine.setWaveform(wf);
-        setSynthState((prev) => ({ ...prev, waveform: wf, timbreLabel: TIMBRE_LABELS[wf] }));
+      // Q/W/E/R: timbre
+      const timbreMap: Record<string, TimbreType> = { q: 'piano', w: 'strings', e: 'organ', r: 'synth' };
+      const timbre = timbreMap[e.key.toLowerCase()];
+      if (timbre) {
+        switchTimbre(timbre);
         return;
       }
 
@@ -477,9 +430,9 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [switchTimbre]);
 
-  /* ─── Cleanup on unmount ───────────────────────────────────────────── */
+  /* ─── Cleanup ──────────────────────────────────────────────────────── */
 
   useEffect(() => {
     return () => {
@@ -492,137 +445,242 @@ export default function App() {
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
+  const currentTimbreOption = TIMBRE_OPTIONS.find(t => t.id === currentTimbre) ?? TIMBRE_OPTIONS[0];
+
   return (
-    <div className="synth-container">
-      <div className="camera-section">
-        {/* Camera */}
-        <div className="camera-wrapper">
-          <video ref={videoRef} playsInline muted />
-          <canvas ref={canvasRef} />
+    <div className="full-screen-app">
+      {/* ─── Full-screen camera / placeholder area ──────────────────── */}
+      <section className="camera-stage">
+        <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
+        <canvas ref={canvasRef} className="camera-canvas" />
 
-          {isRunning && (
-            <div className="hand-label-overlay">
-              {hasLeftHand && <span className="hand-tag left">L</span>}
-              {hasRightHand && <span className="hand-tag right">R</span>}
-            </div>
-          )}
-
-          {!isRunning && !isLoading && !error && (
-            <div className="camera-placeholder">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9A2.25 2.25 0 0013.5 5.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-              <h3>Camera Ready</h3>
-              <p>Click <strong>Start</strong> below to enable your camera and begin playing with hand gestures.</p>
-            </div>
-          )}
-
-          {isLoading && (
-            <div className="loading-overlay">
-              <div style={{ textAlign: 'center' }}>
-                <div className="spinner" />
-                <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: '0.85rem' }}>
-                  Loading hand tracking model…
-                </p>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="camera-placeholder">
-              <div className="error-message" style={{ width: '100%' }}>
-                {error}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Feedback Panel */}
-        <div className="feedback-panel">
-          <div className="feedback-item">
-            <span className="feedback-label">Chord</span>
-            <span className="feedback-value">{synthState.chordName}</span>
+        {/* Hand tags */}
+        {isRunning && (
+          <div className="hand-tag-overlay">
+            {hasLeftHand && <span className="hand-tag left">L</span>}
+            {hasRightHand && <span className="hand-tag right">R</span>}
           </div>
-
-          <div className="feedback-item">
-            <span className="feedback-label">Roman Numeral</span>
-            <span className="feedback-value magenta">
-              {DIATONIC_CHORDS[synthState.chordIndex]?.roman ?? '—'}
-            </span>
-          </div>
-
-          <div className="feedback-item">
-            <span className="feedback-label">Mode</span>
-            <span className="feedback-value purple">
-              {synthState.mode === 'major' ? 'Major' : synthState.mode === 'minor' ? 'Minor' : '—'}
-            </span>
-          </div>
-
-          <div className="feedback-item">
-            <span className="feedback-label">Volume</span>
-            <div className="volume-meter">
-              <div className="volume-meter-fill" style={{ width: `${synthState.volume * 100}%` }} />
-            </div>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {Math.round(synthState.volume * 100)}%
-            </span>
-          </div>
-
-          <div className="feedback-item">
-            <span className="feedback-label">Timbre</span>
-            <span className="feedback-value amber" style={{ fontSize: '1.2rem' }}>
-              {synthState.timbreLabel}
-            </span>
-          </div>
-
-          <div className="feedback-item">
-            <span className="feedback-label">Waveform</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              {synthState.waveform}
-            </span>
-          </div>
-
-          <div className="analyser-wrapper">
-            <canvas ref={analyserCanvasRef} />
-          </div>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="controls-bar">
-        <div className="status-bar">
-          <span className={`status-dot ${isRunning ? 'active' : ''}`} />
-          {isRunning ? 'Tracking' : 'Idle'}
-        </div>
-
-        {!isRunning ? (
-          <button className="btn btn-primary" onClick={startCamera} disabled={isLoading}>
-            {isLoading ? 'Loading…' : '▶ Start'}
-          </button>
-        ) : (
-          <button className="btn btn-danger" onClick={stopCamera}>
-            ■ Stop
-          </button>
         )}
 
-        <button
-          className={`btn btn-record ${isRecording ? 'recording' : ''}`}
-          onClick={toggleRecording}
-          disabled={!isRunning}
-        >
-          {isRecording ? 'Stop Rec' : '● Record'}
-        </button>
-      </div>
+        {/* Placeholder / Start screen */}
+        {!isRunning && !isLoading && !error && !keyboardMode && (
+          <div className="start-screen">
+            <div className="start-graphic">
+              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="60" cy="60" r="50" stroke="rgba(0,255,204,0.2)" strokeWidth="2" />
+                <path d="M40 70 L45 50 L50 70 M55 70 L60 45 L65 70 M70 70 L75 50 L80 70" stroke="rgba(0,255,204,0.6)" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="60" cy="85" r="8" fill="rgba(255,0,255,0.3)" />
+              </svg>
+            </div>
+            <button className="start-btn" onClick={startCamera} disabled={isLoading}>
+              <span className="start-btn-icon">▶</span>
+              <span>Start</span>
+            </button>
+            <p className="start-hint">Allow camera to begin playing with hand gestures</p>
+            <button className="keyboard-mode-link" onClick={enterKeyboardMode}>
+              No camera? Try keyboard mode →
+            </button>
+          </div>
+        )}
 
-      <div className="keyboard-hint">
-        <strong>Keyboard:</strong>{' '}
-        <kbd>1</kbd>-<kbd>7</kbd> chords &nbsp;|&nbsp;
-        <kbd>↑</kbd><kbd>↓</kbd> volume &nbsp;|&nbsp;
-        <kbd>T</kbd> major &nbsp;
-        <kbd>Y</kbd> minor &nbsp;|&nbsp;
-        <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> waveform &nbsp;|&nbsp;
-        <kbd>Space</kbd> stop
-      </div>
+        {/* Keyboard mode placeholder */}
+        {keyboardMode && (
+          <div className="keyboard-mode-screen">
+            <div className="keyboard-chord-display">
+              <span className="keyboard-chord-name">{synthState.chordName}</span>
+              <span className="keyboard-chord-roman">
+                {DIATONIC_CHORDS[synthState.chordIndex]?.roman ?? '—'}
+              </span>
+            </div>
+            <div className="keyboard-volume-bar">
+              <div className="keyboard-volume-fill" style={{ width: `${synthState.volume * 100}%` }} />
+            </div>
+            <div className="keyboard-shortcuts-card">
+              <h3>Keyboard Controls</h3>
+              <div className="shortcut-grid">
+                <div><kbd>1</kbd>-<kbd>7</kbd> Chords</div>
+                <div><kbd>↑</kbd><kbd>↓</kbd> Volume</div>
+                <div><kbd>T</kbd> Major <kbd>Y</kbd> Minor</div>
+                <div><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> Timbre</div>
+                <div><kbd>Space</kbd> Stop</div>
+              </div>
+            </div>
+            <button className="back-to-camera-btn" onClick={startCamera}>
+              ← Switch to camera mode
+            </button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="loading-screen">
+            <div className="spinner" />
+            <p>Loading hand tracking model…</p>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="error-screen">
+            <div className="error-message">{error}</div>
+            <button className="retry-btn" onClick={startCamera}>Retry</button>
+            <button className="keyboard-mode-link" onClick={enterKeyboardMode}>
+              No camera? Try keyboard mode →
+            </button>
+          </div>
+        )}
+
+        {/* ─── Floating Control Panel (desktop: top-left) ─────────── */}
+        {(isRunning || keyboardMode) && (
+          <>
+            {/* Desktop panel */}
+            <div className="floating-panel desktop-only">
+              <div className="panel-section">
+                <label className="panel-label">Timbre</label>
+                <div className="timbre-selector">
+                  {TIMBRE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.id}
+                      className={`timbre-btn ${currentTimbre === opt.id ? 'active' : ''}`}
+                      onClick={() => switchTimbre(opt.id)}
+                      title={opt.label}
+                    >
+                      <span className="timbre-icon">{opt.icon}</span>
+                      <span className="timbre-text">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {!pianoLoaded && currentTimbre === 'piano' && (
+                  <span className="loading-hint">Loading samples…</span>
+                )}
+              </div>
+
+              <div className="panel-section">
+                <label className="panel-label">Mode</label>
+                <div className="mode-toggle">
+                  <button
+                    className={`mode-btn ${synthState.mode === 'major' ? 'active' : ''}`}
+                    onClick={() => setSynthState(prev => ({ ...prev, mode: 'major', chordName: getChordName(prev.chordIndex, 'major') }))}
+                  >
+                    Major
+                  </button>
+                  <button
+                    className={`mode-btn ${synthState.mode === 'minor' ? 'active' : ''}`}
+                    onClick={() => setSynthState(prev => ({ ...prev, mode: 'minor', chordName: getChordName(prev.chordIndex, 'minor') }))}
+                  >
+                    Minor
+                  </button>
+                </div>
+              </div>
+
+              <div className="panel-section">
+                <button
+                  className={`record-btn ${isRecording ? 'recording' : ''}`}
+                  onClick={toggleRecording}
+                  title={isRecording ? 'Stop recording' : 'Start recording'}
+                >
+                  <span className="record-dot" />
+                  {isRecording ? 'Stop' : 'Rec'}
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile: toggle button */}
+            <button
+              className="mobile-panel-toggle mobile-only"
+              onClick={() => setShowMobilePanel(!showMobilePanel)}
+            >
+              ⚙️
+            </button>
+
+            {/* Mobile drawer */}
+            {showMobilePanel && (
+              <div className="mobile-drawer mobile-only">
+                <div className="drawer-header">
+                  <span>Controls</span>
+                  <button onClick={() => setShowMobilePanel(false)}>✕</button>
+                </div>
+                <div className="drawer-content">
+                  <div className="panel-section">
+                    <label className="panel-label">Timbre</label>
+                    <div className="timbre-selector">
+                      {TIMBRE_OPTIONS.map(opt => (
+                        <button
+                          key={opt.id}
+                          className={`timbre-btn ${currentTimbre === opt.id ? 'active' : ''}`}
+                          onClick={() => switchTimbre(opt.id)}
+                        >
+                          <span className="timbre-icon">{opt.icon}</span>
+                          <span className="timbre-text">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="panel-section">
+                    <label className="panel-label">Mode</label>
+                    <div className="mode-toggle">
+                      <button
+                        className={`mode-btn ${synthState.mode === 'major' ? 'active' : ''}`}
+                        onClick={() => setSynthState(prev => ({ ...prev, mode: 'major', chordName: getChordName(prev.chordIndex, 'major') }))}
+                      >
+                        Major
+                      </button>
+                      <button
+                        className={`mode-btn ${synthState.mode === 'minor' ? 'active' : ''}`}
+                        onClick={() => setSynthState(prev => ({ ...prev, mode: 'minor', chordName: getChordName(prev.chordIndex, 'minor') }))}
+                      >
+                        Minor
+                      </button>
+                    </div>
+                  </div>
+                  <div className="panel-section">
+                    <button
+                      className={`record-btn ${isRecording ? 'recording' : ''}`}
+                      onClick={toggleRecording}
+                    >
+                      <span className="record-dot" />
+                      {isRecording ? 'Stop Rec' : 'Record'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ─── Title (top-right, subtle) ────────────────────────────── */}
+        <div className="app-title">
+          <span>Gesture Synth Weld</span>
+        </div>
+
+        {/* ─── Bottom status bar ────────────────────────────────────── */}
+        {(isRunning || keyboardMode) && (
+          <div className="status-bar-bottom">
+            <div className="status-chord">
+              🎵 {synthState.chordName}
+              <span className="status-roman">
+                {DIATONIC_CHORDS[synthState.chordIndex]?.roman ?? ''}
+              </span>
+            </div>
+            <div className="status-volume">
+              <span className="status-label">Vol</span>
+              <div className="status-volume-track">
+                <div className="status-volume-fill" style={{ width: `${synthState.volume * 100}%` }} />
+              </div>
+            </div>
+            <div className="status-timbre">
+              {currentTimbreOption.icon} {currentTimbreOption.label}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ─── Stop button (floating) ───────────────────────────────── */}
+      {isRunning && (
+        <button className="stop-btn-floating" onClick={stopCamera}>
+          ■ Stop
+        </button>
+      )}
     </div>
   );
 }

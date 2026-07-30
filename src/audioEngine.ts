@@ -1,216 +1,252 @@
+import * as Tone from 'tone';
 import type { WaveformType } from './types';
 import { getChordFreqs, getChordName } from './chords';
 
-/* ─── Web Audio Synthesizer Engine ───────────────────────────────────── */
+/* ─── Tone.js Audio Engine with Sampler + Synth Fallback ────────────── */
 
-interface SynthVoice {
-  oscillators: OscillatorNode[];
-  gainNode: GainNode;
-  filter: BiquadFilterNode;
+export type TimbreType = 'piano' | 'strings' | 'organ' | 'synth';
+
+export const TIMBRE_OPTIONS: { id: TimbreType; label: string; icon: string }[] = [
+  { id: 'piano', label: 'Piano', icon: '🎹' },
+  { id: 'strings', label: 'Strings', icon: '🎻' },
+  { id: 'organ', label: 'Organ', icon: '🎛️' },
+  { id: 'synth', label: 'Synth', icon: '⚡' },
+];
+
+// Salamander Grand Piano samples from Tone.js CDN (C1 to C7, 7 octaves)
+const PIANO_SAMPLES_URL = 'https://tonejs.github.io/audio/salamander/';
+const PIANO_NOTES: Record<string, string> = {
+  C1: 'C1.mp3', C2: 'C2.mp3', C3: 'C3.mp3', C4: 'C4.mp3',
+  C5: 'C5.mp3', C6: 'C6.mp3', C7: 'C7.mp3',
+};
+
+interface Instrument {
+  triggerAttack: (freq: number, time?: number, velocity?: number) => void;
+  triggerRelease: (freq: number, time?: number) => void;
+  releaseAll: (time?: number) => void;
+  dispose: () => void;
 }
 
-export class AudioEngine {
-  private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
-  private analyserNode: AnalyserNode | null = null;
-  private voices: SynthVoice[] = [];
-  private recordingDestination: MediaStreamAudioDestinationNode | null = null;
-  private mediaRecorder: MediaRecorder | null = null;
-  private recordedChunks: Blob[] = [];
-  private currentVolume = 0.6;
-  private currentWaveform: WaveformType = 'sawtooth';
+class SamplerInstrument implements Instrument {
+  private sampler: Tone.Sampler;
+  private loaded = false;
 
-  get audioContext(): AudioContext | null {
-    return this.ctx;
+  constructor(urls: Record<string, string>, onload?: () => void) {
+    this.sampler = new Tone.Sampler({
+      urls,
+      baseUrl: PIANO_SAMPLES_URL,
+      onload: () => {
+        this.loaded = true;
+        onload?.();
+      },
+      onerror: (err) => {
+        console.warn('Sampler load error:', err);
+      },
+    }).toDestination();
   }
 
-  /**
-   * Initialize the audio context. Must be called from a user gesture.
-   */
-  async init(): Promise<void> {
-    if (this.ctx) return;
+  isLoaded(): boolean {
+    return this.loaded;
+  }
 
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    this.ctx = new Ctx();
+  triggerAttack(freq: number, time?: number, velocity = 0.8): void {
+    this.sampler.triggerAttack(freq, time, velocity);
+  }
 
-    // Master gain
-    this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = this.currentVolume;
+  triggerRelease(freq: number, time?: number): void {
+    this.sampler.triggerRelease(freq, time);
+  }
 
-    // Analyser for visualization
-    this.analyserNode = this.ctx.createAnalyser();
-    this.analyserNode.fftSize = 256;
-    this.analyserNode.smoothingTimeConstant = 0.8;
+  releaseAll(time?: number): void {
+    this.sampler.releaseAll(time);
+  }
 
-    // Recording destination
-    this.recordingDestination = this.ctx.createMediaStreamDestination();
+  dispose(): void {
+    this.sampler.dispose();
+  }
+}
 
-    // Routing: masterGain → analyser → destination
-    this.masterGain.connect(this.analyserNode);
-    this.analyserNode.connect(this.ctx.destination);
+class SynthInstrument implements Instrument {
+  private synth: Tone.PolySynth;
 
-    // Also route to recording destination
-    this.masterGain.connect(this.recordingDestination);
+  constructor(options: {
+    waveform: OscillatorType;
+    envelope: { attack?: number; decay?: number; sustain?: number; release?: number };
+    filterFreq?: number;
+  }) {
+    const { waveform, envelope, filterFreq } = options;
 
-    // Resume if suspended
-    if (this.ctx.state === 'suspended') {
-      await this.ctx.resume();
+    this.synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: waveform },
+      envelope: {
+        attack: envelope.attack ?? 0.02,
+        decay: envelope.decay ?? 0.1,
+        sustain: envelope.sustain ?? 0.8,
+        release: envelope.release ?? 0.5,
+      },
+    });
+
+    if (filterFreq) {
+      const filter = new Tone.Filter(filterFreq, 'lowpass');
+      this.synth.connect(filter);
+      filter.toDestination();
+    } else {
+      this.synth.toDestination();
     }
   }
 
+  triggerAttack(freq: number, time?: number, velocity = 0.8): void {
+    this.synth.triggerAttack(freq, time, velocity);
+  }
+
+  triggerRelease(freq: number, time?: number): void {
+    this.synth.triggerRelease(freq, time);
+  }
+
+  releaseAll(time?: number): void {
+    this.synth.releaseAll(time);
+  }
+
+  dispose(): void {
+    this.synth.dispose();
+  }
+}
+
+export class AudioEngine {
+  private currentTimbre: TimbreType = 'piano';
+  private instruments: Map<TimbreType, Instrument> = new Map();
+  private activeNotes: Set<number> = new Set();
+  private recordingDestination: Tone.Recorder | null = null;
+  private isRecordingActive = false;
+  private pianoLoading = false;
+  private pianoLoaded = false;
+  private initCalled = false;
+
   /**
-   * Get the analyser node for visualization.
+   * Initialize Tone.js audio context. Must be called from user gesture.
    */
-  getAnalyser(): AnalyserNode | null {
-    return this.analyserNode;
+  async init(): Promise<void> {
+    if (this.initCalled) return;
+    this.initCalled = true;
+
+    await Tone.start();
+    console.log('Audio engine initialized');
+
+    // Create recorder for WAV export
+    this.recordingDestination = new Tone.Recorder();
+    Tone.Destination.connect(this.recordingDestination);
+  }
+
+  /**
+   * Load piano samples asynchronously.
+   * Call this after init() to start loading in background.
+   */
+  async loadPianoSamples(onLoad?: () => void): Promise<void> {
+    if (this.pianoLoaded || this.pianoLoading) return;
+    this.pianoLoading = true;
+
+    try {
+      const instrument = new SamplerInstrument(PIANO_NOTES, () => {
+        this.pianoLoaded = true;
+        this.pianoLoading = false;
+        this.instruments.set('piano', instrument);
+        onLoad?.();
+      });
+      // Store temporarily even before loaded (will be replaced on load)
+      this.instruments.set('piano', instrument);
+    } catch (err) {
+      console.warn('Failed to load piano samples:', err);
+      this.pianoLoading = false;
+      // Fall back to synth piano
+      this.instruments.set('piano', this.createSynthPiano());
+    }
+  }
+
+  isPianoLoaded(): boolean {
+    return this.pianoLoaded;
+  }
+
+  /**
+   * Get current timbre.
+   */
+  getTimbre(): TimbreType {
+    return this.currentTimbre;
+  }
+
+  /**
+   * Set timbre with smooth transition.
+   */
+  async setTimbre(timbre: TimbreType): Promise<void> {
+    if (this.currentTimbre === timbre) return;
+
+    // Release all current notes
+    this.releaseAllNotes();
+
+    this.currentTimbre = timbre;
+
+    // Ensure instrument exists
+    if (!this.instruments.has(timbre)) {
+      this.instruments.set(timbre, this.createInstrument(timbre));
+    }
   }
 
   /**
    * Play a chord at the given index.
-   * Smoothly transitions from any currently playing chord.
    */
   playChord(
     chordIndex: number,
-    waveform: WaveformType,
+    _waveform: WaveformType, // Kept for API compatibility
     mode?: 'major' | 'minor',
     inversion: number = 0,
   ): void {
-    if (!this.ctx || !this.masterGain) return;
+    if (!this.initCalled) return;
 
-    const now = this.ctx.currentTime;
+    // Release previous notes
+    this.releaseAllNotes();
 
-    // Release any existing voices
-    this.releaseVoices(now, 0.25);
-
-    // Create new voices
     const freqs = getChordFreqs(chordIndex, mode, inversion);
-    const attackTime = 0.08;
+    const now = Tone.now();
 
+    const instrument = this.getInstrument();
     for (const freq of freqs) {
-      this.createVoice(freq, waveform, now, attackTime);
+      instrument.triggerAttack(freq, now, 0.7);
+      this.activeNotes.add(freq);
     }
   }
 
   /**
-   * Play a single note at a given frequency (for theremin-like mode).
-   */
-  playTheremin(frequency: number, waveform: WaveformType): void {
-    if (!this.ctx || !this.masterGain) return;
-
-    const now = this.ctx.currentTime;
-
-    // Release existing
-    this.releaseVoices(now, 0.05);
-
-    // Create single voice
-    this.createVoice(frequency, waveform, now, 0.02);
-  }
-
-  /**
-   * Stop all voices immediately.
+   * Stop all notes with release.
    */
   stopAll(): void {
-    if (!this.ctx) return;
-
-    const now = this.ctx.currentTime;
-    this.releaseVoices(now, 0.1);
+    this.releaseAllNotes();
   }
 
   /**
-   * Update the master volume (0-1).
-   */
-  setVolume(vol: number): void {
-    this.currentVolume = Math.max(0, Math.min(1, vol));
-    if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(this.currentVolume, this.ctx.currentTime, 0.02);
-    }
-  }
-
-  /**
-   * Update the waveform type for all active and future voices.
-   */
-  setWaveform(type: WaveformType): void {
-    this.currentWaveform = type;
-    // Update oscillators in active voices
-    for (const voice of this.voices) {
-      for (const osc of voice.oscillators) {
-        try {
-          osc.type = type;
-        } catch {
-          // Some waveforms may not be settable during playback
-        }
-      }
-    }
-  }
-
-  /* ─── Recording ──────────────────────────────────────────────────── */
-
-  /**
-   * Start recording the audio output.
+   * Start recording.
    */
   startRecording(): boolean {
-    if (!this.recordingDestination || !this.ctx) return false;
-
-    try {
-      this.recordedChunks = [];
-      this.mediaRecorder = new MediaRecorder(this.recordingDestination.stream, {
-        mimeType: this.getSupportedMimeType(),
-      });
-
-      this.mediaRecorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data.size > 0) {
-          this.recordedChunks.push(e.data);
-        }
-      };
-
-      this.mediaRecorder.start(100); // Collect data every 100ms
-      return true;
-    } catch (err) {
-      console.error('Failed to start recording:', err);
-      return false;
-    }
+    if (!this.recordingDestination || this.isRecordingActive) return false;
+    this.recordingDestination.start();
+    this.isRecordingActive = true;
+    return true;
   }
 
   /**
-   * Stop recording and return the recorded audio as a WAV Blob.
+   * Stop recording and return WAV blob.
    */
   async stopRecording(): Promise<Blob | null> {
-    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
-      return null;
-    }
-
-    return new Promise<Blob | null>((resolve) => {
-      this.mediaRecorder!.onstop = async () => {
-        const mimeType = this.mediaRecorder!.mimeType;
-        const webmBlob = new Blob(this.recordedChunks, { type: mimeType });
-
-        try {
-          // Decode the WebM/Opus data and re-encode as WAV
-          const arrayBuffer = await webmBlob.arrayBuffer();
-          if (!this.ctx) {
-            resolve(webmBlob);
-            return;
-          }
-          const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
-          const wavBlob = this.audioBufferToWav(audioBuffer);
-          resolve(wavBlob);
-        } catch (err) {
-          console.error('Failed to encode WAV:', err);
-          // Fallback: return raw WebM blob
-          resolve(webmBlob);
-        }
-      };
-
-      this.mediaRecorder!.stop();
-    });
+    if (!this.recordingDestination || !this.isRecordingActive) return null;
+    const recording = await this.recordingDestination.stop();
+    this.isRecordingActive = false;
+    return recording;
   }
 
   isRecording(): boolean {
-    return this.mediaRecorder !== null && this.mediaRecorder.state === 'recording';
+    return this.isRecordingActive;
   }
 
   /**
-   * Get current chord name for display.
+   * Get chord name for display.
    */
   getChordName(chordIndex: number, mode?: 'major' | 'minor'): string {
     return getChordName(chordIndex, mode);
@@ -218,152 +254,66 @@ export class AudioEngine {
 
   /* ─── Private Methods ────────────────────────────────────────────── */
 
-  private createVoice(
-    frequency: number,
-    waveform: WaveformType,
-    startTime: number,
-    attackTime: number,
-  ): void {
-    if (!this.ctx || !this.masterGain) return;
-
-    // Gain node for this voice
-    const gainNode = this.ctx.createGain();
-    gainNode.gain.setValueAtTime(0.001, startTime);
-    gainNode.gain.linearRampToValueAtTime(
-      0.3 / Math.max(1, frequency > 400 ? 1 : 1.5), // Slightly lower gain for bass
-      startTime + attackTime,
-    );
-
-    // Filter for warmth
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = waveform === 'sawtooth' || waveform === 'square' ? 2500 : 4000;
-    filter.Q.value = 1.0;
-
-    // Connect: filter → gain → master
-    filter.connect(gainNode);
-    gainNode.connect(this.masterGain);
-
-    // Main oscillator
-    const osc = this.ctx.createOscillator();
-    osc.type = waveform;
-    osc.frequency.value = frequency;
-    osc.connect(filter);
-    osc.start(startTime);
-
-    const oscillators = [osc];
-
-    // Add subtle detuned copy for richness (supersaw-lite)
-    if (waveform === 'sawtooth' || waveform === 'square') {
-      const detuneOsc = this.ctx.createOscillator();
-      detuneOsc.type = waveform;
-      detuneOsc.frequency.value = frequency;
-      detuneOsc.detune.value = 7; // 7 cents sharp
-      const detuneGain = this.ctx.createGain();
-      detuneGain.gain.value = 0.4;
-      detuneOsc.connect(detuneGain);
-      detuneGain.connect(filter);
-      detuneOsc.start(startTime);
-      oscillators.push(detuneOsc);
+  private getInstrument(): Instrument {
+    let instrument = this.instruments.get(this.currentTimbre);
+    if (!instrument) {
+      instrument = this.createInstrument(this.currentTimbre);
+      this.instruments.set(this.currentTimbre, instrument);
     }
-
-    this.voices.push({ oscillators, gainNode, filter });
+    return instrument;
   }
 
-  private releaseVoices(now: number, duration: number): void {
-    if (!this.ctx) return;
-
-    const releaseEnd = now + duration;
-
-    for (const voice of this.voices) {
-      try {
-        voice.gainNode.gain.cancelScheduledValues(now);
-        voice.gainNode.gain.setValueAtTime(voice.gainNode.gain.value, now);
-        voice.gainNode.gain.exponentialRampToValueAtTime(0.001, releaseEnd);
-      } catch {
-        // Ignore scheduling errors
-      }
-
-      for (const osc of voice.oscillators) {
-        try {
-          osc.stop(releaseEnd + 0.05);
-        } catch {
-          // Already stopped
+  private createInstrument(timbre: TimbreType): Instrument {
+    switch (timbre) {
+      case 'piano':
+        // If samples not loaded, use synth piano as fallback
+        if (!this.pianoLoaded) {
+          console.warn('Piano samples not loaded, using synth fallback');
+          return this.createSynthPiano();
         }
-      }
-    }
+        return this.instruments.get('piano')!;
 
-    // Clean up voices after release
-    const voicesToClean = [...this.voices];
-    this.voices = [];
-    setTimeout(() => {
-      for (const voice of voicesToClean) {
-        try {
-          voice.oscillators.forEach((o) => o.disconnect());
-          voice.gainNode.disconnect();
-          voice.filter.disconnect();
-        } catch {
-          // Already disconnected
-        }
-      }
-    }, (duration + 0.1) * 1000);
+      case 'strings':
+        return new SynthInstrument({
+          waveform: 'triangle',
+          envelope: { attack: 0.3, decay: 0.2, sustain: 0.9, release: 1.5 },
+        });
+
+      case 'organ':
+        return new SynthInstrument({
+          waveform: 'sine',
+          envelope: { attack: 0.01, decay: 0.05, sustain: 1.0, release: 0.1 },
+          filterFreq: 3000,
+        });
+
+      case 'synth':
+        return new SynthInstrument({
+          waveform: 'sawtooth',
+          envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.5 },
+          filterFreq: 2500,
+        });
+
+      default:
+        return this.createSynthPiano();
+    }
   }
 
-  private audioBufferToWav(buffer: AudioBuffer): Blob {
-    const numCh = buffer.numberOfChannels;
-    const sr = buffer.sampleRate;
-    const len = buffer.length;
-    const bytesPerSample = 2;
-    const blockAlign = numCh * bytesPerSample;
-    const dataSize = len * blockAlign;
-    const totalSize = 44 + dataSize;
-    const ab = new ArrayBuffer(totalSize);
-    const view = new DataView(ab);
-
-    const writeStr = (offset: number, str: string) => {
-      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-    };
-
-    writeStr(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeStr(8, 'WAVE');
-    writeStr(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numCh, true);
-    view.setUint32(24, sr, true);
-    view.setUint32(28, sr * blockAlign, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true);
-    writeStr(36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    const channels: Float32Array[] = [];
-    for (let c = 0; c < numCh; c++) channels.push(buffer.getChannelData(c));
-
-    let off = 44;
-    for (let i = 0; i < len; i++) {
-      for (let c = 0; c < numCh; c++) {
-        const s = Math.max(-1, Math.min(1, channels[c][i]));
-        view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-        off += 2;
-      }
-    }
-
-    return new Blob([ab], { type: 'audio/wav' });
+  private createSynthPiano(): Instrument {
+    return new SynthInstrument({
+      waveform: 'triangle',
+      envelope: { attack: 0.005, decay: 0.3, sustain: 0.4, release: 0.8 },
+    });
   }
 
-  private getSupportedMimeType(): string {
-    const types = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/ogg',
-    ];
-    for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) return type;
+  private releaseAllNotes(): void {
+    const instrument = this.instruments.get(this.currentTimbre);
+    if (instrument) {
+      const now = Tone.now();
+      for (const freq of this.activeNotes) {
+        instrument.triggerRelease(freq, now);
+      }
+      this.activeNotes.clear();
     }
-    return '';
   }
 }
 

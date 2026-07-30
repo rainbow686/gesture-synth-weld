@@ -49,15 +49,15 @@
     "browserRequirements": "Requires a modern browser with Web Audio API, getUserMedia, and JavaScript enabled. Chrome 90+, Firefox 90+, Edge 90+, Safari 15+.",
     "featureList": [
       "Hand gesture chord recognition via MediaPipe",
-      "Real-time audio synthesis via Web Audio API",
+      "Real-time audio synthesis with piano samples and synth voices",
+      "4 instrument timbres: Piano, Strings, Organ, Synth",
       "Volume control via hand height",
-      "Timbre switching via finger count",
       "Major/minor mode via wrist tilt",
       "Performance recording with WAV export",
       "Keyboard fallback for camera-free access"
     ],
     "screenshot": "https://gesturesynthweld.com/og-image.png",
-    "softwareVersion": "1.0.0",
+    "softwareVersion": "2.0.0",
     "license": "https://opensource.org/licenses/MIT"
   }
   </script>
@@ -102,10 +102,10 @@
       },
       {
         "@type": "Question",
-        "name": "Is it free?",
+        "name": "Is Gesture Synth Weld free?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes, Gesture Synth Weld is completely free and open source under the MIT license. There are no ads, no signups, and no premium features locked behind a paywall."
+          "text": "Yes! Gesture Synth Weld is free to use. We support the development and hosting of this tool through non-intrusive advertising. No registration, no sign-up, no paywall — just open and play."
         }
       }
     ]
@@ -113,7 +113,7 @@
   </script>
 
   <style>
-    /* Critical CSS for above-the-fold content — prevents FOUC */
+    /* ─── Critical CSS — prevents FOUC before React loads ─────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
@@ -123,172 +123,459 @@
       line-height: 1.6;
       min-height: 100vh;
     }
-    #static-content {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
+
+    /* React mount point = full-screen camera area */
+    #app-root {
+      position: relative;
+      width: 100vw;
+      height: 100svh;
+      overflow: hidden;
     }
-    .hero-title {
+
+    /* SEO content area below the fold */
+    .seo-content {
+      background: linear-gradient(180deg, #0a0a1a 0%, #0d0d2b 5%, #111133 100%);
+      padding: 3rem 0 2rem;
+    }
+    .seo-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+    .seo-content h1 {
       font-family: 'Orbitron', monospace;
-      font-size: clamp(1.8rem, 5vw, 3.2rem);
+      font-size: clamp(1.6rem, 4vw, 2.5rem);
       font-weight: 900;
       text-align: center;
-      margin: 1.5rem 0 1rem;
+      margin-bottom: 0.5rem;
       background: linear-gradient(135deg, #00ffcc, #ff00ff);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      filter: drop-shadow(0 0 20px rgba(0, 255, 204, 0.3));
     }
-    .hero-subtitle {
-      text-align: center;
-      font-size: 1.1rem;
-      color: #a0a0d0;
-      margin-bottom: 2rem;
+    .seo-content h2 {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.3rem;
+      color: #00ffcc;
+      margin: 2.5rem 0 1rem;
+      filter: drop-shadow(0 0 8px rgba(0, 255, 204, 0.2));
     }
-    .intro-text {
-      background: rgba(10, 20, 40, 0.6);
-      border: 1px solid rgba(0, 255, 204, 0.15);
-      border-radius: 12px;
-      padding: 1.5rem 2rem;
-      margin-bottom: 2rem;
+    .seo-content h3 {
+      font-family: 'Inter', sans-serif;
       font-size: 1rem;
+      font-weight: 600;
+      color: #e0e0ff;
+      margin: 1rem 0 0.4rem;
     }
-    .intro-text p { margin-bottom: 0.8rem; }
-    .intro-text p:last-child { margin-bottom: 0; }
-    #app-root { margin-top: 1rem; }
+    .seo-content p {
+      color: #b0b0d0;
+      font-size: 0.95rem;
+      margin-bottom: 0.8rem;
+    }
+    .seo-intro {
+      text-align: center;
+      color: #a0a0d0;
+      font-size: 1rem;
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+    .seo-section {
+      background: rgba(10, 20, 40, 0.5);
+      border: 1px solid rgba(0, 255, 204, 0.08);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .step-card {
+      background: rgba(10, 20, 40, 0.6);
+      border-radius: 10px;
+      padding: 1.2rem;
+      border: 1px solid rgba(0, 255, 204, 0.1);
+    }
+    .step-num {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.8rem;
+      font-weight: 900;
+    }
+    .step-card:nth-child(1) .step-num { color: #00ffcc; }
+    .step-card:nth-child(2) .step-num { color: #ff00ff; }
+    .step-card:nth-child(3) .step-num { color: #7850ff; }
+    .step-card h3 { margin: 0.5rem 0 0.3rem; font-size: 0.95rem; }
+    .step-card p { font-size: 0.85rem; color: #a0a0d0; margin: 0; }
+
+    /* Ad slots */
+    .ad-slot {
+      min-height: 90px;
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 1.5rem 0;
+    }
+    .ad-slot.ad-tall { min-height: 250px; }
+
+    /* FAQ */
+    .faq-item {
+      background: rgba(10, 20, 40, 0.6);
+      border: 1px solid rgba(0, 255, 204, 0.08);
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .faq-item summary {
+      font-weight: 600;
+      cursor: pointer;
+      color: #e0e0ff;
+      list-style: none;
+    }
+    .faq-item summary::before {
+      content: '▸ ';
+      color: #00ffcc;
+    }
+    .faq-item p {
+      margin-top: 0.75rem;
+      color: #b0b0d0;
+      font-size: 0.9rem;
+    }
+
+    /* Keyboard shortcuts table */
+    .shortcuts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .shortcuts-table th {
+      text-align: left;
+      padding: 0.5rem;
+      color: #00ffcc;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid rgba(0, 255, 204, 0.15);
+    }
+    .shortcuts-table td {
+      padding: 0.5rem;
+      color: #b0b0d0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .shortcuts-table kbd {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    /* Footer */
+    .site-footer {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      border-top: 1px solid rgba(0, 255, 204, 0.08);
+      color: #606090;
+      font-size: 0.8rem;
+    }
+    .site-footer a {
+      color: #00ffcc;
+      text-decoration: none;
+    }
+    .site-footer a:hover { text-decoration: underline; }
+    .footer-links { margin-top: 0.5rem; }
+    .footer-links a + a::before {
+      content: ' · ';
+      color: #606090;
+    }
+
+    @media (max-width: 768px) {
+      .seo-content { padding: 2rem 0 1.5rem; }
+      .seo-inner { padding: 0 1rem; }
+      .step-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
-  <div id="static-content">
-    <h1 class="hero-title">Gesture Synth Weld — Play Music With Your Hands</h1>
-    <p class="hero-subtitle">A free browser-based synthesizer controlled entirely by hand gestures</p>
-
-    <div class="intro-text">
-      <p>
-        <strong>Gesture Synth Weld</strong> is a hand gesture music synthesizer that runs entirely in your web browser.
-        No downloads, no plugins, no MIDI controllers — just your webcam and your hands.
-        Raise your left hand to play chords, move your right hand up and down to control volume,
-        and open or close your right hand to switch between synth timbres.
-      </p>
-      <p>
-        Powered by MediaPipe Hands for real-time gesture recognition and the Web Audio API
-        for low-latency audio synthesis, Gesture Synth Weld turns any computer into an expressive
-        musical instrument. Tilt your left wrist to switch between major and minor modes.
-        Record your performance and export it as a WAV file. Use keyboard shortcuts
-        if you don't have a camera available.
-      </p>
-      <p>
-        <strong>What you need:</strong> a laptop or desktop computer with a working webcam,
-        a modern browser (Chrome, Edge, or Firefox recommended), and speakers or headphones.
-        That's it. Open the page, click "Start", allow camera access, and start playing.
-      </p>
-    </div>
-
-    <section id="instructions-static">
-      <h2 style="font-family: 'Orbitron', monospace; font-size: 1.3rem; color: #00ffcc; margin-bottom: 1rem; text-align: center;">How It Works</h2>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-        <div style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(0, 255, 204, 0.15); border-radius: 12px; padding: 1.2rem;">
-          <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: #00ffcc;">1</div>
-          <h3 style="font-size: 1rem; margin: 0.5rem 0;">Allow Camera</h3>
-          <p style="font-size: 0.9rem; color: #a0a0d0;">Click "Start" and grant camera permission when prompted. Your video stays on your device — nothing is uploaded.</p>
-        </div>
-        <div style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(255, 0, 255, 0.15); border-radius: 12px; padding: 1.2rem;">
-          <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: #ff00ff;">2</div>
-          <h3 style="font-size: 1rem; margin: 0.5rem 0;">Left Hand → Chords</h3>
-          <p style="font-size: 0.9rem; color: #a0a0d0;">Hold up 1–5 fingers to select a chord from the diatonic scale (I, ii, iii, IV, V, vi, vii°). Tilt your wrist to toggle major/minor.</p>
-        </div>
-        <div style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(120, 80, 255, 0.15); border-radius: 12px; padding: 1.2rem;">
-          <div style="font-family: 'Orbitron', monospace; font-size: 2rem; color: #7850ff;">3</div>
-          <h3 style="font-size: 1rem; margin: 0.5rem 0;">Right Hand → Volume &amp; Timbre</h3>
-          <p style="font-size: 0.9rem; color: #a0a0d0;">Raise your right hand higher for more volume. Change the number of extended fingers to cycle through sine, triangle, sawtooth, and square waveforms.</p>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- React mounts here -->
+  <!-- React mounts here — full-screen camera area -->
   <div id="app-root"></div>
 
   <script type="module" src="/src/main.tsx"></script>
 
-  <!-- FAQ section rendered below the app for SEO -->
-  <section id="faq-section" style="max-width: 900px; margin: 2rem auto; padding: 0 1.5rem 3rem;">
-    <h2 style="font-family: 'Orbitron', monospace; font-size: 1.5rem; color: #00ffcc; text-align: center; margin-bottom: 1.5rem;
-               filter: drop-shadow(0 0 10px rgba(0, 255, 204, 0.3));">
-      Frequently Asked Questions
-    </h2>
+  <!-- ─── SEO Content (below the fold, scrollable) ────────────────── -->
+  <div class="seo-content">
+    <div class="seo-inner">
 
-    <details style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(0, 255, 204, 0.12); border-radius: 10px; padding: 1rem 1.5rem; margin-bottom: 0.75rem;">
-      <summary style="font-weight: 600; cursor: pointer; color: #e0e0ff; list-style: none;">
-        <span style="color: #00ffcc; margin-right: 0.5rem;">▸</span> Do I need any special equipment?
-      </summary>
-      <p style="margin-top: 0.75rem; color: #b0b0d0; font-size: 0.95rem;">
-        No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser
-        like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads.
-        Your webcam handles all the input — MediaPipe's hand tracking model runs entirely on your device.
+      <h1>Gesture Synth Weld — Play Music With Your Hands</h1>
+      <p class="seo-intro">
+        A free, browser-based synthesizer controlled entirely by hand gestures.
+        No downloads, no plugins — just your webcam and your hands.
       </p>
-    </details>
 
-    <details style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(0, 255, 204, 0.12); border-radius: 10px; padding: 1rem 1.5rem; margin-bottom: 0.75rem;">
-      <summary style="font-weight: 600; cursor: pointer; color: #e0e0ff; list-style: none;">
-        <span style="color: #00ffcc; margin-right: 0.5rem;">▸</span> What browsers are supported?
-      </summary>
-      <p style="margin-top: 0.75rem; color: #b0b0d0; font-size: 0.95rem;">
-        Gesture Synth Weld works in any modern browser that supports the Web Audio API and
-        getUserMedia — including Chrome 90+, Firefox 90+, Edge 90+, and Safari 15+.
-        For the best hand tracking experience, Chrome or Edge is recommended since they
-        support MediaPipe's WebGL2 backend most efficiently.
-      </p>
-    </details>
+      <!-- What is Gesture Synth Weld? -->
+      <div class="seo-section">
+        <h2>📖 What is Gesture Synth Weld?</h2>
+        <p>
+          <strong>Gesture Synth Weld</strong> is a hand gesture music synthesizer that runs entirely
+          in your web browser. No downloads, no plugins, no MIDI controllers — just your webcam
+          and your hands. Raise your left hand to play chords, move your right hand up and down
+          to control volume, and choose between four instrument timbres: Piano, Strings, Organ,
+          and classic Synth.
+        </p>
+        <p>
+          Powered by MediaPipe Hands for real-time gesture recognition and the Web Audio API
+          for low-latency audio synthesis with real piano samples (Salamander Grand Piano),
+          Gesture Synth Weld turns any computer into an expressive musical instrument.
+          Tilt your left wrist to switch between major and minor modes.
+          Record your performance and export it as a WAV file.
+          Use keyboard shortcuts if you don't have a camera available.
+        </p>
+        <p>
+          <strong>What you need:</strong> a laptop or desktop computer with a working webcam,
+          a modern browser (Chrome, Edge, or Firefox recommended), and speakers or headphones.
+          That's it. Open the page, click "Start", allow camera access, and start playing.
+        </p>
+      </div>
 
-    <details style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(0, 255, 204, 0.12); border-radius: 10px; padding: 1rem 1.5rem; margin-bottom: 0.75rem;">
-      <summary style="font-weight: 600; cursor: pointer; color: #e0e0ff; list-style: none;">
-        <span style="color: #00ffcc; margin-right: 0.5rem;">▸</span> Can I record my performance?
-      </summary>
-      <p style="margin-top: 0.75rem; color: #b0b0d0; font-size: 0.95rem;">
-        Yes! Click the <strong>Record</strong> button to start capturing your performance.
-        When you stop the recording, a WAV audio file is automatically downloaded to your computer.
-        You can then open it in any audio editor, share it with friends, or upload it to social media.
-        The recording captures only the synthesized audio — your camera feed is never recorded or uploaded.
-      </p>
-    </details>
+      <!-- How It Works -->
+      <div class="seo-section">
+        <h2>💡 How It Works</h2>
+        <div class="step-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3>Allow Camera</h3>
+            <p>Click "Start" and grant camera permission when prompted. Your video stays on your device — nothing is uploaded to any server.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3>Left Hand → Chords</h3>
+            <p>Hold up 1–5 fingers to select a chord from the diatonic scale (I, ii, iii, IV, V, vi, vii°). Tilt your wrist to toggle major/minor.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3>Right Hand → Volume</h3>
+            <p>Raise your right hand higher for more volume. Lower it to fade out. Use the floating control panel to switch timbres.</p>
+          </div>
+        </div>
+      </div>
 
-    <details style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(0, 255, 204, 0.12); border-radius: 10px; padding: 1rem 1.5rem; margin-bottom: 0.75rem;">
-      <summary style="font-weight: 600; cursor: pointer; color: #e0e0ff; list-style: none;">
-        <span style="color: #00ffcc; margin-right: 0.5rem;">▸</span> What chords can I play?
-      </summary>
-      <p style="margin-top: 0.75rem; color: #b0b0d0; font-size: 0.95rem;">
-        The synth plays the seven diatonic chords of the C major scale:
-        <strong>I (C), ii (Dm), iii (Em), IV (F), V (G), vi (Am), and vii° (Bdim)</strong>.
-        The chord is selected by the number of fingers on your left hand (1–5 maps to
-        seven chords via a repeating cycle). Tilt your left wrist to the left for major
-        tonality, or to the right for minor — this modifies the chord quality in real time.
-        Your right hand's finger count selects the chord inversion and synth timbre.
-      </p>
-    </details>
+      <!-- Ad Slot 1 -->
+      <!-- Ad Slot 1: 728×90 -->
+      <div class="ad-slot" aria-hidden="true">Advertisement</div>
 
-    <details style="background: rgba(10, 20, 40, 0.6); border: 1px solid rgba(0, 255, 204, 0.12); border-radius: 10px; padding: 1rem 1.5rem; margin-bottom: 0.75rem;">
-      <summary style="font-weight: 600; cursor: pointer; color: #e0e0ff; list-style: none;">
-        <span style="color: #00ffcc; margin-right: 0.5rem;">▸</span> Is it free?
-      </summary>
-      <p style="margin-top: 0.75rem; color: #b0b0d0; font-size: 0.95rem;">
-        Yes, Gesture Synth Weld is completely free and open source under the MIT license.
-        There are no ads, no signups, and no premium features locked behind a paywall.
-        The source code is available on GitHub for anyone to study, modify, or contribute to.
-        We believe music-making tools should be accessible to everyone.
-      </p>
-    </details>
-  </section>
+      <!-- Tips & Tricks -->
+      <div class="seo-section">
+        <h2>🎹 Tips &amp; Tricks</h2>
 
-  <footer style="max-width: 900px; margin: 0 auto; padding: 1.5rem; text-align: center;
-                 border-top: 1px solid rgba(0, 255, 204, 0.1); color: #606090; font-size: 0.85rem;">
+        <h3>Getting the best hand tracking</h3>
+        <p>
+          Make sure your hands are well-lit and clearly visible to the camera. Avoid
+          backlighting (a bright window behind you) as it makes hand detection harder.
+          A plain, non-distracting background helps the MediaPipe model track your
+          fingers more accurately. If tracking feels sluggish, move your hands closer
+          to the camera — larger hand landmarks are easier to detect.
+        </p>
+
+        <h3>Playing smooth chord transitions</h3>
+        <p>
+          When switching between chords, try to move your fingers deliberately rather
+          than quickly flicking them. The gesture recognition runs at about 30fps, and
+          smooth finger transitions produce cleaner audio without clicking artifacts.
+          If you hear clicks between chord changes, try raising the sustain time or
+          switching to the Strings timbre, which has a slower attack that masks
+          transitions.
+        </p>
+
+        <h3>Using wrist tilt for expression</h3>
+        <p>
+          The major/minor toggle is mapped to your left wrist angle. A subtle tilt
+          goes a long way — you don't need to rotate your hand dramatically. Practice
+          holding a chord with your left hand while gently rocking your wrist to hear
+          the quality shift between major (brighter) and minor (darker). This is
+          especially expressive with the Piano and Strings timbres.
+        </p>
+
+        <h3>Volume control with your right hand</h3>
+        <p>
+          Volume is mapped to the vertical position of your right hand's wrist in the
+          camera frame. Top of the frame = maximum volume, bottom = near silence.
+          Think of it like a theremin — the higher your hand, the louder the sound.
+          For fine volume control, make small vertical movements near the middle of
+          the frame where the mapping is most sensitive.
+        </p>
+
+        <h3>Recording your sessions</h3>
+        <p>
+          Hit the Record button before you start playing. When you're done, click
+          Stop and a WAV file will download automatically. The recording captures
+          only the synthesized audio — your camera feed is never recorded. You can
+          open the WAV file in any audio editor (Audacity, GarageBand, etc.) to
+          add effects, mix with other tracks, or share online.
+        </p>
+
+        <h3>Keyboard mode for quick practice</h3>
+        <p>
+          No camera handy? Click "No camera? Try keyboard mode" on the start screen.
+          You can play all seven chords with number keys 1–7, adjust volume with
+          arrow keys, and switch between all four timbres with Q, W, E, and R.
+          This is also great for learning the chord progressions before using
+          hand gestures.
+        </p>
+      </div>
+
+      <!-- Troubleshooting -->
+      <div class="seo-section">
+        <h2>🔧 Troubleshooting</h2>
+
+        <h3>Camera not detected</h3>
+        <p>
+          If you see "No camera found", make sure your webcam is connected and not
+          being used by another application (Zoom, Teams, etc.). On Mac, check
+          System Preferences → Security &amp; Privacy → Camera to ensure your browser
+          has permission. On Windows, check Settings → Privacy → Camera.
+        </p>
+
+        <h3>"Camera access was denied"</h3>
+        <p>
+          You may have previously blocked camera access for this site. Click the
+          lock icon (🔒) in your browser's address bar, find Camera permissions,
+          and change it to "Allow". Then reload the page and click Start again.
+        </p>
+
+        <h3>Hand tracking feels laggy or inaccurate</h3>
+        <p>
+          Hand tracking uses your GPU via WebGL. Close other GPU-intensive apps
+          (games, video editors). If you're on a laptop, make sure it's plugged in
+          — some browsers throttle GPU performance on battery. Chrome and Edge
+          generally offer the best MediaPipe performance.
+        </p>
+
+        <h3>No sound</h3>
+        <p>
+          The audio engine requires a user gesture to start (browser autoplay
+          policy). Make sure you clicked "Start" before expecting sound. Also
+          check that your browser isn't muted and your system volume is up.
+          If piano samples are still loading, you'll see "Loading samples…" in
+          the control panel — the synth will use a fallback sound until they finish.
+        </p>
+
+        <h3>Piano samples not loading</h3>
+        <p>
+          Piano sounds use the Salamander Grand Piano sample set loaded from a CDN.
+          If your network blocks the CDN or the connection is slow, the synth will
+          automatically fall back to a synthesized piano sound. You can switch to
+          Synth or Organ timbres which don't require external downloads.
+        </p>
+      </div>
+
+      <!-- Ad Slot 3 -->
+      <!-- Ad Slot 3: 728×90 -->
+      <div class="ad-slot" aria-hidden="true">Advertisement</div>
+
+      <!-- Keyboard Shortcuts Reference -->
+      <div class="seo-section">
+        <h2>📋 Keyboard Shortcuts</h2>
+        <table class="shortcuts-table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><kbd>1</kbd> – <kbd>7</kbd></td><td>Select chord (I through vii°)</td></tr>
+            <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Increase / decrease volume</td></tr>
+            <tr><td><kbd>T</kbd></td><td>Force major mode</td></tr>
+            <tr><td><kbd>Y</kbd></td><td>Force minor mode</td></tr>
+            <tr><td><kbd>Q</kbd></td><td>Piano timbre</td></tr>
+            <tr><td><kbd>W</kbd></td><td>Strings timbre</td></tr>
+            <tr><td><kbd>E</kbd></td><td>Organ timbre</td></tr>
+            <tr><td><kbd>R</kbd></td><td>Synth timbre</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>Stop all notes</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Reset state</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FAQ -->
+      <div class="seo-section">
+        <h2>❓ Frequently Asked Questions</h2>
+
+        <details class="faq-item">
+          <summary>Do I need any special equipment?</summary>
+          <p>
+            No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser
+            like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads.
+            Your webcam handles all the input — MediaPipe's hand tracking model runs entirely on your device.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What browsers are supported?</summary>
+          <p>
+            Gesture Synth Weld works in any modern browser that supports the Web Audio API and
+            getUserMedia — including Chrome 90+, Firefox 90+, Edge 90+, and Safari 15+.
+            For the best hand tracking experience, Chrome or Edge is recommended since they
+            support MediaPipe's WebGL2 backend most efficiently.
+          </p>
+        </details>
+
+        <!-- Ad Slot 2 -->
+        <!-- Ad Slot 2: 300×250 -->
+        <div class="ad-slot ad-tall" aria-hidden="true">Advertisement</div>
+
+        <details class="faq-item">
+          <summary>Can I record my performance?</summary>
+          <p>
+            Yes! Click the <strong>Record</strong> button to start capturing your performance.
+            When you stop the recording, a WAV audio file is automatically downloaded to your computer.
+            You can then open it in any audio editor, share it with friends, or upload it to social media.
+            The recording captures only the synthesized audio — your camera feed is never recorded or uploaded.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What chords can I play?</summary>
+          <p>
+            The synth plays the seven diatonic chords of the C major scale:
+            <strong>I (C), ii (Dm), iii (Em), IV (F), V (G), vi (Am), and vii° (Bdim)</strong>.
+            The chord is selected by the number of fingers on your left hand (1–5 maps to
+            seven chords via a repeating cycle). Tilt your left wrist to the left for major
+            tonality, or to the right for minor — this modifies the chord quality in real time.
+            Choose from Piano, Strings, Organ, or Synth timbres using the floating control panel.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is Gesture Synth Weld free?</summary>
+          <p>
+            Yes! Gesture Synth Weld is free to use. We support the development and hosting of
+            this tool through non-intrusive advertising. No registration, no sign-up, no paywall
+            — just open and play. The source code is also available on GitHub under the MIT license
+            for anyone who wants to study, modify, or contribute.
+          </p>
+        </details>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="site-footer">
     <p>Gesture Synth Weld — Open Source under the MIT License</p>
-    <p style="margin-top: 0.5rem;">
-      <a href="https://gesturesynthweld.com" style="color: #00ffcc; text-decoration: none;">gesturesynthweld.com</a>
-      &nbsp;·&nbsp;
-      <a href="https://gesturesynth.io" style="color: #ff00ff; text-decoration: none;">gesturesynth.io</a>
-    </p>
+    <div class="footer-links">
+      <a href="https://gesturesynthweld.com">gesturesynthweld.com</a>
+      <a href="https://gesturesynth.io">gesturesynth.io</a>
+    </div>
   </footer>
 </body>
 </html>

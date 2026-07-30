@@ -35,23 +35,6 @@ export interface ChordDef {
 
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth' | 'square';
 
-export const TIMBRE_LABELS: Record<WaveformType, string> = {
-  sine: 'Pure Sine',
-  triangle: 'Warm Triangle',
-  sawtooth: 'Bright Saw',
-  square: 'Punchy Square',
-};
-
-/** Maps finger count (0-5) to waveform type */
-export const FINGER_TO_WAVEFORM: Record<number, WaveformType> = {
-  0: 'sine',
-  1: 'sine',
-  2: 'triangle',
-  3: 'sawtooth',
-  4: 'square',
-  5: 'sawtooth',
-};
-
 /** Maps finger count (1-5) to diatonic chord index (0-6), cycling */
 export const FINGER_TO_CHORD_INDEX: Record<number, number> = {
   0: 0,
@@ -69,8 +52,6 @@ export interface SynthState {
   chordIndex: number;
   chordName: string;
   volume: number; // 0-1
-  waveform: WaveformType;
-  timbreLabel: string;
   mode: 'major' | 'minor' | 'neutral';
   isPlaying: boolean;
 }

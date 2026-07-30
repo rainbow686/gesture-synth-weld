@@ -7,34 +7,37 @@
 ## What is it?
 
 Gesture Synth Weld turns your webcam into a musical instrument. Using real-time hand tracking
-(MediaPipe Hands) and Web Audio synthesis, you can play chords, control volume, and switch
-timbres — all by moving your hands in front of the camera.
+(MediaPipe Hands) and Tone.js for audio synthesis with real piano samples, you can play chords,
+control volume, and switch between four instrument timbres — all by moving your hands in front
+of the camera.
 
 No downloads, no plugins, no MIDI controllers needed. Just open the page, allow camera access,
 and play.
 
 ## Features
 
+- **4 instrument timbres** — Piano (Salamander Grand Piano samples), Strings, Organ, and classic Synth
 - **Left hand chord control** — Hold up 1-5 fingers to select from the 7 diatonic chords
   (I, ii, iii, IV, V, vi, vii°)
-- **Right hand volume & timbre** — Raise your hand higher for more volume; change finger
-  count to switch between sine, triangle, sawtooth, and square waveforms
+- **Right hand volume control** — Raise your hand higher for more volume (theremin-style)
 - **Wrist tilt for major/minor** — Tilt your left wrist left for major, right for minor
-- **Real-time visualization** — Hand skeleton overlay, waveform analyser, live chord/volume display
+- **Full-screen camera view** — Immersive layout with floating glassmorphism control panel
+- **Real-time visualization** — Hand skeleton overlay with neon glow effects
 - **Performance recording** — Record your session and export as a WAV file
-- **Keyboard fallback** — Play without a camera using number keys (1-7), arrow keys, and letter shortcuts
+- **Keyboard fallback** — Play without a camera using keyboard shortcuts
 - **SEO-optimized** — Static HTML content, structured data, Open Graph tags for search engines
 - **Zero backend** — Everything runs in the browser; your video never leaves your device
-- **Cyberpunk UI** — Dark theme with neon glow effects
+- **Mobile responsive** — Floating controls adapt to mobile with bottom drawer panel
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Hand tracking | [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker) (HandLandmarker) |
-| Audio | Web Audio API (OscillatorNode, GainNode, BiquadFilter, AnalyserNode) |
+| Audio engine | [Tone.js](https://tonejs.github.io/) — Sampler for piano, PolySynth for strings/organ/synth |
+| Piano samples | [Salamander Grand Piano](https://tonejs.github.io/audio/salamander/) (C1–C7, free) |
 | Canvas | Canvas 2D API for video rendering and skeleton overlay |
-| Recording | MediaRecorder API + custom WAV encoder |
+| Recording | Tone.Recorder (MediaRecorder under the hood) |
 | Framework | React 18 + TypeScript |
 | Build | Vite 6 |
 | Deployment | Vercel (static) |
@@ -80,31 +83,15 @@ The output is in the `dist/` directory.
 npm i -g vercel
 
 # Deploy
-vercel
+vercel --prod
 ```
-
-Or connect your GitHub repository to Vercel for automatic deployments.
 
 The `vercel.json` configures SPA fallback routing and security headers.
 
 ### Cloudflare Pages
 
 ```bash
-# Install Wrangler CLI
-npm i -g wrangler
-
-# Deploy
 npx wrangler pages deploy dist --project-name gesture-synth-weld
-```
-
-### Netlify
-
-```bash
-# Install Netlify CLI
-npm i -g netlify-cli
-
-# Deploy
-netlify deploy --prod --dir=dist
 ```
 
 ## Keyboard Shortcuts
@@ -115,10 +102,10 @@ netlify deploy --prod --dir=dist
 | `↑` / `↓` | Increase / decrease volume |
 | `T` | Force major mode |
 | `Y` | Force minor mode |
-| `Q` | Sine waveform |
-| `W` | Triangle waveform |
-| `E` | Sawtooth waveform |
-| `R` | Square waveform |
+| `Q` | Piano timbre |
+| `W` | Strings timbre |
+| `E` | Organ timbre |
+| `R` | Synth timbre |
 | `Space` | Stop all notes |
 | `Escape` | Reset state |
 
@@ -127,26 +114,48 @@ netlify deploy --prod --dir=dist
 1. **Hand Detection**: MediaPipe's HandLandmarker model detects up to 2 hands in each video frame,
    returning 21 3D landmarks per hand.
 
-2. **Feature Extraction**: For each detected hand, we compute:
+2. **Feature Extraction**: For each detected hand:
    - **Finger count**: Each fingertip is compared to its MCP joint distance from the wrist.
-     A finger is "extended" when its tip is farther from the wrist than its MCP.
-   - **Wrist tilt**: The angle of the vector from index MCP to pinky MCP relative to horizontal.
-   - **Hand position**: The normalized Y-coordinate of the wrist (for volume mapping).
-   - **Hand side**: Determined by X-position (left/right of frame center).
+   - **Wrist tilt**: The angle of the index MCP → pinky MCP vector relative to horizontal.
+   - **Hand position**: Normalized Y-coordinate for volume mapping.
+   - **Hand side**: Determined by X-position.
 
 3. **Gesture Mapping**:
-   - Left hand finger count → diatonic chord index (cycling through 7 chords)
+   - Left hand finger count → diatonic chord index
    - Left hand tilt → major/minor/neutral mode
-   - Right hand Y-position → master volume (higher = louder)
-   - Right hand finger count → waveform/timbre
+   - Right hand Y-position → master volume
 
-4. **Audio Synthesis**: The Web Audio API creates oscillator voices for each note in the
-   selected chord. A lowpass filter and detuned copy add warmth. ADSR envelopes ensure
-   smooth transitions between chords.
+4. **Audio Synthesis**: Tone.js handles the audio:
+   - **Piano**: `Tone.Sampler` loads Salamander Grand Piano samples (C1–C7)
+   - **Strings**: `Tone.PolySynth` with triangle waveform, slow attack, long release
+   - **Organ**: `Tone.PolySynth` with sine waveform through a lowpass filter
+   - **Synth**: `Tone.PolySynth` with sawtooth waveform + lowpass filter
+   - If piano samples fail to load, a synthesized triangle-wave piano is used as fallback.
 
-5. **Recording**: The master gain output is routed to a `MediaStreamAudioDestinationNode`.
-   A `MediaRecorder` captures the stream as WebM, then it's decoded and re-encoded as
-   16-bit PCM WAV for maximum compatibility.
+5. **Recording**: `Tone.Recorder` captures the audio output. On stop, the recording is
+   downloaded as a WAV-compatible file.
+
+## Project Structure
+
+```
+gesture-synth-weld/
+├── index.html          # SEO content (H1, FAQ, JSON-LD, OG tags) in raw HTML
+├── vercel.json         # Vercel deployment config
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── src/
+│   ├── main.tsx        # React entry point
+│   ├── App.tsx         # Full-screen camera + floating controls UI
+│   ├── index.css       # Cyberpunk dark theme (full-screen layout)
+│   ├── types.ts        # TypeScript type definitions
+│   ├── chords.ts       # Diatonic chord theory (frequencies, names)
+│   ├── audioEngine.ts  # Tone.js audio engine (Sampler + PolySynth)
+│   ├── handTracker.ts  # MediaPipe hand tracking wrapper
+│   └── wavEncoder.ts   # AudioBuffer → WAV file converter
+├── LICENSE             # MIT License
+└── README.md
+```
 
 ## Browser Support
 
@@ -157,28 +166,6 @@ netlify deploy --prod --dir=dist
 | Firefox 90+ | ✅ Full support |
 | Safari 15+ | ⚠️ Partial (hand tracking may be slower) |
 
-## Project Structure
-
-```
-gesture-synth-weld/
-├── index.html          # SEO content, static HTML, JSON-LD schema
-├── vercel.json         # Vercel deployment config
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── src/
-│   ├── main.tsx        # React entry point
-│   ├── App.tsx         # Main app component (camera, controls, UI)
-│   ├── index.css       # Cyberpunk dark theme styles
-│   ├── types.ts        # TypeScript type definitions
-│   ├── chords.ts       # Diatonic chord theory (frequencies, names)
-│   ├── audioEngine.ts  # Web Audio API synthesizer
-│   ├── handTracker.ts  # MediaPipe hand tracking wrapper
-│   └── wavEncoder.ts   # AudioBuffer → WAV file converter
-├── LICENSE             # MIT License
-└── README.md
-```
-
 ## Credits
 
 Inspired by the concept of gesture-controlled musical instruments. Built from scratch
@@ -186,7 +173,8 @@ with original code, original architecture, and original visual design.
 
 Technologies used:
 - [MediaPipe](https://ai.google.dev/edge/mediapipe) by Google
-- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) (W3C standard)
+- [Tone.js](https://tonejs.github.io/) — Web Audio framework
+- [Salamander Grand Piano](https://tonejs.github.io/audio/salamander/) — Free piano samples
 
 ## License
 

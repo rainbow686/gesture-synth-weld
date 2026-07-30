@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0a0a1a" />
 
-  <title>Gesture Synth Weld — Play Music With Your Hands</title>
-  <meta name="description" content="Free browser-based hand gesture music synthesizer. Use your hands to play chords, control volume, and switch timbres — no equipment needed." />
-  <meta name="keywords" content="gesture synth weld, hand gesture music, gesture synthesizer, web audio, mediapipe hands, browser synth, theremin, chord player" />
+  <title>Hand Gesture Music Synthesizer — Gesture Synth Weld | Play With Your Webcam</title>
+  <meta name="description" content="Free browser-based hand gesture music synthesizer. Two-hand control: left hand sets harmony, right hand plays chords. 5 sound presets, arpeggiator, auto bass, and WebM recording. No equipment needed — just your webcam." />
+  <meta name="keywords" content="hand gesture music synthesizer, gesture synth weld, web audio, mediapipe hands, browser synth, theremin, chord player" />
   <meta name="author" content="Gesture Synth Weld" />
   <link rel="canonical" href="https://gesturesynthweld.com/" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -15,18 +15,18 @@
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Gesture Synth Weld — Play Music With Your Hands" />
-  <meta property="og:description" content="Free browser-based hand gesture music synthesizer. Use your hands to play chords, control volume, and switch timbres — no equipment needed." />
+  <meta property="og:title" content="Hand Gesture Music Synthesizer — Gesture Synth Weld | Play With Your Webcam" />
+  <meta property="og:description" content="Free browser-based hand gesture music synthesizer. Two-hand control: left hand sets harmony, right hand plays chords. 5 sound presets, arpeggiator, auto bass, and WebM recording. No equipment needed — just your webcam." />
   <meta property="og:url" content="https://gesturesynthweld.com/" />
   <meta property="og:site_name" content="Gesture Synth Weld" />
-  <meta property="og:image" content="https://gesturesynthweld.com/og-image.png" />
+  <meta property="og:image" content="https://gesturesynthweld.com/og-image.svg" />
   <meta property="og:locale" content="en_US" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Gesture Synth Weld — Play Music With Your Hands" />
-  <meta name="twitter:description" content="Free browser-based hand gesture music synthesizer. Use your hands to play chords, control volume, and switch timbres — no equipment needed." />
-  <meta name="twitter:image" content="https://gesturesynthweld.com/og-image.png" />
+  <meta name="twitter:title" content="Hand Gesture Music Synthesizer — Gesture Synth Weld | Play With Your Webcam" />
+  <meta name="twitter:description" content="Free browser-based hand gesture music synthesizer. Two-hand control: left hand sets harmony, right hand plays chords. 5 sound presets, arpeggiator, auto bass, and WebM recording. No equipment needed — just your webcam." />
+  <meta name="twitter:image" content="https://gesturesynthweld.com/og-image.svg" />
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,7 +40,7 @@
     "@type": "WebApplication",
     "name": "Gesture Synth Weld",
     "url": "https://gesturesynthweld.com",
-    "description": "A browser-based hand gesture music synthesizer. Use your hands to play chords, control volume, and switch timbres in real time.",
+    "description": "A browser-based hand gesture music synthesizer with two-hand control. Left hand sets harmony (key, scale, major/minor), right hand controls expression (chord type, volume, tone, octave). Includes arpeggiator, auto bass, 5 sound presets, and recording.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Any",
     "offers": {
@@ -50,15 +50,17 @@
     },
     "browserRequirements": "Requires a modern browser with Web Audio API, getUserMedia, and JavaScript enabled. Chrome 90+, Firefox 90+, Edge 90+, Safari 15+.",
     "featureList": [
-      "Hand gesture chord recognition via MediaPipe",
-      "Real-time audio synthesis with piano samples and synth voices",
-      "4 instrument timbres: Piano, Strings, Organ, Synth",
-      "Volume control via hand height",
-      "Major/minor mode via wrist tilt",
-      "Performance recording with WAV export",
-      "Keyboard fallback for camera-free access"
+      "Two-hand gesture control with independent left/right hand roles",
+      "Left hand: 12-key selector with scale degree and major/minor toggle via wrist tilt",
+      "Right hand: dynamic chord recognition (triad, 7th, 9th) or fixed chord style (8 types)",
+      "5 instrument timbres: Piano (sampled), Strings, Organ, Synth, Vibraphone",
+      "Arpeggiator with 3 speed settings (Slow/Normal/Fast)",
+      "Auto Bass line generator with independent volume control",
+      "Performance recording with WebM video export (up to 15 seconds)",
+      "Theremin mode: single-hand continuous pitch and volume control",
+      "Keyboard fallback mode for camera-free access"
     ],
-    "screenshot": "https://gesturesynthweld.com/og-image.png",
+    "screenshot": "https://gesturesynthweld.com/og-image.svg",
     "softwareVersion": "2.0.0",
     "license": "https://opensource.org/licenses/MIT"
   }
@@ -91,7 +93,7 @@
         "name": "Can I record my performance?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Click the Record button to start capturing your performance. When you stop recording, a WAV audio file is automatically downloaded so you can share or edit your music."
+          "text": "Yes! Click the Record button to start capturing your performance (up to 15 seconds). When you stop recording, a WebM video file with audio is automatically downloaded. The recording captures both the canvas visuals and synthesized audio — your camera feed is never uploaded. You can share the video directly to social media or edit it further."
         }
       },
       {
@@ -99,7 +101,15 @@
         "name": "What chords can I play?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "The synth plays the seven diatonic chords of the C major scale: I (C), ii (Dm), iii (Em), IV (F), V (G), vi (Am), and vii° (Bdim). Tilt your left wrist left for major, right for minor — this shifts the chord quality in real time."
+          "text": "Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes. In Finger Layout mode: 1 finger = single note, 2 fingers = triad, 3 fingers = 7th chord, 4 fingers = 9th chord. In Fixed Chord mode, choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished, Sus2, Sus4, Major 7th, and Dominant 7th. Left-hand wrist tilt dynamically switches between major and minor tonality, or lock to a fixed mode."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What makes Gesture Synth Weld different from other gesture synthesizers?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gesture Synth Weld features a unique two-hand division system: your left hand controls harmony (key selection, scale degree, major/minor toggle) while your right hand controls expression (chord complexity, volume, tone, octave). Unlike basic gesture synths, it includes an arpeggiator for harp-like sweeps, an auto bass generator for low-end foundation, 5 distinct sound presets including sampled piano, support for 9th chords (4-finger), 8 fixed chord styles, and built-in WebM recording. It's also open source under the MIT license."
         }
       },
       {
@@ -318,7 +328,7 @@
   <div class="seo-content">
     <div class="seo-inner">
 
-      <h1>Gesture Synth Weld — Play Music With Your Hands</h1>
+      <h1>Hand Gesture Music Synthesizer — Play Music With Your Hands</h1>
       <p class="seo-intro">
         A free, browser-based synthesizer controlled entirely by hand gestures.
         No downloads, no plugins — just your webcam and your hands.
@@ -330,23 +340,28 @@
         <h2>📖 What is Gesture Synth Weld?</h2>
         <p>
           <strong>Gesture Synth Weld</strong> is a hand gesture music synthesizer that runs entirely
-          in your web browser. No downloads, no plugins, no MIDI controllers — just your webcam
-          and your hands. Raise your left hand to play chords, move your right hand up and down
-          to control volume, and choose between four instrument timbres: Piano, Strings, Organ,
-          and classic Synth.
+          in your web browser. Using your webcam and MediaPipe hand tracking, it creates a two-hand
+          musical instrument — your <strong>left hand controls harmony</strong> (key, scale degree,
+          major/minor toggle) and your <strong>right hand controls expression</strong> (chord type,
+          volume, tone, and octave). No downloads, no MIDI controllers, no plugins required.
         </p>
         <p>
-          Powered by MediaPipe Hands for real-time gesture recognition and the Web Audio API
-          for low-latency audio synthesis with real piano samples (Salamander Grand Piano),
-          Gesture Synth Weld turns any computer into an expressive musical instrument.
-          Tilt your left wrist to switch between major and minor modes.
-          Record your performance and export it as a WAV file.
-          Use keyboard shortcuts if you don't have a camera available.
+          Choose from <strong>5 sound presets</strong>: Piano (sampled Salamander Grand Piano),
+          Strings, Organ, Synth, and Vibraphone. Switch seamlessly between them without cutting off
+          playing notes. Enable the <strong>Arpeggiator</strong> to sweep through chord notes like
+          a harp, or toggle <strong>Auto Bass</strong> for an automatic low-end foundation that
+          follows your harmony. Record up to 15 seconds of your performance as a WebM video with
+          audio — ready to share.
         </p>
         <p>
-          <strong>What you need:</strong> a laptop or desktop computer with a working webcam,
-          a modern browser (Chrome, Edge, or Firefox recommended), and speakers or headphones.
-          That's it. Open the page, click "Start", allow camera access, and start playing.
+          Powered by the Web Audio API via Tone.js for low-latency synthesis and MediaPipe Hands
+          for real-time finger tracking (30fps). All processing happens locally on your device —
+          your camera feed is never uploaded to any server.
+        </p>
+        <p>
+          <strong>What you need:</strong> a computer with a webcam, a modern browser (Chrome, Edge,
+          or Firefox recommended), and speakers or headphones. For the best experience, use Chrome
+          or Edge with WebGL2 hardware acceleration enabled.
         </p>
       </div>
 
@@ -357,17 +372,17 @@
           <div class="step-card">
             <div class="step-num">1</div>
             <h3>Allow Camera</h3>
-            <p>Click "Start" and grant camera permission when prompted. Your video stays on your device — nothing is uploaded to any server.</p>
+            <p>Click "Start" and grant camera permission. Your video stays on your device — nothing is uploaded.</p>
           </div>
           <div class="step-card">
             <div class="step-num">2</div>
-            <h3>Left Hand → Chords</h3>
-            <p>Hold up 1–5 fingers to select a chord from the diatonic scale (I, ii, iii, IV, V, vi, vii°). Tilt your wrist to toggle major/minor.</p>
+            <h3>Left Hand → Harmony</h3>
+            <p>Choose a key (C–B) and mode. Your fingers select the scale degree, and wrist tilt flips between major and minor. Or lock to a fixed mode.</p>
           </div>
           <div class="step-card">
             <div class="step-num">3</div>
-            <h3>Right Hand → Volume</h3>
-            <p>Raise your right hand higher for more volume. Lower it to fade out. Use the floating control panel to switch timbres. <a href="#shortcuts" style="color:#00ffcc">No camera? Use keyboard shortcuts →</a></p>
+            <h3>Right Hand → Expression</h3>
+            <p>Finger count sets chord complexity (1=note, 2=triad, 3=7th, 4=9th). Hand height = volume, tilt = tone. Or lock to one of 8 chord types. <a href="#shortcuts" style="color:#00ffcc">No camera? Use keyboard shortcuts →</a></p>
           </div>
         </div>
       </div>
@@ -380,59 +395,58 @@
       <div class="seo-section">
         <h2>🎹 Tips &amp; Tricks</h2>
 
-        <h3>Getting the best hand tracking</h3>
+        <h3>Getting started: the easiest configuration</h3>
         <p>
-          Make sure your hands are well-lit and clearly visible to the camera. Avoid
-          backlighting (a bright window behind you) as it makes hand detection harder.
-          A plain, non-distracting background helps the MediaPipe model track your
-          fingers more accurately. If tracking feels sluggish, move your hands closer
-          to the camera — larger hand landmarks are easier to detect.
+          If you're new to Gesture Synth Weld, start with these settings for the most intuitive
+          experience: <strong>Left Hand Mode = "Scale + Tilt Major/Minor"</strong>,
+          <strong>Right Hand Mode = "Finger Layout = Chord Style"</strong>,
+          <strong>Sound = Piano</strong>. This gives you the classic two-hand instrument feel —
+          left hand picks the harmony, right hand plays the chord.
         </p>
 
-        <h3>Playing smooth chord transitions</h3>
+        <h3>Mastering the arpeggiator</h3>
         <p>
-          When switching between chords, try to move your fingers deliberately rather
-          than quickly flicking them. The gesture recognition runs at about 30fps, and
-          smooth finger transitions produce cleaner audio without clicking artifacts.
-          If you hear clicks between chord changes, try raising the sustain time or
-          switching to the Strings timbre, which has a slower attack that masks
-          transitions.
+          Enable the Arpeggiator toggle to transform block chords into flowing arpeggios. Each
+          note in the chord plays sequentially from low to high (like a harp sweep). Use
+          <strong>Slow</strong> speed for ambient pads, <strong>Normal</strong> for melodic
+          accompaniment, and <strong>Fast</strong> for energetic runs. The arpeggiator works
+          with all chord types and sound presets.
         </p>
 
-        <h3>Using wrist tilt for expression</h3>
+        <h3>Using Auto Bass for fuller sound</h3>
         <p>
-          The major/minor toggle is mapped to your left wrist angle. A subtle tilt
-          goes a long way — you don't need to rotate your hand dramatically. Practice
-          holding a chord with your left hand while gently rocking your wrist to hear
-          the quality shift between major (brighter) and minor (darker). This is
-          especially expressive with the Piano and Strings timbres.
+          Toggle Auto Bass to add a low-end foundation that automatically follows your left-hand
+          harmony. The bass plays the root note of your current chord in a lower octave, giving
+          your performance a full band feel. Adjust the bass volume independently — keep it subtle
+          for background warmth or turn it up for a driving low-end. Auto Bass works especially
+          well with Piano and Organ presets.
+          <a href="#faq" style="color:#00ffcc">See FAQ for more →</a>
         </p>
 
-        <h3>Volume control with your right hand</h3>
+        <h3>Exploring Fixed Chord mode</h3>
         <p>
-          Volume is mapped to the vertical position of your right hand's wrist in the
-          camera frame. Top of the frame = maximum volume, bottom = near silence.
-          Think of it like a theremin — the higher your hand, the louder the sound.
-          For fine volume control, make small vertical movements near the middle of
-          the frame where the mapping is most sensitive.
+          Switch your right hand to <strong>Fixed Chord Style</strong> to lock into a specific
+          chord type. This is perfect for practicing a particular chord quality (try Diminished
+          or Sus4 for unique textures) or when you want to focus purely on expression without
+          worrying about finger count. You can still control volume, tone, and octave with
+          your right hand — only the chord type is locked.
         </p>
 
-        <h3>Recording your sessions</h3>
+        <h3>Switching sound presets mid-performance</h3>
         <p>
-          Hit the Record button before you start playing. When you're done, click
-          Stop and a WAV file will download automatically. The recording captures
-          only the synthesized audio — your camera feed is never recorded. You can
-          open the WAV file in any audio editor (Audacity, GarageBand, etc.) to
-          add effects, mix with other tracks, or share online.
+          All 5 sound presets (Piano, Strings, Organ, Synth, Vibraphone) can be switched
+          seamlessly — currently playing notes continue without interruption. Try starting
+          a phrase on Piano, switching to Strings for a swelling pad, and finishing on
+          Vibraphone for an ethereal ending. The tone control (right-hand tilt) also
+          affects each preset differently — experiment to find your favorite combinations.
         </p>
 
-        <h3>Keyboard mode for quick practice</h3>
+        <h3>Recording and sharing</h3>
         <p>
-          No camera handy? Click "No camera? Try keyboard mode" on the start screen.
-          You can play all seven chords with number keys 1–7, adjust volume with
-          arrow keys, and switch between all four timbres with Q, W, E, and R.
-          This is also great for learning the chord progressions before using
-          hand gestures. <a href="#faq" style="color:#00ffcc">Check the FAQ below for more answers.</a>
+          Click the red Record button to capture up to 15 seconds of your performance as a
+          WebM video with audio. The recording includes your canvas visuals and synthesized
+          sound — perfect for sharing on social media or messaging apps. Your camera feed is
+          never recorded or uploaded. <a href="#faq" style="color:#00ffcc">More questions? Check the FAQ →</a>
         </p>
       </div>
 
@@ -478,6 +492,7 @@
           If your network blocks the CDN or the connection is slow, the synth will
           automatically fall back to a synthesized piano sound. You can switch to
           Synth or Organ timbres which don't require external downloads.
+          <a href="#how-it-works" style="color:#00ffcc">Back to How It Works ↑</a>
         </p>
       </div>
 
@@ -488,6 +503,7 @@
       <!-- Keyboard Shortcuts Reference -->
       <div class="seo-section" id="shortcuts">
         <h2>📋 Keyboard Shortcuts</h2>
+        <p style="margin-bottom:1rem;font-size:0.9rem;color:#a0a0d0">These shortcuts work when camera mode is unavailable. <a href="#how-it-works" style="color:#00ffcc">Prefer hand gestures? See How It Works →</a></p>
         <table class="shortcuts-table">
           <thead>
             <tr>
@@ -504,6 +520,9 @@
             <tr><td><kbd>W</kbd></td><td>Strings timbre</td></tr>
             <tr><td><kbd>E</kbd></td><td>Organ timbre</td></tr>
             <tr><td><kbd>R</kbd></td><td>Synth timbre</td></tr>
+            <tr><td><kbd>V</kbd></td><td>Vibraphone timbre</td></tr>
+            <tr><td><kbd>A</kbd></td><td>Toggle Arpeggiator</td></tr>
+            <tr><td><kbd>B</kbd></td><td>Toggle Auto Bass</td></tr>
             <tr><td><kbd>Space</kbd></td><td>Stop all notes</td></tr>
             <tr><td><kbd>Esc</kbd></td><td>Reset state</td></tr>
           </tbody>
@@ -541,22 +560,36 @@
         <details class="faq-item">
           <summary>Can I record my performance?</summary>
           <p>
-            Yes! Click the <strong>Record</strong> button to start capturing your performance.
-            When you stop the recording, a WAV audio file is automatically downloaded to your computer.
-            You can then open it in any audio editor, share it with friends, or upload it to social media.
-            The recording captures only the synthesized audio — your camera feed is never recorded or uploaded.
+            Yes! Click the <strong>Record</strong> button to start capturing your performance (up to 15 seconds).
+            When you stop recording, a WebM video file with audio is automatically downloaded.
+            The recording captures both the canvas visuals and synthesized audio — your camera feed is never uploaded.
+            You can share the video directly to social media or edit it further.
           </p>
         </details>
 
         <details class="faq-item">
           <summary>What chords can I play?</summary>
           <p>
-            The synth plays the seven diatonic chords of the C major scale:
-            <strong>I (C), ii (Dm), iii (Em), IV (F), V (G), vi (Am), and vii° (Bdim)</strong>.
-            The chord is selected by the number of fingers on your left hand (1–5 maps to
-            seven chords via a repeating cycle). Tilt your left wrist to the left for major
-            tonality, or to the right for minor — this modifies the chord quality in real time.
-            Choose from Piano, Strings, Organ, or Synth timbres using the floating control panel.
+            Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes.
+            In <strong>Finger Layout mode</strong>: 1 finger = single note, 2 fingers = triad,
+            3 fingers = 7th chord, 4 fingers = 9th chord. In <strong>Fixed Chord mode</strong>,
+            choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished,
+            Sus2, Sus4, Major 7th, and Dominant 7th. Left-hand wrist tilt dynamically switches
+            between major and minor tonality, or lock to a fixed mode.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What makes Gesture Synth Weld different from other gesture synthesizers?</summary>
+          <p>
+            Gesture Synth Weld features a unique <strong>two-hand division system</strong>: your
+            left hand controls harmony (key selection, scale degree, major/minor toggle) while your
+            right hand controls expression (chord complexity, volume, tone, octave). Unlike basic
+            gesture synths, it includes an <strong>arpeggiator</strong> for harp-like sweeps, an
+            <strong>auto bass generator</strong> for low-end foundation, <strong>5 distinct sound
+            presets</strong> including sampled piano, support for <strong>9th chords</strong>
+            (4-finger), <strong>8 fixed chord styles</strong>, and built-in <strong>WebM recording</strong>.
+            It's also open source under the MIT license.
           </p>
         </details>
 

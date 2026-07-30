@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0a0a1a"/>
+
+  <!-- Gradient overlay -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0d0d2b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a1a;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+
+  <!-- Left hand (cyan) -->
+  <g transform="translate(250, 200)" filter="url(#glow)">
+    <!-- Palm -->
+    <path d="M 0 80 Q 20 100 40 80 L 40 40 Q 40 30 35 25 L 35 0 Q 35 -5 30 -5 L 25 -5 Q 20 -5 20 0 L 20 30"
+          stroke="#00ffcc" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Fingers -->
+    <line x1="20" y1="30" x2="20" y2="60" stroke="#00ffcc" stroke-width="3" stroke-linecap="round"/>
+    <line x1="30" y1="25" x2="30" y2="65" stroke="#00ffcc" stroke-width="3" stroke-linecap="round"/>
+    <line x1="40" y1="30" x2="40" y2="60" stroke="#00ffcc" stroke-width="3" stroke-linecap="round"/>
+    <line x1="50" y1="40" x2="50" y2="65" stroke="#00ffcc" stroke-width="3" stroke-linecap="round"/>
+    <!-- Thumb -->
+    <line x1="10" y1="50" x2="10" y2="70" stroke="#00ffcc" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Right hand (magenta) -->
+  <g transform="translate(850, 200)" filter="url(#glow)">
+    <!-- Palm -->
+    <path d="M 60 80 Q 40 100 20 80 L 20 40 Q 20 30 25 25 L 25 0 Q 25 -5 30 -5 L 35 -5 Q 40 -5 40 0 L 40 30"
+          stroke="#ff00ff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Fingers -->
+    <line x1="40" y1="30" x2="40" y2="60" stroke="#ff00ff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="30" y1="25" x2="30" y2="65" stroke="#ff00ff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="20" y1="30" x2="20" y2="60" stroke="#ff00ff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="10" y1="40" x2="10" y2="65" stroke="#ff00ff" stroke-width="3" stroke-linecap="round"/>
+    <!-- Thumb -->
+    <line x1="50" y1="50" x2="50" y2="70" stroke="#ff00ff" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Music staff lines -->
+  <g stroke="#606090" stroke-width="2" opacity="0.3">
+    <line x1="350" y1="200" x2="850" y2="200"/>
+    <line x1="350" y1="220" x2="850" y2="220"/>
+    <line x1="350" y1="240" x2="850" y2="240"/>
+    <line x1="350" y1="260" x2="850" y2="260"/>
+    <line x1="350" y1="280" x2="850" y2="280"/>
+  </g>
+
+  <!-- Musical notes -->
+  <g filter="url(#glow)">
+    <!-- Note 1 -->
+    <ellipse cx="450" cy="240" rx="12" ry="10" fill="#00ffcc"/>
+    <line x1="462" y1="240" x2="462" y2="180" stroke="#00ffcc" stroke-width="3"/>
+
+    <!-- Note 2 -->
+    <ellipse cx="550" cy="220" rx="12" ry="10" fill="#ff00ff"/>
+    <line x1="562" y1="220" x2="562" y2="160" stroke="#ff00ff" stroke-width="3"/>
+
+    <!-- Note 3 -->
+    <ellipse cx="650" cy="260" rx="12" ry="10" fill="#7850ff"/>
+    <line x1="662" y1="260" x2="662" y2="200" stroke="#7850ff" stroke-width="3"/>
+
+    <!-- Note 4 -->
+    <ellipse cx="750" cy="240" rx="12" ry="10" fill="#00ffcc"/>
+    <line x1="762" y1="240" x2="762" y2="180" stroke="#00ffcc" stroke-width="3"/>
+  </g>
+
+  <!-- Title text -->
+  <text x="600" y="420" font-family="Orbitron, monospace" font-size="64" font-weight="700"
+        fill="#e0e0ff" text-anchor="middle" filter="url(#glow)">
+    Gesture Synth Weld
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="470" font-family="Inter, sans-serif" font-size="28"
+        fill="#a0a0d0" text-anchor="middle">
+    Hand Gesture Music Synthesizer
+  </text>
+
+  <!-- Decorative elements -->
+  <circle cx="150" cy="100" r="3" fill="#00ffcc" opacity="0.6"/>
+  <circle cx="1050" cy="150" r="4" fill="#ff00ff" opacity="0.6"/>
+  <circle cx="200" cy="500" r="3" fill="#7850ff" opacity="0.6"/>
+  <circle cx="1000" cy="480" r="4" fill="#00ffcc" opacity="0.6"/>
+  <circle cx="300" cy="550" r="2" fill="#ff00ff" opacity="0.6"/>
+  <circle cx="900" cy="100" r="3" fill="#7850ff" opacity="0.6"/>
+</svg>

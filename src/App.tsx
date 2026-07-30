@@ -9,11 +9,13 @@ import {
   DIATONIC_CHORDS,
   KEYS,
   getChordName,
+  midiToFreq,
   type ChordStyle,
   CHORD_STYLE_OPTIONS,
 } from './chords';
 import {
   FINGER_TO_CHORD_INDEX,
+  FINGER_TO_NOTE_INTERVAL,
   type GestureState,
   type HandData,
   type SynthState,
@@ -92,6 +94,9 @@ export default function App() {
   const synthRef = useRef(synthState);
   synthRef.current = synthState;
 
+  // Track last chord state to avoid re-triggering every frame
+  const lastChordRef = useRef<string>('');
+
   /* ─── Initialize audio ──────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -138,6 +143,33 @@ export default function App() {
         setSynthState(prev => ({ ...prev, volume, isPlaying: true }));
       } else {
         audioEngine.stopAll();
+        setSynthState(prev => ({ ...prev, isPlaying: false }));
+      }
+      return;
+    }
+
+    // ─── Monophonic Piano Mode (single note per finger) ────────────
+    if (s.appMode === 'monoPiano') {
+      const hand = rightHand || leftHand; // Prefer right hand
+      if (hand) {
+        // Each finger count maps to a different note interval
+        const interval = FINGER_TO_NOTE_INTERVAL[hand.fingerCount] ?? 0;
+        const midiNote = 60 + interval + s.keyOffset; // Middle C + interval + key offset
+        const freq = midiToFreq(midiNote);
+
+        // Only trigger if note changed (use lastChordRef for fingerprint)
+        const pianoFingerprint = `mono|${midiNote}`;
+        if (pianoFingerprint !== lastChordRef.current) {
+          lastChordRef.current = pianoFingerprint;
+          audioEngine.playNote(freq);
+        }
+
+        // Volume: hand height
+        const volume = Math.max(0.02, Math.min(1.0, 1.1 - hand.positionY));
+        setSynthState(prev => ({ ...prev, volume, isPlaying: true }));
+      } else {
+        audioEngine.stopAll();
+        lastChordRef.current = '';
         setSynthState(prev => ({ ...prev, isPlaying: false }));
       }
       return;
@@ -205,20 +237,32 @@ export default function App() {
     };
     setSynthState(newSynth);
 
-    // Play chord
+    // Create chord fingerprint to detect actual changes
+    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}`;
+
+    // Play chord - only if chord actually changed
     if (isPlaying) {
-      audioEngine.playChord(
-        chordIndex,
-        'sine',
-        mode === 'neutral' ? undefined : mode,
-        0,
-        s.keyOffset,
-        chordStyle,
-        s.arpeggiate,
-        s.arpSpeed,
-      );
+      if (chordFingerprint !== lastChordRef.current) {
+        // Chord changed - trigger new notes
+        lastChordRef.current = chordFingerprint;
+        audioEngine.playChord(
+          chordIndex,
+          'sine',
+          mode === 'neutral' ? undefined : mode,
+          0,
+          s.keyOffset,
+          chordStyle,
+          s.arpeggiate,
+          s.arpSpeed,
+        );
+      }
+      // Volume changes are handled by audioEngine.setVolume (no note cutoff)
     } else {
-      audioEngine.stopAll();
+      // No hands detected - stop all
+      if (lastChordRef.current !== '') {
+        audioEngine.stopAll();
+        lastChordRef.current = '';
+      }
     }
 
     // Auto bass
@@ -535,6 +579,12 @@ export default function App() {
                     onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))}
                   >
                     Theremin
+                  </button>
+                  <button
+                    className={`mode-btn ${synthState.appMode === 'monoPiano' ? 'active' : ''}`}
+                    onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))}
+                  >
+                    Piano
                   </button>
                 </div>
               </div>

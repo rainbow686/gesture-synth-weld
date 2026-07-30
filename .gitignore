@@ -5,5 +5,5 @@ dist/
 .env
 .env.*
 !.env.example
-!.env.example
+docs/
 .vercel

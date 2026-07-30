@@ -82,6 +82,9 @@ export default function App() {
   const [pianoLoaded, setPianoLoaded] = useState(false);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [keyboardMode, setKeyboardMode] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingStartRef = useRef<number | null>(null);
 
   const gestureRef = useRef(gesture);
   gestureRef.current = gesture;
@@ -407,10 +410,29 @@ export default function App() {
         URL.revokeObjectURL(url);
       }
       setIsRecording(false);
+      setRecordingTime(0);
+      recordingStartRef.current = null;
     } else {
       const ok = audioEngine.startRecording();
-      if (ok) setIsRecording(true);
+      if (ok) {
+        setIsRecording(true);
+        recordingStartRef.current = Date.now();
+      }
     }
+  }, [isRecording]);
+
+  // Recording timer
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const interval = setInterval(() => {
+      if (recordingStartRef.current) {
+        const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
+        setRecordingTime(Math.min(elapsed, 15)); // Max 15 seconds
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
   }, [isRecording]);
 
   /* ─── Timbre Switch ────────────────────────────────────────────────── */
@@ -581,6 +603,57 @@ export default function App() {
                 </>
               )}
 
+              {/* Arpeggiator */}
+              <div className="panel-section">
+                <label className="panel-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={synthState.arpeggiate}
+                    onChange={(e) => setSynthState(prev => ({ ...prev, arpeggiate: e.target.checked }))}
+                    style={{ accentColor: 'var(--neon-cyan)' }}
+                  />
+                  Arpeggiate
+                </label>
+                {synthState.arpeggiate && (
+                  <select
+                    value={synthState.arpSpeed}
+                    onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))}
+                    style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.65rem' }}
+                  >
+                    <option value="slow">Slow (120ms)</option>
+                    <option value="normal">Normal (80ms)</option>
+                    <option value="fast">Fast (50ms)</option>
+                  </select>
+                )}
+              </div>
+
+              {/* Auto Bass */}
+              <div className="panel-section">
+                <label className="panel-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={synthState.autoBass}
+                    onChange={(e) => setSynthState(prev => ({ ...prev, autoBass: e.target.checked }))}
+                    style={{ accentColor: 'var(--neon-cyan)' }}
+                  />
+                  Auto Bass
+                </label>
+                {synthState.autoBass && (
+                  <div style={{ marginTop: '0.3rem' }}>
+                    <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Bass Volume</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={synthState.bassVolume}
+                      onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))}
+                      style={{ width: '100%', accentColor: 'var(--neon-cyan)' }}
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Timbre */}
               <div className="panel-section">
                 <label className="panel-label">Sound</label>
@@ -605,10 +678,66 @@ export default function App() {
                   onClick={toggleRecording}
                 >
                   <span className="record-dot" />
-                  {isRecording ? 'Stop' : 'Rec'}
+                  {isRecording ? `${recordingTime}s / 15s` : 'Rec'}
+                </button>
+              </div>
+
+              {/* Help */}
+              <div className="panel-section">
+                <button
+                  onClick={() => setShowHelp(!showHelp)}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', padding: '0.3rem 0.6rem', fontSize: '0.65rem', cursor: 'pointer', width: '100%' }}
+                >
+                  {showHelp ? '✕ Close' : '? Help'}
                 </button>
               </div>
             </div>
+
+            {/* Help Modal */}
+            {showHelp && (
+              <div className="help-modal desktop-only" style={{
+                position: 'absolute',
+                top: '1rem',
+                left: '220px',
+                width: '320px',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+                background: 'rgba(10, 15, 30, 0.95)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '12px',
+                padding: '1rem',
+                backdropFilter: 'blur(12px)',
+                zIndex: 100,
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+              }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', color: 'var(--neon-cyan)', marginBottom: '0.8rem' }}>How to Play</h3>
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <strong style={{ color: 'var(--neon-cyan)' }}>Left Hand — Harmony</strong>
+                  <p style={{ marginTop: '0.3rem' }}>• Fingers = scale degree (1-5 → I, ii, iii, IV, V)</p>
+                  <p>• Wrist tilt = major ↔ minor (in Scale + Tilt mode)</p>
+                  <p>• Key selector = transpose to any of 12 keys</p>
+                </div>
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <strong style={{ color: 'var(--neon-magenta)' }}>Right Hand — Expression</strong>
+                  <p style={{ marginTop: '0.3rem' }}>• Height = volume (higher = louder)</p>
+                  <p>• Finger Layout mode:</p>
+                  <p style={{ paddingLeft: '0.5rem' }}>1 finger = root, 2 = triad, 3 = 7th, 4+ = 9th</p>
+                  <p>• Fixed Chord Style: lock to specific chord type</p>
+                </div>
+                <div style={{ marginBottom: '0.8rem' }}>
+                  <strong style={{ color: 'var(--neon-purple)' }}>Features</strong>
+                  <p style={{ marginTop: '0.3rem' }}>• 🎹 5 timbres: Piano, Strings, Organ, Synth, Vibraphone</p>
+                  <p>• 🎼 Arpeggiate: harp-like strumming</p>
+                  <p>• 🎸 Auto Bass: adds low-end foundation</p>
+                  <p>• ⏺️ Record: save as WAV (max 15s)</p>
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--neon-amber)' }}>Theremin Mode</strong>
+                  <p style={{ marginTop: '0.3rem' }}>Single hand controls pitch (X) and volume (Y)</p>
+                </div>
+              </div>
+            )}
 
             {/* Mobile toggle */}
             <button

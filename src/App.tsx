@@ -97,6 +97,32 @@ export default function App() {
   // Track last chord state to avoid re-triggering every frame
   const lastChordRef = useRef<string>('');
 
+  // Time-based chord stabilizer (similar to competitor's approach)
+  // Requires gesture to be stable for HOLD_MS before committing
+  const stabilizerRef = useRef<{
+    committed: number | null;
+    pending: number | null;
+    pendingSince: number;
+    lastSeen: number;
+  }>({
+    committed: null,
+    pending: null,
+    pendingSince: 0,
+    lastSeen: 0,
+  });
+  const HOLD_MS = 150; // Require 150ms stability before committing
+  const GRACE_MS = 50; // Grace period for temporary hand loss
+
+  // Right hand finger count history for chord style smoothing
+  const rightHandHistoryRef = useRef<number[]>([]);
+
+  // Hand detection smoothing to prevent flickering
+  const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
+    left: [],
+    right: [],
+  });
+  const HAND_STABLE_FRAMES = 3; // Require 3 frames for hand presence
+
   /* ─── Initialize audio ──────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -241,6 +267,25 @@ export default function App() {
       }
     }
 
+    // Apply hand detection smoothing to prevent flickering
+    handDetectionHistoryRef.current.left.push(!!leftHand);
+    handDetectionHistoryRef.current.right.push(!!rightHand);
+    if (handDetectionHistoryRef.current.left.length > HAND_STABLE_FRAMES) {
+      handDetectionHistoryRef.current.left.shift();
+    }
+    if (handDetectionHistoryRef.current.right.length > HAND_STABLE_FRAMES) {
+      handDetectionHistoryRef.current.right.shift();
+    }
+
+    // Use majority vote: hand is detected if at least half of recent frames detected it
+    // This prevents flickering while still being responsive
+    const leftDetected = handDetectionHistoryRef.current.left.filter(v => v).length >= Math.ceil(HAND_STABLE_FRAMES / 2);
+    const rightDetected = handDetectionHistoryRef.current.right.filter(v => v).length >= Math.ceil(HAND_STABLE_FRAMES / 2);
+
+    // Use smoothed detection
+    leftHand = leftDetected ? leftHand : null;
+    rightHand = rightDetected ? rightHand : null;
+
     setGesture({ left: leftHand, right: rightHand });
     setHasLeftHand(!!leftHand);
     setHasRightHand(!!rightHand);
@@ -290,8 +335,30 @@ export default function App() {
     if (s.appMode === 'monoPiano') {
       const hand = rightHand || leftHand; // Prefer right hand
       if (hand) {
+        // Apply time-based stabilizer (same as Gesture mode)
+        const now = performance.now();
+        const rawFingerCount = hand.fingerCount;
+        const stabilizer = stabilizerRef.current;
+
+        // Update last seen time
+        stabilizer.lastSeen = now;
+
+        // If we have a candidate, update pending
+        if (rawFingerCount !== stabilizer.pending) {
+          stabilizer.pending = rawFingerCount;
+          stabilizer.pendingSince = now;
+        }
+
+        // Commit if pending has been stable for HOLD_MS
+        if (now - stabilizer.pendingSince >= HOLD_MS) {
+          stabilizer.committed = stabilizer.pending;
+        }
+
+        // Use committed finger count for note selection
+        const stableFingerCount = stabilizer.committed ?? rawFingerCount;
+
         // Each finger count maps to a different note interval
-        const interval = FINGER_TO_NOTE_INTERVAL[hand.fingerCount] ?? 0;
+        const interval = FINGER_TO_NOTE_INTERVAL[stableFingerCount] ?? 0;
         const midiNote = 60 + interval + s.keyOffset; // Middle C + interval + key offset
         const freq = midiToFreq(midiNote);
 
@@ -305,6 +372,7 @@ export default function App() {
         // Volume: hand height
         const volume = Math.max(0.02, Math.min(1.0, 1.1 - hand.positionY));
         setSynthState(prev => ({ ...prev, volume, isPlaying: true }));
+        audioEngine.setVolume(volume);
       } else {
         audioEngine.stopAll();
         lastChordRef.current = '';
@@ -320,22 +388,30 @@ export default function App() {
     let mode: 'major' | 'minor' | 'neutral' = s.mode;
 
     if (leftHand) {
-      // Check for specific finger combinations (VI and VII)
-      const extended = leftHand.extendedFingers;
-      if (extended.includes('index') &&
-          extended.includes('pinky') &&
-          extended.includes('thumb')) {
-        // Index + Pinky + Thumb = VII
-        chordIndex = 6;
-      } else if (extended.includes('index') &&
-                 extended.includes('pinky')) {
-        // Index + Pinky = VI
-        chordIndex = 5;
-      } else {
-        // Other: use finger count mapping
-        const fingers = leftHand.fingerCount;
-        chordIndex = FINGER_TO_CHORD_INDEX[fingers] ?? 0;
+      // Apply time-based stabilizer (similar to competitor's approach)
+      const now = performance.now();
+      const rawFingerCount = leftHand.fingerCount;
+      const stabilizer = stabilizerRef.current;
+
+      // Update last seen time
+      stabilizer.lastSeen = now;
+
+      // If we have a candidate, update pending
+      if (rawFingerCount !== stabilizer.pending) {
+        stabilizer.pending = rawFingerCount;
+        stabilizer.pendingSince = now;
       }
+
+      // Commit if pending has been stable for HOLD_MS
+      if (now - stabilizer.pendingSince >= HOLD_MS) {
+        stabilizer.committed = stabilizer.pending;
+      }
+
+      // Use committed finger count for chord selection
+      const stableFingerCount = stabilizer.committed ?? rawFingerCount;
+
+      // Use smoothed finger count mapping (VI/VII special gestures disabled for stability)
+      chordIndex = FINGER_TO_CHORD_INDEX[stableFingerCount] ?? 0;
 
       if (s.leftHandMode === 'scaleTilt') {
         // Wrist tilt → major/minor
@@ -355,16 +431,38 @@ export default function App() {
     let chordStyle: ChordStyle | undefined;
 
     if (rightHand) {
+      // Apply sliding window majority vote for right hand (for chord style)
+      // This is less critical than left hand since it only affects chord style, not chord root
+      const rawFingerCount = rightHand.fingerCount;
+      const history = rightHandHistoryRef.current;
+      history.push(rawFingerCount);
+      if (history.length > 5) {
+        history.shift();
+      }
+
+      // Use majority vote with 3/5 threshold
+      const countMap = new Map<number, number>();
+      history.forEach((count: number) => countMap.set(count, (countMap.get(count) || 0) + 1));
+      let majorityCount = -1;
+      let maxOccurrences = 0;
+      countMap.forEach((occurrences, count) => {
+        if (occurrences >= 3 && occurrences > maxOccurrences) {
+          maxOccurrences = occurrences;
+          majorityCount = count;
+        }
+      });
+
+      const stableFingerCount = majorityCount !== -1 ? majorityCount : rawFingerCount;
+
       // Y position → volume
       volume = Math.max(0.02, Math.min(1.0, 1.1 - rightHand.positionY));
 
       if (s.rightHandMode === 'fingerLayout') {
-        // Finger count → chord complexity
-        const fingers = rightHand.fingerCount;
-        if (fingers === 1) chordStyle = 'triad';
-        else if (fingers === 2) chordStyle = 'major1stInv';
-        else if (fingers === 3) chordStyle = '7th';
-        else if (fingers >= 4) chordStyle = '9th';
+        // Finger count → chord complexity (using smoothed count)
+        if (stableFingerCount === 1) chordStyle = 'triad';
+        else if (stableFingerCount === 2) chordStyle = 'major1stInv';
+        else if (stableFingerCount === 3) chordStyle = '7th';
+        else if (stableFingerCount >= 4) chordStyle = '9th';
       } else {
         // fixedChordStyle: use locked chord style
         chordStyle = s.lockedChordStyle;
@@ -390,7 +488,9 @@ export default function App() {
     setSynthState(newSynth);
 
     // Create chord fingerprint to detect actual changes
-    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}`;
+    // Only include chord root (index + mode + key), not chord style
+    // This prevents right hand finger jitter from triggering new chords
+    const chordFingerprint = `${chordIndex}|${mode}|${s.keyOffset}`;
 
     // Play chord - only if chord actually changed
     if (isPlaying) {
@@ -417,11 +517,9 @@ export default function App() {
         audioEngine.updateFilterSweep(rightHand.tiltAngle);
       }
     } else {
-      // No hands detected - stop all
-      if (lastChordRef.current !== '') {
-        audioEngine.stopAll();
-        lastChordRef.current = '';
-      }
+      // No hands detected - stop all sounds immediately
+      audioEngine.stopAll();
+      lastChordRef.current = '';
     }
 
     // Auto bass

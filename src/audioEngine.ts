@@ -244,15 +244,16 @@ export class AudioEngine {
     if (!this.filter || !this.ctx) return;
 
     // Map wrist tilt to filter frequency and Q
+    // Limit Q to prevent self-oscillation (Q > 1.0 can cause resonance)
     let freq = 1200;
     let q = 0.7;
     if (tilt < 0) {
       const r = Math.abs(tilt);
       freq = 1200 - r * 950; // Tilt left → lower frequency (darker)
-      q = 0.7 + r * 1.5;
+      q = Math.min(0.7 + r * 1.0, 1.0); // Limit Q to prevent resonance
     } else if (tilt > 0) {
       freq = 1200 + tilt * 3800; // Tilt right → higher frequency (brighter)
-      q = 0.7 + tilt * 4.5;
+      q = Math.min(0.7 + tilt * 2.0, 1.0); // Limit Q to prevent resonance
     }
 
     const now = this.ctx.currentTime;
@@ -329,7 +330,7 @@ export class AudioEngine {
     if (!this.bassSynth) return;
 
     if (midiNote === null) {
-      // Stop bass
+      // Stop bass immediately
       if (this.bassNote !== null) {
         this.bassSynth.triggerRelease();
         this.bassNote = null;
@@ -347,10 +348,50 @@ export class AudioEngine {
     }
   }
 
+  /**
+   * Immediately stop bass synth (no release envelope).
+   */
+  private stopBassImmediately(): void {
+    if (!this.bassSynth) return;
+    if (this.bassNote !== null) {
+      // Stop by setting volume to -Infinity immediately
+      const now = Tone.now();
+      this.bassSynth.volume.cancelScheduledValues(now);
+      this.bassSynth.volume.setValueAtTime(-Infinity, now);
+      this.bassNote = null;
+    }
+  }
+
   stopAll(): void {
     this.stopArpeggiator();
     this.releaseAllNotes();
-    this.setBassNote(null);
+    this.stopBassImmediately();
+
+    // Force stop all oscillators immediately (not just release)
+    const instrument = this.instruments.get(this.currentTimbre);
+    if (instrument) {
+      instrument.releaseAll();
+    }
+
+    // Set volume to 0 to ensure silence
+    if (this.ctx && this.masterGain) {
+      const now = this.ctx.currentTime;
+      this.masterGain.gain.cancelScheduledValues(now);
+      this.masterGain.gain.setValueAtTime(0, now);
+      this.currentVolume = 0;
+    }
+
+    // Reset filter to neutral
+    if (this.filter && this.ctx) {
+      const now = this.ctx.currentTime;
+      this.filter.frequency.cancelScheduledValues(now);
+      this.filter.Q.cancelScheduledValues(now);
+      this.filter.frequency.setValueAtTime(1200, now);
+      this.filter.Q.setValueAtTime(0.7, now);
+    }
+
+    // Clear deduplication state
+    this.currentChordKey = null;
   }
 
   startRecording(): boolean {
@@ -488,7 +529,7 @@ export class AudioEngine {
     const filter = this.filter || undefined;
     return new SynthInstrument({
       waveform: 'triangle',
-      envelope: { attack: 0.005, decay: 0.3, sustain: 0.4, release: 0.8 },
+      envelope: { attack: 0.005, decay: 0.3, sustain: 0.7, release: 0.8 },
       filter,
     });
   }

@@ -107,6 +107,125 @@ export default function App() {
     });
   }, []);
 
+  /* ─── Timbre Switch ────────────────────────────────────────────────── */
+
+  const switchTimbre = useCallback(async (timbre: TimbreType) => {
+    await audioEngine.setTimbre(timbre);
+    setCurrentTimbre(timbre);
+  }, []);
+
+  /* ─── Keyboard Shortcuts ─────────────────────────────────────────── */
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent default behavior for certain keys
+      if (['ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+
+      const s = synthRef.current;
+
+      // 1-7: Select chord (I through vii°)
+      if (e.key >= '1' && e.key <= '7') {
+        const idx = parseInt(e.key) - 1;
+        const modeArg = s.mode === 'neutral' ? undefined : s.mode as 'major' | 'minor';
+        const chordName = getChordName(idx, modeArg, s.keyOffset);
+
+        setSynthState(prev => ({ ...prev, chordIndex: idx, chordName, isPlaying: true }));
+        audioEngine.init().then(() => {
+          audioEngine.playChord(idx, 'sine', modeArg, 0, s.keyOffset);
+        });
+        return;
+      }
+
+      // Arrow Up/Down: Volume control
+      if (e.key === 'ArrowUp') {
+        const v = Math.min(1, s.volume + 0.1);
+        setSynthState(prev => ({ ...prev, volume: v }));
+        audioEngine.setVolume(v);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        const v = Math.max(0, s.volume - 0.1);
+        setSynthState(prev => ({ ...prev, volume: v }));
+        audioEngine.setVolume(v);
+        return;
+      }
+
+      // T/Y: Major/Minor mode
+      if (e.key === 't' || e.key === 'T') {
+        setSynthState(prev => {
+          const next = { ...prev, mode: 'major' as const };
+          next.chordName = getChordName(prev.chordIndex, 'major', prev.keyOffset);
+          if (prev.isPlaying) {
+            audioEngine.playChord(prev.chordIndex, 'sine', 'major', 0, prev.keyOffset);
+          }
+          return next;
+        });
+        return;
+      }
+      if (e.key === 'y' || e.key === 'Y') {
+        setSynthState(prev => {
+          const next = { ...prev, mode: 'minor' as const };
+          next.chordName = getChordName(prev.chordIndex, 'minor', prev.keyOffset);
+          if (prev.isPlaying) {
+            audioEngine.playChord(prev.chordIndex, 'sine', 'minor', 0, prev.keyOffset);
+          }
+          return next;
+        });
+        return;
+      }
+
+      // Q/W/E/R/V: Timbre selection
+      const timbreMap: Record<string, TimbreType> = {
+        q: 'piano',
+        w: 'strings',
+        e: 'organ',
+        r: 'synth',
+        v: 'vibraphone',
+      };
+      const timbre = timbreMap[e.key.toLowerCase()];
+      if (timbre) {
+        switchTimbre(timbre);
+        return;
+      }
+
+      // A: Toggle arpeggiator
+      if (e.key === 'a' || e.key === 'A') {
+        setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }));
+        return;
+      }
+
+      // B: Toggle auto bass
+      if (e.key === 'b' || e.key === 'B') {
+        setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }));
+        return;
+      }
+
+      // Space: Stop all notes
+      if (e.key === ' ') {
+        audioEngine.stopAll();
+        setSynthState(prev => ({ ...prev, isPlaying: false }));
+        return;
+      }
+
+      // Escape: Reset state
+      if (e.key === 'Escape') {
+        audioEngine.stopAll();
+        setSynthState(prev => ({
+          ...prev,
+          isPlaying: false,
+          mode: 'neutral',
+          arpeggiate: false,
+          autoBass: false,
+        }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [switchTimbre]);
+
   /* ─── Process Detected Hands (Two-Hand Logic) ──────────────────────── */
 
   const processHandsRef = useRef<(hands: HandData[]) => void>();
@@ -130,17 +249,36 @@ export default function App() {
 
     // ─── Theremin Mode (single hand) ───────────────────────────────
     if (s.appMode === 'theremin') {
-      const hand = rightHand || leftHand;
-      if (hand) {
-        // X position → pitch (continuous)
-        const minFreq = 130.81; // C3
-        const maxFreq = 1046.5; // C6
-        const freq = minFreq * Math.pow(maxFreq / minFreq, 1 - hand.positionX);
-        audioEngine.playNote(freq);
+      // Dual-hand control: right hand = pitch, left hand = volume
+      const hasRight = !!rightHand;
+      const hasLeft = !!leftHand;
 
-        // Y position → volume
-        const volume = Math.max(0.02, Math.min(1.0, 1.1 - hand.positionY));
+      if (hasRight || hasLeft) {
+        let freq = 0;
+        let volume = 0;
+
+        // Right hand Y position → pitch (continuous)
+        if (hasRight && rightHand) {
+          const minFreq = 130.81; // C3
+          const maxFreq = 1046.5; // C6
+          freq = minFreq * Math.pow(maxFreq / minFreq, 1 - rightHand.positionY);
+        }
+
+        // Left hand Y position → volume
+        if (hasLeft && leftHand) {
+          volume = Math.max(0.02, Math.min(1.0, 1.1 - leftHand.positionY));
+        } else {
+          // If no left hand, use default volume
+          volume = 0.5;
+        }
+
+        // Play note if we have a frequency
+        if (hasRight && freq > 0) {
+          audioEngine.playNote(freq);
+        }
+
         setSynthState(prev => ({ ...prev, volume, isPlaying: true }));
+        audioEngine.setVolume(volume);
       } else {
         audioEngine.stopAll();
         setSynthState(prev => ({ ...prev, isPlaying: false }));
@@ -182,8 +320,22 @@ export default function App() {
     let mode: 'major' | 'minor' | 'neutral' = s.mode;
 
     if (leftHand) {
-      const fingers = leftHand.fingerCount;
-      chordIndex = FINGER_TO_CHORD_INDEX[fingers] ?? 0;
+      // Check for specific finger combinations (VI and VII)
+      const extended = leftHand.extendedFingers;
+      if (extended.includes('index') &&
+          extended.includes('pinky') &&
+          extended.includes('thumb')) {
+        // Index + Pinky + Thumb = VII
+        chordIndex = 6;
+      } else if (extended.includes('index') &&
+                 extended.includes('pinky')) {
+        // Index + Pinky = VI
+        chordIndex = 5;
+      } else {
+        // Other: use finger count mapping
+        const fingers = leftHand.fingerCount;
+        chordIndex = FINGER_TO_CHORD_INDEX[fingers] ?? 0;
+      }
 
       if (s.leftHandMode === 'scaleTilt') {
         // Wrist tilt → major/minor
@@ -209,8 +361,8 @@ export default function App() {
       if (s.rightHandMode === 'fingerLayout') {
         // Finger count → chord complexity
         const fingers = rightHand.fingerCount;
-        if (fingers === 1) chordStyle = 'root';
-        else if (fingers === 2) chordStyle = 'triad';
+        if (fingers === 1) chordStyle = 'triad';
+        else if (fingers === 2) chordStyle = 'major1stInv';
         else if (fingers === 3) chordStyle = '7th';
         else if (fingers >= 4) chordStyle = '9th';
       } else {
@@ -256,7 +408,14 @@ export default function App() {
           s.arpSpeed,
         );
       }
+
       // Volume changes are handled by audioEngine.setVolume (no note cutoff)
+      audioEngine.setVolume(volume);
+
+      // Filter changes are handled by audioEngine.updateFilterSweep (real-time)
+      if (rightHand) {
+        audioEngine.updateFilterSweep(rightHand.tiltAngle);
+      }
     } else {
       // No hands detected - stop all
       if (lastChordRef.current !== '') {
@@ -478,13 +637,6 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [isRecording]);
-
-  /* ─── Timbre Switch ────────────────────────────────────────────────── */
-
-  const switchTimbre = useCallback(async (timbre: TimbreType) => {
-    await audioEngine.setTimbre(timbre);
-    setCurrentTimbre(timbre);
-  }, []);
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 

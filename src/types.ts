@@ -10,6 +10,7 @@ export interface HandData {
   landmarks: LandmarkPoint[];
   label: 'Left' | 'Right';
   fingerCount: number;
+  extendedFingers: string[];
   tiltAngle: number;
   positionY: number;
   positionX: number;

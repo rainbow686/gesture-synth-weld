@@ -34,7 +34,8 @@ class SamplerInstrument implements Instrument {
   private sampler: Tone.Sampler;
   private loaded = false;
 
-  constructor(urls: Record<string, string>, baseUrl: string, onload?: () => void) {
+  constructor(urls: Record<string, string>, baseUrl: string, onload?: () => void, filter?: Tone.Filter) {
+    const dest = filter || Tone.getContext().destination;
     this.sampler = new Tone.Sampler({
       urls,
       baseUrl,
@@ -45,7 +46,7 @@ class SamplerInstrument implements Instrument {
       onerror: (err) => {
         console.warn('Sampler load error:', err);
       },
-    }).toDestination();
+    }).connect(dest);
   }
 
   isLoaded(): boolean {
@@ -76,8 +77,9 @@ class SynthInstrument implements Instrument {
     waveform: OscillatorType;
     envelope: { attack?: number; decay?: number; sustain?: number; release?: number };
     filterFreq?: number;
+    filter?: Tone.Filter;
   }) {
-    const { waveform, envelope, filterFreq } = options;
+    const { waveform, envelope, filterFreq, filter } = options;
 
     this.synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: waveform },
@@ -90,11 +92,19 @@ class SynthInstrument implements Instrument {
     });
 
     if (filterFreq) {
-      const filter = new Tone.Filter(filterFreq, 'lowpass');
-      this.synth.connect(filter);
-      filter.toDestination();
+      const filterNode = new Tone.Filter(filterFreq, 'lowpass');
+      this.synth.connect(filterNode);
+      if (filter) {
+        filterNode.connect(filter);
+      } else {
+        filterNode.toDestination();
+      }
     } else {
-      this.synth.toDestination();
+      if (filter) {
+        this.synth.connect(filter);
+      } else {
+        this.synth.toDestination();
+      }
     }
   }
 
@@ -125,14 +135,25 @@ export class AudioEngine {
   private pianoLoaded = false;
   private initCalled = false;
 
+  // Volume control
+  private masterGain: Tone.Gain | null = null;
+  private currentVolume = -1;
+
+  // Filter control
+  private filter: Tone.Filter | null = null;
+
   // Arpeggiator state
   private arpTimer: number | null = null;
   private arpNotes: number[] = [];
   private arpIndex = 0;
+  private arpSpeed: ArpSpeed = 'normal';
 
   // Auto Bass
   private bassSynth: Tone.Synth | null = null;
   private bassNote: number | null = null;
+
+  // Chord deduplication
+  private currentChordKey: string | null = null;
 
   async init(): Promise<void> {
     if (this.initCalled) return;
@@ -141,6 +162,14 @@ export class AudioEngine {
     await Tone.start();
     console.log('Audio engine initialized');
 
+    // Create master gain for volume control
+    this.masterGain = new Tone.Gain(1).toDestination();
+
+    // Create filter for tone control
+    this.filter = new Tone.Filter(1200, 'lowpass');
+    this.filter.Q.value = 0.7;
+    this.filter.connect(this.masterGain);
+
     this.recordingDestination = new Tone.Recorder();
     Tone.Destination.connect(this.recordingDestination);
 
@@ -148,7 +177,7 @@ export class AudioEngine {
     this.bassSynth = new Tone.Synth({
       oscillator: { type: 'sine' },
       envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.5 },
-    }).toDestination();
+    }).connect(this.filter);
     this.bassSynth.volume.value = -6; // softer
   }
 
@@ -157,12 +186,17 @@ export class AudioEngine {
     this.pianoLoading = true;
 
     try {
-      const instrument = new SamplerInstrument(PIANO_NOTES, PIANO_SAMPLES_URL, () => {
-        this.pianoLoaded = true;
-        this.pianoLoading = false;
-        this.instruments.set('piano', instrument);
-        onLoad?.();
-      });
+      const instrument = new SamplerInstrument(
+        PIANO_NOTES,
+        PIANO_SAMPLES_URL,
+        () => {
+          this.pianoLoaded = true;
+          this.pianoLoading = false;
+          this.instruments.set('piano', instrument);
+          onLoad?.();
+        },
+        this.filter || undefined
+      );
       this.instruments.set('piano', instrument);
     } catch (err) {
       console.warn('Failed to load piano samples:', err);
@@ -191,7 +225,47 @@ export class AudioEngine {
   }
 
   /**
-   * Play a chord with optional arpeggiation.
+   * Set master volume with smooth transition (idempotent).
+   */
+  setVolume(volume: number): void {
+    if (!this.ctx || !this.masterGain) return;
+    const v = Math.max(0, Math.min(1, volume));
+    if (Math.abs(v - this.currentVolume) < 0.01) return; // Idempotent check
+
+    const now = this.ctx.currentTime;
+    this.masterGain.gain.linearRampToValueAtTime(v, now + 0.05); // Smooth transition
+    this.currentVolume = v;
+  }
+
+  /**
+   * Update filter frequency based on wrist tilt (smooth transition).
+   */
+  updateFilterSweep(tilt: number): void {
+    if (!this.filter || !this.ctx) return;
+
+    // Map wrist tilt to filter frequency and Q
+    let freq = 1200;
+    let q = 0.7;
+    if (tilt < 0) {
+      const r = Math.abs(tilt);
+      freq = 1200 - r * 950; // Tilt left → lower frequency (darker)
+      q = 0.7 + r * 1.5;
+    } else if (tilt > 0) {
+      freq = 1200 + tilt * 3800; // Tilt right → higher frequency (brighter)
+      q = 0.7 + tilt * 4.5;
+    }
+
+    const now = this.ctx.currentTime;
+    this.filter.frequency.setTargetAtTime(freq, now, 0.04);
+    this.filter.Q.setTargetAtTime(q, now, 0.04);
+  }
+
+  private get ctx(): AudioContext | null {
+    return Tone.getContext().rawContext as AudioContext;
+  }
+
+  /**
+   * Play a chord with optional arpeggiation (with internal deduplication).
    */
   playChord(
     chordIndex: number,
@@ -205,13 +279,19 @@ export class AudioEngine {
   ): void {
     if (!this.initCalled) return;
 
+    const freqs = getChordFreqs(chordIndex, mode, inversion, keyOffset, chordStyle);
+
+    // Calculate chord key for deduplication
+    const key = freqs.map(f => f.toFixed(1)).join(',') + (arpeggiate ? '|arp' : '') + '|' + arpSpeed;
+
+    // Internal deduplication
+    if (key === this.currentChordKey) return;
+
     // Stop previous arpeggiator if running
     this.stopArpeggiator();
 
     // Release previous notes
     this.releaseAllNotes();
-
-    const freqs = getChordFreqs(chordIndex, mode, inversion, keyOffset, chordStyle);
 
     if (arpeggiate && freqs.length > 1) {
       this.startArpeggiator(freqs, arpSpeed);
@@ -224,6 +304,8 @@ export class AudioEngine {
         this.activeNotes.add(freq);
       }
     }
+
+    this.currentChordKey = key;
   }
 
   /**
@@ -301,8 +383,16 @@ export class AudioEngine {
   /* ─── Arpeggiator ────────────────────────────────────────────────── */
 
   private startArpeggiator(freqs: number[], speed: ArpSpeed): void {
+    // Idempotent check: if already running with same parameters, skip
+    if (this.arpTimer !== null &&
+        JSON.stringify(this.arpNotes) === JSON.stringify(freqs) &&
+        this.arpSpeed === speed) {
+      return;
+    }
+
     this.stopArpeggiator();
     this.arpNotes = freqs;
+    this.arpSpeed = speed;
     this.arpIndex = 0;
 
     const intervalMs = ARP_SPEED_MS[speed];
@@ -347,6 +437,8 @@ export class AudioEngine {
   }
 
   private createInstrument(timbre: TimbreType): Instrument {
+    const filter = this.filter || undefined;
+
     switch (timbre) {
       case 'piano':
         if (!this.pianoLoaded) {
@@ -360,6 +452,7 @@ export class AudioEngine {
           waveform: 'sawtooth',
           envelope: { attack: 0.3, decay: 0.2, sustain: 0.9, release: 1.5 },
           filterFreq: 2000,
+          filter,
         });
 
       case 'organ':
@@ -367,6 +460,7 @@ export class AudioEngine {
           waveform: 'sine',
           envelope: { attack: 0.01, decay: 0.05, sustain: 1.0, release: 0.1 },
           filterFreq: 3000,
+          filter,
         });
 
       case 'synth':
@@ -374,6 +468,7 @@ export class AudioEngine {
           waveform: 'sawtooth',
           envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.5 },
           filterFreq: 2500,
+          filter,
         });
 
       case 'vibraphone':
@@ -381,6 +476,7 @@ export class AudioEngine {
           waveform: 'sine',
           envelope: { attack: 0.005, decay: 0.4, sustain: 0.2, release: 1.2 },
           filterFreq: 4000,
+          filter,
         });
 
       default:
@@ -389,9 +485,11 @@ export class AudioEngine {
   }
 
   private createSynthPiano(): Instrument {
+    const filter = this.filter || undefined;
     return new SynthInstrument({
       waveform: 'triangle',
       envelope: { attack: 0.005, decay: 0.3, sustain: 0.4, release: 0.8 },
+      filter,
     });
   }
 

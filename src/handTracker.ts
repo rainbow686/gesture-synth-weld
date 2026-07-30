@@ -95,7 +95,8 @@ function parseResults(result: HandLandmarkerResult): HandData[] {
       z: lm.z ?? 0,
     }));
 
-    const fingerCount = countExtendedFingers(landmarks);
+    const extendedFingers = getExtendedFingers(landmarks);
+    const fingerCount = extendedFingers.length;
     const tiltAngle = computeWristTilt(landmarks);
     const wrist = landmarks[0];
 
@@ -103,6 +104,7 @@ function parseResults(result: HandLandmarkerResult): HandData[] {
       landmarks,
       label,
       fingerCount,
+      extendedFingers,
       tiltAngle,
       positionY: wrist.y,
       positionX: wrist.x,
@@ -115,13 +117,12 @@ function parseResults(result: HandLandmarkerResult): HandData[] {
 /* ─── Finger Counting ────────────────────────────────────────────────── */
 
 /**
- * Count how many fingers are extended on a single hand.
- * Uses the fingertip-to-wrist distance compared to MCP-to-wrist distance.
- * A finger is "extended" when its tip is farther from the wrist than its MCP joint.
+ * Get which fingers are extended on a single hand.
+ * Returns an array of finger names: 'thumb', 'index', 'middle', 'ring', 'pinky'.
  */
-function countExtendedFingers(pts: LandmarkPoint[]): number {
+function getExtendedFingers(pts: LandmarkPoint[]): string[] {
   const wrist = pts[0];
-  let count = 0;
+  const extended: string[] = [];
 
   // Thumb: compare tip (4) vs index MCP (5) by X-distance from wrist
   // In MediaPipe coordinates, positive X is right in the image.
@@ -135,28 +136,37 @@ function countExtendedFingers(pts: LandmarkPoint[]): number {
   const thumbMcpProj = (thumbMcp.x - wrist.x) * Math.sign(handDirX);
   const thumbIpProj = (thumbIp.x - wrist.x) * Math.sign(handDirX);
   if (thumbTipProj > thumbMcpProj || thumbTipProj > thumbIpProj) {
-    count++;
+    extended.push('thumb');
   }
 
   // Other four fingers: tip farther from wrist than MCP
-  const fingerPairs: [number, number][] = [
-    [8, 5],   // Index:  tip vs MCP
-    [12, 9],  // Middle: tip vs MCP
-    [16, 13], // Ring:   tip vs MCP
-    [20, 17], // Pinky:  tip vs MCP
+  const fingerPairs: [number, number, string][] = [
+    [8, 5, 'index'],   // Index:  tip vs MCP
+    [12, 9, 'middle'],  // Middle: tip vs MCP
+    [16, 13, 'ring'], // Ring:   tip vs MCP
+    [20, 17, 'pinky'],  // Pinky:  tip vs MCP
   ];
 
-  for (const [tipIdx, mcpIdx] of fingerPairs) {
+  for (const [tipIdx, mcpIdx, name] of fingerPairs) {
     const tip = pts[tipIdx];
     const mcp = pts[mcpIdx];
     const tipDist = dist2D(tip, wrist);
     const mcpDist = dist2D(mcp, wrist);
     if (tipDist > mcpDist * 1.05) {
-      count++;
+      extended.push(name);
     }
   }
 
-  return count;
+  return extended;
+}
+
+/**
+ * Count how many fingers are extended on a single hand.
+ * Uses the fingertip-to-wrist distance compared to MCP-to-wrist distance.
+ * A finger is "extended" when its tip is farther from the wrist than its MCP joint.
+ */
+function countExtendedFingers(pts: LandmarkPoint[]): number {
+  return getExtendedFingers(pts).length;
 }
 
 function dist2D(a: LandmarkPoint, b: LandmarkPoint): number {

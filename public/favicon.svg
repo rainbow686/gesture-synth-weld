@@ -10,21 +10,21 @@
   </defs>
   <!-- Dark rounded background -->
   <rect width="32" height="32" rx="7" fill="#0a0a1a"/>
-  <!-- Subtle inner ring -->
-  <rect x="1.5" y="1.5" width="29" height="29" rx="5.5" fill="none" stroke="#00ffcc" stroke-width="0.3" opacity="0.25"/>
-  <!-- Hand silhouette: 5 fingers as vertical bars -->
-  <g filter="url(#neon)" stroke-linecap="round" fill="none">
-    <line x1="8.5" y1="19" x2="8.5" y2="14.5" stroke="#00ffcc" stroke-width="1.8"/>
-    <line x1="12" y1="19" x2="12" y2="10.5" stroke="#00ffcc" stroke-width="1.8"/>
-    <line x1="15.5" y1="19" x2="15.5" y2="8.5" stroke="#00ffcc" stroke-width="1.8"/>
-    <line x1="19" y1="19" x2="19" y2="11" stroke="#00ffcc" stroke-width="1.8"/>
-    <line x1="22.5" y1="19" x2="22.5" y2="13.5" stroke="#00ffcc" stroke-width="1.8"/>
-    <!-- Palm base -->
-    <path d="M7 20 Q15.5 22 24 20" stroke="#00ffcc" stroke-width="1.2"/>
+  <!-- Subtle inner glow ring -->
+  <rect x="1.5" y="1.5" width="29" height="29" rx="5.5" fill="none" stroke="#ff00ff" stroke-width="0.3" opacity="0.2"/>
+  <!-- Music note (eighth note) in neon pink -->
+  <g filter="url(#neon)">
+    <!-- Note head (filled ellipse tilted) -->
+    <ellipse cx="12" cy="21" rx="3.5" ry="2.5" transform="rotate(-20 12 21)" fill="#ff00ff"/>
+    <!-- Stem -->
+    <line x1="15" y1="20" x2="15" y2="8" stroke="#ff00ff" stroke-width="1.8" stroke-linecap="round"/>
+    <!-- Flag -->
+    <path d="M15 8 Q20 10 19 15" stroke="#ff00ff" stroke-width="1.6" fill="none" stroke-linecap="round"/>
   </g>
-  <!-- Sound wave emanating outward -->
-  <g filter="url(#neon)" fill="none" stroke="#ff00ff" stroke-linecap="round">
-    <path d="M4 25 Q16 29 28 25" stroke-width="1.2"/>
-    <path d="M6.5 27 Q16 29.5 25.5 27" stroke-width="0.7" opacity="0.6"/>
+  <!-- Cyan sound wave arcs emanating to the right -->
+  <g filter="url(#neon)" fill="none" stroke="#00ffcc" stroke-linecap="round">
+    <path d="M20 12 Q23 16 20 20" stroke-width="1.4"/>
+    <path d="M23 10 Q27 16 23 22" stroke-width="1.2" opacity="0.75"/>
+    <path d="M26 8.5 Q30 16 26 23.5" stroke-width="1" opacity="0.5"/>
   </g>
 </svg>

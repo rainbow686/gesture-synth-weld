@@ -19,19 +19,44 @@ let handLandmarker: HandLandmarker | null = null;
 export async function initHandTracking(): Promise<HandLandmarker> {
   if (handLandmarker) return handLandmarker;
 
-  const vision = await FilesetResolver.forVisionTasks(MODEL_PATH);
-  handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-      delegate: 'GPU',
-    },
-    runningMode: 'VIDEO',
-    numHands: 2,
-    minHandDetectionConfidence: 0.5,
-    minHandPresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
+  let vision;
+  try {
+    vision = await FilesetResolver.forVisionTasks(MODEL_PATH);
+  } catch (e) {
+    throw new Error(
+      `Failed to load MediaPipe WASM runtime from CDN. Check your internet connection. (${e instanceof Error ? e.message : String(e)})`
+    );
+  }
+
+  // Try GPU delegate first, fall back to CPU
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        delegate: 'GPU',
+      },
+      runningMode: 'VIDEO',
+      numHands: 2,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+  } catch (_gpuErr) {
+    // GPU delegate not available — try CPU
+    handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath:
+          'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        delegate: 'CPU',
+      },
+      runningMode: 'VIDEO',
+      numHands: 2,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+  }
 
   return handLandmarker;
 }

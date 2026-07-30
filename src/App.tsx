@@ -298,12 +298,34 @@ export default function App() {
 
       video.srcObject = stream;
       await new Promise<void>((resolve, reject) => {
-        video.onloadedmetadata = () => resolve();
-        video.onerror = () => reject(new Error('Video playback error'));
-        // Timeout fallback
-        setTimeout(() => reject(new Error('Video loading timed out')), 10000);
+        video.onloadedmetadata = () => {
+          video.onloadedmetadata = null;
+          video.onerror = null;
+          resolve();
+        };
+        video.onerror = () => {
+          video.onloadedmetadata = null;
+          video.onerror = null;
+          const mediaErr = video.error;
+          reject(new Error(
+            mediaErr
+              ? `Video error (code ${mediaErr.code}): ${mediaErr.message || 'unknown'}`
+              : 'Video element error'
+          ));
+        };
+        setTimeout(() => {
+          video.onloadedmetadata = null;
+          video.onerror = null;
+          reject(new Error('Video loading timed out after 10 seconds'));
+        }, 10000);
       });
-      await video.play();
+
+      // video.play() can reject with an Event object in some browsers
+      try {
+        await video.play();
+      } catch (playErr) {
+        throw new Error(`Video playback failed: ${getErrorMessage(playErr)}`);
+      }
 
       // 5. Init audio context (user gesture context)
       await audioEngine.init();

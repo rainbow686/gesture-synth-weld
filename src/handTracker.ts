@@ -7,8 +7,9 @@ import type { HandData, LandmarkPoint } from './types';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
+// Use @latest to avoid version mismatch with installed package
 const MODEL_PATH =
-  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
+  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
 
 let handLandmarker: HandLandmarker | null = null;
 

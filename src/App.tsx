@@ -917,14 +917,17 @@ export default function App() {
                 <div style={{ marginBottom: '0.8rem' }}>
                   <strong style={{ color: 'var(--neon-cyan)' }}>Left Hand — Harmony</strong>
                   <p style={{ marginTop: '0.3rem' }}>• Fingers = scale degree (1-5 → I, ii, iii, IV, V)</p>
+                  <p>• Index + Pinky = VI (6th chord)</p>
+                  <p>• Index + Pinky + Thumb = VII (7th chord)</p>
                   <p>• Wrist tilt = major ↔ minor (in Scale + Tilt mode)</p>
                   <p>• Key selector = transpose to any of 12 keys</p>
                 </div>
                 <div style={{ marginBottom: '0.8rem' }}>
                   <strong style={{ color: 'var(--neon-magenta)' }}>Right Hand — Expression</strong>
                   <p style={{ marginTop: '0.3rem' }}>• Height = volume (higher = louder)</p>
+                  <p>• Wrist tilt = tone (filter sweep)</p>
                   <p>• Finger Layout mode:</p>
-                  <p style={{ paddingLeft: '0.5rem' }}>1 finger = root, 2 = triad, 3 = 7th, 4+ = 9th</p>
+                  <p style={{ paddingLeft: '0.5rem' }}>1 finger = triad, 2 = 1st inversion, 3 = 7th, 4+ = 9th</p>
                   <p>• Fixed Chord Style: lock to specific chord type</p>
                 </div>
                 <div style={{ marginBottom: '0.8rem' }}>
@@ -936,7 +939,9 @@ export default function App() {
                 </div>
                 <div>
                   <strong style={{ color: 'var(--neon-amber)' }}>Theremin Mode</strong>
-                  <p style={{ marginTop: '0.3rem' }}>Single hand controls pitch (X) and volume (Y)</p>
+                  <p style={{ marginTop: '0.3rem' }}>• Right hand Y-axis = pitch (continuous)</p>
+                  <p>• Left hand Y-axis = volume</p>
+                  <p>• Dual-hand control: both hands work together</p>
                 </div>
               </div>
             )}

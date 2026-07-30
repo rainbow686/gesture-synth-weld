@@ -8,15 +8,10 @@ export interface LandmarkPoint {
 
 export interface HandData {
   landmarks: LandmarkPoint[];
-  /** "Left" or "Right" as reported by MediaPipe (camera-mirror-aware) */
   label: 'Left' | 'Right';
-  /** Number of extended fingers (0-5) */
   fingerCount: number;
-  /** Wrist tilt angle in radians, positive = toward thumb/up-right */
   tiltAngle: number;
-  /** Normalized Y position of wrist (0 = top, 1 = bottom) */
   positionY: number;
-  /** Normalized X position of wrist (0 = left, 1 = right) */
   positionX: number;
 }
 
@@ -29,11 +24,28 @@ export interface ChordDef {
   roman: string;
   label: string;
   intervals: number[];
-  /** True = naturally major, False = naturally minor */
   isMajor: boolean;
 }
 
 export type WaveformType = 'sine' | 'triangle' | 'sawtooth' | 'square';
+
+/** App mode: Gesture (two-hand) or Theremin (single-hand) */
+export type AppMode = 'gesture' | 'theremin';
+
+/** Left hand mode: how left hand controls harmony */
+export type LeftHandMode = 'scaleTilt' | 'scaleLocked';
+
+/** Right hand mode: how right hand controls expression */
+export type RightHandMode = 'fingerLayout' | 'fixedChordStyle';
+
+/** Arpeggiator speed */
+export type ArpSpeed = 'slow' | 'normal' | 'fast';
+
+export const ARP_SPEED_MS: Record<ArpSpeed, number> = {
+  slow: 120,
+  normal: 80,
+  fast: 50,
+};
 
 /** Maps finger count (1-5) to diatonic chord index (0-6), cycling */
 export const FINGER_TO_CHORD_INDEX: Record<number, number> = {
@@ -45,13 +57,30 @@ export const FINGER_TO_CHORD_INDEX: Record<number, number> = {
   5: 4,
 };
 
-/** Extra chord indices for 5 fingers (cycles to V, vi, vii°) */
-export const FINGER_5_ALT_CHORDS = [4, 5, 6];
-
 export interface SynthState {
   chordIndex: number;
   chordName: string;
-  volume: number; // 0-1
+  volume: number;
   mode: 'major' | 'minor' | 'neutral';
   isPlaying: boolean;
+  /** Key offset in semitones (0 = C) */
+  keyOffset: number;
+  /** App mode */
+  appMode: AppMode;
+  /** Left hand mode */
+  leftHandMode: LeftHandMode;
+  /** Right hand mode */
+  rightHandMode: RightHandMode;
+  /** Locked chord style (for fixedChordStyle mode) */
+  lockedChordStyle?: import('./chords').ChordStyle;
+  /** Locked mode for scaleLocked left hand mode */
+  lockedMode?: 'major' | 'minor';
+  /** Arpeggiator enabled */
+  arpeggiate: boolean;
+  /** Arpeggiator speed */
+  arpSpeed: ArpSpeed;
+  /** Auto bass enabled */
+  autoBass: boolean;
+  /** Bass volume (0-1) */
+  bassVolume: number;
 }

@@ -1,6 +1,23 @@
 import type { ChordDef } from './types';
 
-/* ─── Diatonic Chords in C Major ─────────────────────────────────────── */
+/* ─── 12 Keys ────────────────────────────────────────────────────────── */
+
+export const KEYS = [
+  { name: 'C', midi: 0 },
+  { name: 'C#/Db', midi: 1 },
+  { name: 'D', midi: 2 },
+  { name: 'D#/Eb', midi: 3 },
+  { name: 'E', midi: 4 },
+  { name: 'F', midi: 5 },
+  { name: 'F#/Gb', midi: 6 },
+  { name: 'G', midi: 7 },
+  { name: 'G#/Ab', midi: 8 },
+  { name: 'A', midi: 9 },
+  { name: 'A#/Bb', midi: 10 },
+  { name: 'B', midi: 11 },
+];
+
+/* ─── Diatonic Chords (intervals relative to root) ──────────────────── */
 
 export const DIATONIC_CHORDS: ChordDef[] = [
   { roman: 'I',     label: 'C',    intervals: [0, 4, 7],     isMajor: true  },
@@ -10,6 +27,33 @@ export const DIATONIC_CHORDS: ChordDef[] = [
   { roman: 'V',     label: 'G',    intervals: [7, 11, 14],   isMajor: true  },
   { roman: 'vi',    label: 'Am',   intervals: [9, 12, 16],   isMajor: false },
   { roman: 'vii°',  label: 'Bdim', intervals: [11, 14, 17],  isMajor: false },
+];
+
+/* ─── Chord Types (for right-hand chord style selection) ────────────── */
+
+export type ChordStyle =
+  | 'root'           // single note
+  | 'triad'          // major/minor triad
+  | '7th'            // 7th chord
+  | '9th'            // 9th chord
+  | 'majorTriad'     // locked major triad
+  | 'major1stInv'    // major 1st inversion
+  | 'minorTriad'     // locked minor triad
+  | 'dimTriad'       // diminished triad
+  | 'sus2'           // suspended 2nd
+  | 'sus4'           // suspended 4th
+  | 'major7th'       // major 7th
+  | 'dominant7th';   // dominant 7th
+
+export const CHORD_STYLE_OPTIONS: { id: ChordStyle; label: string }[] = [
+  { id: 'majorTriad', label: 'Major Triad' },
+  { id: 'major1stInv', label: 'Major 1st Inversion' },
+  { id: 'minorTriad', label: 'Minor Triad' },
+  { id: 'dimTriad', label: 'Diminished Triad' },
+  { id: 'sus2', label: 'Sus2' },
+  { id: 'sus4', label: 'Sus4' },
+  { id: 'major7th', label: 'Major 7th' },
+  { id: 'dominant7th', label: 'Dominant 7th' },
 ];
 
 /** Base MIDI note: C4 */
@@ -24,27 +68,36 @@ export function midiToFreq(midi: number): number {
 
 /**
  * Get chord note frequencies for a given chord index and mode override.
- * `modeOverride` forces major/minor triads regardless of the chord's natural quality.
+ * Supports key transposition and multiple chord types.
  */
 export function getChordFreqs(
   chordIndex: number,
   modeOverride?: 'major' | 'minor',
   inversion: number = 0,
+  keyOffset: number = 0, // semitones to transpose
+  chordStyle?: ChordStyle,
 ): number[] {
   const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
-  let intervals = [...chord.intervals];
+  let intervals: number[];
 
-  // Determine chord quality
-  let forceMajor: boolean | null = null;
-  if (modeOverride === 'major') forceMajor = true;
-  else if (modeOverride === 'minor') forceMajor = false;
-  else forceMajor = chord.isMajor;
-
-  // Adjust the third to make major or minor
-  if (forceMajor) {
-    intervals[1] = 4; // major third
+  // Determine base intervals based on chord style
+  if (chordStyle) {
+    intervals = getChordStyleIntervals(chordStyle, chord.isMajor);
   } else {
-    intervals[1] = 3; // minor third
+    intervals = [...chord.intervals];
+
+    // Determine chord quality
+    let forceMajor: boolean;
+    if (modeOverride === 'major') forceMajor = true;
+    else if (modeOverride === 'minor') forceMajor = false;
+    else forceMajor = chord.isMajor;
+
+    // Adjust the third to make major or minor
+    if (forceMajor) {
+      intervals[1] = 4; // major third
+    } else {
+      intervals[1] = 3; // minor third
+    }
   }
 
   // Apply inversion
@@ -54,29 +107,113 @@ export function getChordFreqs(
   // Sort so the bass note is the lowest
   intervals.sort((a, b) => a - b);
 
-  return intervals.map((interval) => midiToFreq(ROOT_MIDI + interval));
+  // Apply key transposition
+  return intervals.map((interval) => midiToFreq(ROOT_MIDI + interval + keyOffset));
 }
 
 /**
- * Get the display name for a chord with mode override.
+ * Get intervals for a specific chord style.
+ */
+function getChordStyleIntervals(style: ChordStyle, isNaturallyMajor: boolean): number[] {
+  switch (style) {
+    case 'root':
+      return [0];
+    case 'triad':
+      return isNaturallyMajor ? [0, 4, 7] : [0, 3, 7];
+    case '7th':
+      return isNaturallyMajor ? [0, 4, 7, 11] : [0, 3, 7, 10];
+    case '9th':
+      return isNaturallyMajor ? [0, 4, 7, 11, 14] : [0, 3, 7, 10, 14];
+    case 'majorTriad':
+      return [0, 4, 7];
+    case 'major1stInv':
+      return [4, 7, 12]; // 1st inversion: 3rd in bass
+    case 'minorTriad':
+      return [0, 3, 7];
+    case 'dimTriad':
+      return [0, 3, 6];
+    case 'sus2':
+      return [0, 2, 7];
+    case 'sus4':
+      return [0, 5, 7];
+    case 'major7th':
+      return [0, 4, 7, 11];
+    case 'dominant7th':
+      return [0, 4, 7, 10];
+    default:
+      return [0, 4, 7];
+  }
+}
+
+/**
+ * Get the display name for a chord with mode override and key transposition.
  */
 export function getChordName(
   chordIndex: number,
   modeOverride?: 'major' | 'minor',
+  keyOffset: number = 0,
+  chordStyle?: ChordStyle,
 ): string {
   const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
-  const root = chord.label.replace(/m$|dim$/, '');
+  const rootNoteIndex = ((chord.intervals[0] + keyOffset) % 12 + 12) % 12;
+  const rootNoteName = KEYS[rootNoteIndex]?.name ?? 'C';
 
+  // For locked chord styles, use their specific names
+  if (chordStyle) {
+    switch (chordStyle) {
+      case 'root':
+        return rootNoteName;
+      case 'triad':
+      case 'majorTriad':
+      case 'major1stInv':
+        return rootNoteName;
+      case 'minorTriad':
+        return rootNoteName + 'm';
+      case 'dimTriad':
+        return rootNoteName + 'dim';
+      case 'sus2':
+        return rootNoteName + 'sus2';
+      case 'sus4':
+        return rootNoteName + 'sus4';
+      case 'major7th':
+        return rootNoteName + 'maj7';
+      case 'dominant7th':
+        return rootNoteName + '7';
+      case '7th':
+        return rootNoteName + (modeOverride === 'minor' ? 'm7' : 'maj7');
+      case '9th':
+        return rootNoteName + (modeOverride === 'minor' ? 'm9' : 'maj9');
+    }
+  }
+
+  // Default behavior for diatonic chords
   let forceMajor: boolean;
   if (modeOverride === 'major') forceMajor = true;
   else if (modeOverride === 'minor') forceMajor = false;
   else forceMajor = chord.isMajor;
 
   if (forceMajor) {
-    return root;
+    return rootNoteName;
   } else {
     // Check if it's a diminished chord
-    if (chord.roman === 'vii°') return root + 'dim';
-    return root + 'm';
+    if (chord.roman === 'vii°') return rootNoteName + 'dim';
+    return rootNoteName + 'm';
   }
+}
+
+/**
+ * Get scale degree notes for a given key and mode.
+ * Returns 7 notes (one octave of the scale).
+ */
+export function getScaleNotes(
+  keyOffset: number,
+  mode: 'major' | 'minor',
+): number[] {
+  // Major scale: W-W-H-W-W-W-H (whole/half steps)
+  // Minor scale (natural): W-H-W-W-H-W-W
+  const majorPattern = [0, 2, 4, 5, 7, 9, 11];
+  const minorPattern = [0, 2, 3, 5, 7, 8, 10];
+
+  const pattern = mode === 'major' ? majorPattern : minorPattern;
+  return pattern.map((interval) => midiToFreq(ROOT_MIDI + interval + keyOffset));
 }

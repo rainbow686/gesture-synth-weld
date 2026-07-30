@@ -16,6 +16,7 @@ import {
   type SynthState,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
+import { ENABLE_ADS, ADSENSE_CLIENT_ID } from './config';
 
 /* ─── Gesture Synth Weld — Full-Screen Layout ───────────────────────── */
 
@@ -82,6 +83,29 @@ export default function App() {
         setPianoLoaded(true);
       });
     });
+  }, []);
+
+  /* ─── Load AdSense script (if enabled) ─────────────────────────────── */
+
+  useEffect(() => {
+    if (!ENABLE_ADS) return;
+
+    // Check if already loaded
+    if (document.querySelector('script[src*="pagead2.googlesyndication.com"]')) {
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`;
+    script.crossOrigin = 'anonymous';
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup: remove script on unmount
+      const existing = document.querySelector(`script[src*="${ADSENSE_CLIENT_ID}"]`);
+      if (existing) existing.remove();
+    };
   }, []);
 
   /* ─── Process Detected Hands ───────────────────────────────────────── */

@@ -16,7 +16,7 @@ import {
   type SynthState,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
-import { ENABLE_ADS, ADSENSE_CLIENT_ID } from './config';
+import { ENABLE_EXTERNAL_SCRIPTS, EXTERNAL_SCRIPT_CLIENT_ID } from './config';
 
 /* ─── Gesture Synth Weld — Full-Screen Layout ───────────────────────── */
 
@@ -85,10 +85,10 @@ export default function App() {
     });
   }, []);
 
-  /* ─── Load AdSense script (if enabled) ─────────────────────────────── */
+  /* ─── Load external scripts (if enabled) ────────────────────────────── */
 
   useEffect(() => {
-    if (!ENABLE_ADS) return;
+    if (!ENABLE_EXTERNAL_SCRIPTS) return;
 
     // Check if already loaded
     if (document.querySelector('script[src*="pagead2.googlesyndication.com"]')) {
@@ -97,13 +97,13 @@ export default function App() {
 
     const script = document.createElement('script');
     script.async = true;
-    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`;
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${EXTERNAL_SCRIPT_CLIENT_ID}`;
     script.crossOrigin = 'anonymous';
     document.head.appendChild(script);
 
     return () => {
       // Cleanup: remove script on unmount
-      const existing = document.querySelector(`script[src*="${ADSENSE_CLIENT_ID}"]`);
+      const existing = document.querySelector(`script[src*="${EXTERNAL_SCRIPT_CLIENT_ID}"]`);
       if (existing) existing.remove();
     };
   }, []);

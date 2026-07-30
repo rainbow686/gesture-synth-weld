@@ -73,22 +73,18 @@ npx wrangler pages deploy dist --project-name gesture-synth-weld
 
 MIT — see [LICENSE](./LICENSE)
 
-## 💰 Monetization
+## 🚀 Self-Hosting
 
-This project is free and open source. To support development and hosting costs, we use non-intrusive Google AdSense advertising.
+Clone and run locally — no ads, no tracking, no sign-up:
 
-**Ad Configuration:**
+```bash
+git clone https://github.com/rainbow686/gesture-synth-weld.git
+cd gesture-synth-weld
+npm install
+npm run dev
+```
 
-- Ads are **disabled by default** in the open-source version
-- To enable ads in your deployment, create a `.env` file:
-  ```bash
-  VITE_ENABLE_ADS=true
-  ```
-- Replace `ca-pub-XXXXXXXXXXXXXXXX` in `src/config.ts` with your AdSense publisher ID
-- Ad slot placeholders are already in place in the layout (3 slots: 728×90, 300×250, 728×90)
-- AdSense script loads only when `VITE_ENABLE_ADS=true`
-
-The ad system respects user privacy and does not track or collect personal data beyond standard AdSense behavior.
+The deployed version at gesturesynthweld.com includes hosting-related disclosures in its FAQ.
 
 ## 🔗 Related
 

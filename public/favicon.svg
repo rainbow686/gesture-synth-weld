@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <filter id="neon">
+      <feGaussianBlur stdDeviation="0.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Dark rounded background -->
+  <rect width="32" height="32" rx="7" fill="#0a0a1a"/>
+  <!-- Subtle inner ring -->
+  <rect x="1.5" y="1.5" width="29" height="29" rx="5.5" fill="none" stroke="#00ffcc" stroke-width="0.3" opacity="0.25"/>
+  <!-- Hand silhouette: 5 fingers as vertical bars -->
+  <g filter="url(#neon)" stroke-linecap="round" fill="none">
+    <line x1="8.5" y1="19" x2="8.5" y2="14.5" stroke="#00ffcc" stroke-width="1.8"/>
+    <line x1="12" y1="19" x2="12" y2="10.5" stroke="#00ffcc" stroke-width="1.8"/>
+    <line x1="15.5" y1="19" x2="15.5" y2="8.5" stroke="#00ffcc" stroke-width="1.8"/>
+    <line x1="19" y1="19" x2="19" y2="11" stroke="#00ffcc" stroke-width="1.8"/>
+    <line x1="22.5" y1="19" x2="22.5" y2="13.5" stroke="#00ffcc" stroke-width="1.8"/>
+    <!-- Palm base -->
+    <path d="M7 20 Q15.5 22 24 20" stroke="#00ffcc" stroke-width="1.2"/>
+  </g>
+  <!-- Sound wave emanating outward -->
+  <g filter="url(#neon)" fill="none" stroke="#ff00ff" stroke-linecap="round">
+    <path d="M4 25 Q16 29 28 25" stroke-width="1.2"/>
+    <path d="M6.5 27 Q16 29.5 25.5 27" stroke-width="0.7" opacity="0.6"/>
+  </g>
+</svg>

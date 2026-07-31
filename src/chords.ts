@@ -83,6 +83,8 @@ export function getChordFreqs(
   // Determine base intervals based on chord style
   if (chordStyle) {
     intervals = getChordStyleIntervals(chordStyle, chord.isMajor);
+    // Shift by chord's root note so each degree plays a different pitch
+    intervals = intervals.map(i => i + chord.intervals[0]);
   } else {
     intervals = [...chord.intervals];
 

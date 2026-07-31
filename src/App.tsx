@@ -475,14 +475,10 @@ export default function App() {
     // Right thumb extended → octave down (matching competitor)
     const thumbDown = !!(rightHand?.extendedFingers.includes('thumb'));
 
-    // Right hand finger count EXCLUDES thumb (matches competitor raisedFingerCount)
-    // Thumb alone should not count as "fingers raised" for play/no-play decision
-    const rightNonThumbCount = rightHand ? rightHand.extendedFingers.filter(f => f !== 'thumb').length : 0;
-
     // CRITICAL: Sound only plays if BOTH hands have at least 1 finger raised
     // Left fist or right fist = immediate stop (use raw count for instant response)
     const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
-    const rightFist = rightNonThumbCount === 0;
+    const rightFist = rightHand ? rightHand.fingerCount === 0 : true;
     const isPlaying = !!(leftHand && rightHand && !leftFist && !rightFist);
     const chordName = getChordName(
       chordIndex,

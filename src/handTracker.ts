@@ -134,19 +134,23 @@ function getExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): stri
     extended.push('thumb');
   }
 
-  // Other four fingers: fingertip above PIP joint (tip.y < pip.y)
+  // Four fingers: fingertip above reference joint → extended
+  // Pinky uses MCP (landmark 17) for more reliable detection —
+  // the pinky is short so tip-vs-PIP difference is very small
   const fingerSpecs: [number, number, string][] = [
     [8, 6, 'index'],   // Index:  tip vs PIP
     [12, 10, 'middle'], // Middle: tip vs PIP
     [16, 14, 'ring'],   // Ring:   tip vs PIP
-    [20, 18, 'pinky'],  // Pinky:  tip vs PIP
+    [20, 17, 'pinky'],  // Pinky:  tip vs MCP (more lenient, pinky is short)
   ];
 
-  for (const [tipIdx, pipIdx, name] of fingerSpecs) {
+  for (const [tipIdx, refIdx, name] of fingerSpecs) {
     const tip = pts[tipIdx];
-    const pip = pts[pipIdx];
-    // Fingertip is above PIP joint → finger is extended
-    if (tip.y < pip.y) {
+    const ref = pts[refIdx];
+    // Fingertip above reference joint → extended
+    // Small threshold on middle/ring to avoid false positives when curled
+    const threshold = (name === 'middle' || name === 'ring') ? 0.015 : 0;
+    if (tip.y < ref.y - threshold) {
       extended.push(name);
     }
   }

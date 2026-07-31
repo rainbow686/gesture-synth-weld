@@ -170,32 +170,24 @@ export class AudioEngine {
    * Update filter frequency based on wrist tilt (smooth transition).
    * Tilt range is normalized [-1, 1].
    */
-  private smoothedTilt = 0;
-
   updateFilterSweep(tilt: number): void {
     if (!this.filter || !this.ctx) return;
-
-    // Smooth tilt with exponential moving average (α=0.3) to prevent warble
-    this.smoothedTilt = 0.3 * tilt + 0.7 * this.smoothedTilt;
-    const t = this.smoothedTilt;
-
-    // Only apply when change is meaningful
-    if (Math.abs(t) < 0.02) return;
+    if (tilt === 0) return; // Hand steady in dead zone — skip
 
     let freq = 1200;
     let q = 0.7;
-    if (t < 0) {
-      const r = Math.abs(t);
+    if (tilt < 0) {
+      const r = Math.abs(tilt);
       freq = 1200 - r * 950;
-      q = 0.7 + r * 0.5;
+      q = 0.7 + r * 1.5;
     } else {
-      freq = 1200 + t * 3800;
-      q = 0.7 + t * 1.0;
+      freq = 1200 + tilt * 3800;
+      q = 0.7 + tilt * 4.5;
     }
 
     const now = this.ctx.currentTime;
-    this.filter.frequency.setTargetAtTime(freq, now, 0.1);
-    this.filter.Q.setTargetAtTime(q, now, 0.1);
+    this.filter.frequency.setTargetAtTime(freq, now, 0.04);
+    this.filter.Q.setTargetAtTime(q, now, 0.04);
   }
 
   /**

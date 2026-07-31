@@ -908,6 +908,8 @@ export default function App() {
                   )}
                 </div>
 
+                <span className="divider" style={{ height: 'auto', alignSelf: 'stretch' }} />
+
                 {/* Right Hand */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
                   <label style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand — Expression</label>

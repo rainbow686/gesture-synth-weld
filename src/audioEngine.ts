@@ -122,9 +122,9 @@ export class AudioEngine {
     this.analyser = new Tone.Analyser('waveform', 256);
     this.masterGain.connect(this.analyser);
 
-    // Create filter for tone control (lower cutoff = warmer, less harsh)
-    this.filter = new Tone.Filter(600, 'lowpass');
-    this.filter.Q.value = 0.5;
+    // Main filter matching competitor (1200Hz, Q=0.7)
+    this.filter = new Tone.Filter(1200, 'lowpass');
+    this.filter.Q.value = 0.7;
     this.filter.connect(this.masterGain);
 
     this.recordingDestination = new Tone.Recorder();
@@ -173,15 +173,15 @@ export class AudioEngine {
   updateFilterSweep(tilt: number): void {
     if (!this.filter || !this.ctx) return;
 
-    let freq = 600;
-    let q = 0.5;
+    let freq = 1200;
+    let q = 0.7;
     if (tilt < 0) {
       const r = Math.abs(tilt);
-      freq = 600 - r * 500;
-      q = 0.5 + r * 1.0;
+      freq = 1200 - r * 950;
+      q = 0.7 + r * 1.5;
     } else if (tilt > 0) {
-      freq = 600 + tilt * 2400;
-      q = 0.5 + tilt * 2.0;
+      freq = 1200 + tilt * 3800;
+      q = 0.7 + tilt * 4.5;
     }
 
     const now = this.ctx.currentTime;
@@ -493,12 +493,11 @@ export class AudioEngine {
 
     switch (timbre) {
       case 'gesture':
-        // Sawtooth through tight filter — clear attack, warm body
+        // Sawtooth routed directly through main filter (no second filter)
         return new SynthInstrument({
           waveform: 'sawtooth',
           envelope: { attack: 0.01, decay: 0.05, sustain: 0.8, release: 0.3 },
-          filterFreq: 600,
-          filter,
+          filter, // no extra toneFilter
         });
 
       case 'theremin':

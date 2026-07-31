@@ -33,29 +33,36 @@ class SynthInstrument implements Instrument {
   }) {
     const { waveform, envelope, filterFreq, filter } = options;
 
+    // Use two detuned oscillators per voice for a thicker sound
     this.synth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: waveform },
+      oscillator: { type: waveform, spread: 8, count: 1 },
       envelope: {
         attack: envelope.attack ?? 0.02,
         decay: envelope.decay ?? 0.1,
         sustain: envelope.sustain ?? 0.8,
         release: envelope.release ?? 0.5,
       },
+      voiceCount: 4,
     });
 
+    // Warmth: gentle drive after synth for subtle harmonics
+    const warmth = new Tone.Filter(4000, 'lowpass');
+    warmth.Q.value = 0.5;
+    this.synth.chain(warmth);
+
     if (filterFreq) {
-      const filterNode = new Tone.Filter(filterFreq, 'lowpass');
-      this.synth.connect(filterNode);
+      const toneFilter = new Tone.Filter(filterFreq, 'lowpass');
+      warmth.connect(toneFilter);
       if (filter) {
-        filterNode.connect(filter);
+        toneFilter.connect(filter);
       } else {
-        filterNode.toDestination();
+        toneFilter.toDestination();
       }
     } else {
       if (filter) {
-        this.synth.connect(filter);
+        warmth.connect(filter);
       } else {
-        this.synth.toDestination();
+        warmth.toDestination();
       }
     }
   }
@@ -168,21 +175,20 @@ export class AudioEngine {
 
   /**
    * Update filter frequency based on wrist tilt (smooth transition).
+   * Tilt range is normalized [-1, 1].
    */
   updateFilterSweep(tilt: number): void {
     if (!this.filter || !this.ctx) return;
 
-    // Map wrist tilt to filter frequency and Q
-    // Limit Q to prevent self-oscillation (Q > 1.0 can cause resonance)
     let freq = 1200;
     let q = 0.7;
     if (tilt < 0) {
       const r = Math.abs(tilt);
-      freq = 1200 - r * 950; // Tilt left → lower frequency (darker)
-      q = Math.min(0.7 + r * 1.0, 1.0); // Limit Q to prevent resonance
+      freq = 1200 - r * 950;
+      q = 0.7 + r * 1.5;
     } else if (tilt > 0) {
-      freq = 1200 + tilt * 3800; // Tilt right → higher frequency (brighter)
-      q = Math.min(0.7 + tilt * 2.0, 1.0); // Limit Q to prevent resonance
+      freq = 1200 + tilt * 3800;
+      q = 0.7 + tilt * 4.5;
     }
 
     const now = this.ctx.currentTime;
@@ -496,11 +502,11 @@ export class AudioEngine {
 
     switch (timbre) {
       case 'gesture':
-        // Sawtooth wave with filter - matches competitor's approach for chord mode
+        // Sawtooth wave with filter for warm chord sound
         return new SynthInstrument({
           waveform: 'sawtooth',
           envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.5 },
-          filterFreq: 2500,
+          filterFreq: 1400,
           filter,
         });
 

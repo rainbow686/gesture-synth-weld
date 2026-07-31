@@ -95,7 +95,7 @@ export default function App() {
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
-  const [showSkeleton, setShowSkeleton] = useState(false); // Off by default — less visual distraction
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 
@@ -904,6 +904,7 @@ export default function App() {
               <span className="divider" />
               <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
               <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
+              <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
               <span className="divider" />
               <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
               <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
@@ -955,12 +956,6 @@ export default function App() {
                     </>
                   )}
                 </div>
-
-                {/* Skeleton toggle */}
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.58rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                  <input type="checkbox" checked={showSkeleton} onChange={(e) => setShowSkeleton(e.target.checked)} style={{ accentColor: 'var(--neon-cyan)' }} />
-                  Show hand skeleton
-                </label>
 
                 {/* Arp / Bass extras */}
                 {(synthState.arpeggiate || synthState.autoBass) && (

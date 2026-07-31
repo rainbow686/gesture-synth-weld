@@ -461,10 +461,7 @@ export class AudioEngine {
         this.arpIndex = 0; // loop
       }
       const t = Tone.now();
-      // Release previous note before playing next to avoid voice stacking
-      const prevFreq = this.arpNotes[(this.arpIndex - 1 + this.arpNotes.length) % this.arpNotes.length];
-      instrument.triggerRelease(prevFreq, t);
-      this.activeNotes.delete(prevFreq);
+      // Attack next note without releasing previous — PolySynth handles voice naturally
       instrument.triggerAttack(this.arpNotes[this.arpIndex], t, 0.7);
       this.activeNotes.add(this.arpNotes[this.arpIndex]);
       this.arpIndex++;

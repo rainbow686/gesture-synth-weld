@@ -93,7 +93,8 @@ export default function App() {
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const [showSettings, setShowSettings] = useState(!isMobile);
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
@@ -739,9 +740,6 @@ export default function App() {
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       setIsLoading(false);
-
-      // Detect mobile: iOS Safari has stricter camera rules
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       if (isDomError(err, 'NotAllowedError')) {
         setError(isMobile

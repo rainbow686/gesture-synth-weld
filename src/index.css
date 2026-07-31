@@ -815,43 +815,47 @@ body {
     height: 100svh;
   }
 
-  /* Toolbar: compact, scrollable */
+  /* Toolbar: two rows — brand on top, controls wrap below */
   .frost-toolbar {
     gap: 2px;
-    padding: 4px 10px;
+    padding: 4px 8px;
     font-size: 0.55rem;
     border-radius: 14px;
     max-width: calc(100vw - 16px);
-    overflow-x: auto;
-    white-space: nowrap;
+    overflow-x: visible;
+    white-space: normal;
+    flex-wrap: wrap;
+    justify-content: center;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
   }
-  .frost-toolbar::-webkit-scrollbar { display: none; }
+  .frost-toolbar .brand {
+    flex-basis: 100%;
+    text-align: center;
+    font-size: 0.55rem;
+    margin-right: 0;
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
   .frost-toolbar button,
   .frost-toolbar select {
     font-size: 0.55rem;
-    padding: 4px 7px;
-    border-radius: 8px;
+    padding: 3px 6px;
+    border-radius: 7px;
     flex-shrink: 0;
   }
   .frost-toolbar button.icon-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.7rem;
-  }
-  .frost-toolbar .brand {
-    font-size: 0.5rem;
-    margin-right: 2px;
-    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    font-size: 0.65rem;
   }
   .frost-toolbar .divider {
-    height: 14px;
-    margin: 0 2px;
+    height: 12px;
+    margin: 0 1px;
     flex-shrink: 0;
   }
   .frost-toolbar [data-tip]:hover::after {
-    display: none; /* no tooltips on touch */
+    display: none;
   }
 
   /* Settings panel: stack vertically */
@@ -869,19 +873,28 @@ body {
     align-self: auto !important;
   }
 
-  /* Scale guide: compact, scrollable */
+  /* Scale guide: compact, margin on edges */
+  .scale-guide {
+    padding: 0 8px;
+    max-width: 100vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: flex-start !important;
+  }
+  .scale-guide::-webkit-scrollbar { display: none; }
   .scale-guide > div {
-    width: 52px !important;
-    padding: 0.4rem 0.2rem !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    padding: 0.3rem 0.15rem !important;
   }
   .scale-guide > div > span:first-child {
-    font-size: 1.2rem !important;
+    font-size: 1rem !important;
   }
   .scale-guide > div > span:nth-child(2) {
-    font-size: 0.65rem !important;
+    font-size: 0.6rem !important;
   }
   .scale-guide > div > span:nth-child(3) {
-    font-size: 0.5rem !important;
+    display: none; /* hide hint text on mobile */
   }
 
   /* Status bar: hide metronome extras, keep essentials */

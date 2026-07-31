@@ -142,23 +142,22 @@ function getExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): stri
   ];
 
   for (const [tipIdx, pipIdx, name] of standardFingers) {
-    const tip = pts[tipIdx];
-    const pip = pts[pipIdx];
-    // Small threshold on middle/ring to avoid false positives when curled
-    const threshold = (name === 'middle' || name === 'ring') ? 0.012 : 0;
-    if (tip.y < pip.y - threshold) {
+    if (pts[tipIdx].y < pts[pipIdx].y) {
       extended.push(name);
     }
   }
 
-  // Pinky: use ring PIP (landmark 14) as reference instead of own PIP
-  // The pinky is very short — tip-vs-own-PIP difference is tiny.
-  // When ring is curled and pinky extended, pinky tip is clearly above ring PIP.
-  const pinkyTip = pts[20];
-  const pinkyMcp = pts[17];
-  const ringPip = pts[14];
-  // Extended if pinky tip is above ring PIP AND not clearly curled
-  if (pinkyTip.y < ringPip.y && pinkyTip.y < pinkyMcp.y + 0.04) {
+  // Pinky: distance ratio — pinkyTip-to-ringMcp / pinkyMcp-to-ringMcp.
+  // Extended: pinkyTip stretches away from ring MCP → ratio > 1.4
+  // Curled:   pinkyTip hugs ring MCP             → ratio ≈ 1.0
+  // This is hand-size and orientation independent (relative distance).
+  const pTip = pts[20], pMcp = pts[17], rMcp = pts[13];
+  const dist = (a: LandmarkPoint, b: LandmarkPoint) =>
+    Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
+  const tipDist = dist(pTip, rMcp);   // pinky tip → ring MCP
+  const baseDist = dist(pMcp, rMcp);  // pinky MCP → ring MCP (base distance)
+  const ratio = baseDist > 0 ? tipDist / baseDist : 0;
+  if (ratio > 1.4) {
     extended.push('pinky');
   }
 

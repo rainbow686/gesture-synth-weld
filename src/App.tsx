@@ -135,12 +135,16 @@ export default function App() {
 
   // Right hand finger count history for chord style smoothing
   const rightHandHistoryRef = useRef<number[]>([]);
+  // Pinky detection memory — extends pinky detection across frames
+  // to prevent flicker from resetting the stabilizer's HOLD timer
+  const pinkyMemoryRef = useRef<number>(0);
 
   /* ─── Reset stabilizer on mode switch ────────────────────────────────── */
 
   useEffect(() => {
     stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     rightHandHistoryRef.current = [];
+    pinkyMemoryRef.current = 0;
     lastChordRef.current = '';
   }, [synthState.appMode]);
 
@@ -389,21 +393,30 @@ export default function App() {
       stabilizer.lastSeen = now;
 
       // Compute raw chord index including VI/VII special gestures
-      // Matches competitor: exact finger combinations with exclusion
       const extended = leftHand.extendedFingers;
+      // Pinky memory: if detected in last 8 frames (~260ms), treat as extended.
+      // Prevents flicker from resetting the stabilizer's HOLD timer.
+      if (extended.includes('pinky')) {
+        pinkyMemoryRef.current = 8;
+      } else if (pinkyMemoryRef.current > 0) {
+        pinkyMemoryRef.current--;
+      }
+      const pinky = pinkyMemoryRef.current > 0;
       const thumb = extended.includes('thumb');
       const index = extended.includes('index');
       const middle = extended.includes('middle');
       const ring = extended.includes('ring');
-      const pinky = extended.includes('pinky');
       let rawChordIndex: number;
-      if (index && pinky && !middle && !ring && !thumb) {
-        rawChordIndex = 5; // VI — exactly index+pinky only
-      } else if (index && pinky && !middle && !ring && thumb) {
-        rawChordIndex = 6; // VII — exactly index+pinky+thumb, no others
+      const viMatch = index && pinky && !middle && !ring && !thumb;
+      const viiMatch = index && pinky && !middle && !ring && thumb;
+      if (viiMatch) {
+        rawChordIndex = 6; // VII
+      } else if (viMatch) {
+        rawChordIndex = 5; // VI
       } else {
         rawChordIndex = FINGER_TO_CHORD_INDEX[leftHand.fingerCount] ?? 0;
       }
+
 
       // Stabilize chordIndex (not finger count — catches all gesture changes)
       if (rawChordIndex !== stabilizer.pending) {
@@ -757,6 +770,7 @@ export default function App() {
     stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     rightHandHistoryRef.current = [];
     handDetectionHistoryRef.current = { left: [], right: [] };
+    pinkyMemoryRef.current = 0;
 
     const canvas = canvasRef.current;
     if (canvas) {

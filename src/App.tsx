@@ -890,7 +890,7 @@ export default function App() {
 
         {/* ─── Two-Row Toolbar ──────────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
-          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
             <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
               <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>

@@ -493,11 +493,11 @@ export class AudioEngine {
 
     switch (timbre) {
       case 'gesture':
-        // Triangle wave — naturally warmer, fewer harsh harmonics than sawtooth
+        // Sawtooth through tight filter — clear attack, warm body
         return new SynthInstrument({
-          waveform: 'triangle',
-          envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.5 },
-          filterFreq: 800,
+          waveform: 'sawtooth',
+          envelope: { attack: 0.01, decay: 0.05, sustain: 0.8, release: 0.3 },
+          filterFreq: 600,
           filter,
         });
 

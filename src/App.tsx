@@ -131,7 +131,8 @@ export default function App() {
     pendingSince: 0,
     lastSeen: 0,
   });
-  const HOLD_MS = 150; // Require 150ms stability before committing
+  const HOLD_MS = 180; // Require 180ms stability (reduces jitter)
+  const GRACE_MS = 80; // Keep previous chord if hand briefly disappears
 
   // Right hand finger count history for chord style smoothing
   const rightHandHistoryRef = useRef<number[]>([]);
@@ -524,7 +525,14 @@ export default function App() {
         audioEngine.updateFilterSweep(rightHand.tiltAngle);
       }
     } else {
-      // No hands detected - stop all and reset state
+      // No hands detected — apply grace period before stopping
+      const now = performance.now();
+      const stabilizer = stabilizerRef.current;
+      if (stabilizer.lastSeen > 0 && now - stabilizer.lastSeen < GRACE_MS) {
+        // Within grace period: keep previous chord playing, don't reset
+        return;
+      }
+      // Beyond grace: stop all and reset state
       audioEngine.stopAll();
       lastChordRef.current = '';
       stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };

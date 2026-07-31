@@ -25,7 +25,7 @@ import {
   type ArpSpeed,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
-import { ENABLE_EXTERNAL_SCRIPTS, EXTERNAL_SCRIPT_CLIENT_ID } from './config';
+// Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
 
@@ -83,11 +83,6 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
-  // Track the last stable finger count
-  const lastStableFingerCountRef = useRef<{ left: number; right: number }>({
-    left: 0,
-    right: 0,
-  });
 
   // Hand detection smoothing to prevent flickering
   const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
@@ -432,8 +427,6 @@ export default function App() {
     // CRITICAL: Right hand must have at least 1 finger raised to trigger sound
     let volume = 0; // Default to 0 (no sound)
     let chordStyle: ChordStyle | undefined;
-    let qualityIndex = 0; // 0 = no sound, 1+ = sound
-    let hasRightHand = !!rightHand;
 
     if (rightHand) {
       // Apply sliding window majority vote for right hand (for chord style)
@@ -458,10 +451,6 @@ export default function App() {
       });
 
       const stableFingerCount = majorityCount !== -1 ? majorityCount : rawFingerCount;
-
-      // CRITICAL: Right hand finger count determines if sound plays
-      // 0 fingers (fist) = no sound, 1+ fingers = sound
-      qualityIndex = stableFingerCount;
 
       // Y position → volume
       volume = Math.max(0.02, Math.min(1.0, 1.1 - rightHand.positionY));
@@ -1031,7 +1020,7 @@ export default function App() {
                 </div>
                 <div style={{ marginBottom: '0.8rem' }}>
                   <strong style={{ color: 'var(--neon-purple)' }}>Features</strong>
-                  <p style={{ marginTop: '0.3rem' }}>• 🎹 5 timbres: Piano, Strings, Organ, Synth, Vibraphone</p>
+                  <p style={{ marginTop: '0.3rem' }}>• 🎛️ 3 modes: Gesture (two-hand chords), Theremin (pitch+volume), Piano (single notes)</p>
                   <p>• 🎼 Arpeggiate: harp-like strumming</p>
                   <p>• 🎸 Auto Bass: adds low-end foundation</p>
                   <p>• ⏺️ Record: save as WebM (max 15s)</p>

@@ -1,6 +1,6 @@
 import * as Tone from 'tone';
 import type { ChordStyle } from './chords';
-import { getChordFreqs, getChordName, midiToFreq, ROOT_MIDI } from './chords';
+import { getChordFreqs, getChordName, midiToFreq } from './chords';
 import type { ArpSpeed } from './types';
 import { ARP_SPEED_MS } from './types';
 
@@ -525,15 +525,6 @@ export class AudioEngine {
           filter,
         });
     }
-  }
-
-  private createSynthPiano(): Instrument {
-    const filter = this.filter || undefined;
-    return new SynthInstrument({
-      waveform: 'triangle',
-      envelope: { attack: 0.005, decay: 0.3, sustain: 0.7, release: 0.8 },
-      filter,
-    });
   }
 
   private releaseAllNotes(): void {

@@ -154,13 +154,6 @@ function getExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): stri
   return extended;
 }
 
-/**
- * Count how many fingers are extended on a single hand.
- */
-function countExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): number {
-  return getExtendedFingers(pts, label).length;
-}
-
 /* ─── Wrist Tilt ─────────────────────────────────────────────────────── */
 
 /**

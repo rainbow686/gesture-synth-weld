@@ -905,7 +905,7 @@ export default function App() {
               <span className="divider" />
               <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
               <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
-              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide">?</button>
+              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
               <span className="divider" />
               <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
             </div>
@@ -986,7 +986,7 @@ export default function App() {
             {/* Help Modal */}
             {showHelp && (
               <div style={{
-                position: 'absolute', top: '56px', left: '12px', width: '360px',
+                position: 'absolute', top: '12px', left: '340px', width: '360px',
                 background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
                 border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
                 padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,

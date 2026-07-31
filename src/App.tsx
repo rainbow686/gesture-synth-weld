@@ -475,10 +475,14 @@ export default function App() {
     // Right thumb extended → octave down (matching competitor)
     const thumbDown = !!(rightHand?.extendedFingers.includes('thumb'));
 
+    // Right hand finger count EXCLUDES thumb (matches competitor raisedFingerCount)
+    // Thumb alone should not count as "fingers raised" for play/no-play decision
+    const rightNonThumbCount = rightHand ? rightHand.extendedFingers.filter(f => f !== 'thumb').length : 0;
+
     // CRITICAL: Sound only plays if BOTH hands have at least 1 finger raised
     // Left fist or right fist = immediate stop (use raw count for instant response)
     const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
-    const rightFist = rightHand ? rightHand.fingerCount === 0 : true;
+    const rightFist = rightNonThumbCount === 0;
     const isPlaying = !!(leftHand && rightHand && !leftFist && !rightFist);
     const chordName = getChordName(
       chordIndex,
@@ -500,53 +504,56 @@ export default function App() {
     // Create chord fingerprint to detect actual changes
     const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
 
+    const rightFistOnly = rightFist && leftHand && leftHand.fingerCount > 0;
+
     // Play chord - only if chord actually changed
     if (isPlaying) {
       if (chordFingerprint !== lastChordRef.current) {
         // Chord changed - trigger new notes
         lastChordRef.current = chordFingerprint;
         audioEngine.playChord(
-          chordIndex,
-          'sine',
+          chordIndex, 'sine',
           mode === 'neutral' ? undefined : mode,
-          0,
-          s.keyOffset,
-          chordStyle,
-          s.arpeggiate,
-          s.arpSpeed,
-          thumbDown,
+          0, s.keyOffset, chordStyle,
+          s.arpeggiate, s.arpSpeed, thumbDown,
         );
       }
-
-      // Volume changes are handled by audioEngine.setVolume (no note cutoff)
       audioEngine.setVolume(volume);
+      if (rightHand) audioEngine.updateFilterSweep(rightHand.tiltAngle);
 
-      // Filter changes are handled by audioEngine.updateFilterSweep (real-time)
-      if (rightHand) {
-        audioEngine.updateFilterSweep(rightHand.tiltAngle);
+    } else if (rightFistOnly) {
+      // Right fist only — still update chord silently (competitor: chord
+      // changes during right fist, just muted). When right hand opens,
+      // the correct chord is already playing (just at volume 0).
+      if (chordFingerprint !== lastChordRef.current) {
+        lastChordRef.current = chordFingerprint;
+        audioEngine.playChord(
+          chordIndex, 'sine',
+          mode === 'neutral' ? undefined : mode,
+          0, s.keyOffset, chordStyle,
+          s.arpeggiate, s.arpSpeed, thumbDown,
+        );
       }
+      audioEngine.setVolume(0);
+      if (rightHand) audioEngine.updateFilterSweep(rightHand.tiltAngle);
+
     } else {
-      // Left fist → mute (competitor: no chord → silent)
-      // Right fist → don't mute, just let octave state change naturally
+      // Left fist → mute, or hand(s) missing → grace period → stop
       const lFistOnly = leftHand && leftHand.fingerCount === 0;
       if (lFistOnly) {
         audioEngine.setVolume(0);
         return;
       }
-
-      // Right fist or hand(s) missing → grace period → stop
       const now = performance.now();
       const stabilizer = stabilizerRef.current;
-      if (stabilizer.lastSeen > 0 && now - stabilizer.lastSeen < GRACE_MS) {
-        return;
-      }
+      if (stabilizer.lastSeen > 0 && now - stabilizer.lastSeen < GRACE_MS) return;
       audioEngine.stopAll();
       lastChordRef.current = '';
       stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     }
 
     // Auto bass — follows octave shift
-    if (s.autoBass && isPlaying) {
+    if (s.autoBass && (isPlaying || rightFistOnly)) {
       const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
       const bassMidi = 60 + chord.intervals[0] + s.keyOffset - (thumbDown ? 12 : 0);
       audioEngine.setBassNote(bassMidi, s.bassVolume);

@@ -71,8 +71,7 @@ export default function App() {
     isPlaying: false,
     keyOffset: 9, // A major (matches competitor default)
     appMode: 'gesture',
-    leftHandMode: 'scaleLocked',
-    lockedMode: 'major',
+    leftHandMode: 'scaleTilt',
     rightHandMode: 'fixedChordStyle',
     lockedChordStyle: 'majorTriad',
     arpeggiate: false,

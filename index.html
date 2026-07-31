@@ -336,9 +336,51 @@
     }
 
     @media (max-width: 768px) {
-      .seo-content { padding: 2rem 0 1.5rem; }
-      .seo-inner { padding: 0 1rem; }
+      .seo-content { padding: 1.5rem 0 1rem; }
+      .seo-inner { padding: 0 0.8rem; }
       .step-grid { grid-template-columns: 1fr; }
+
+      .seo-content h1 {
+        font-size: clamp(1.2rem, 5vw, 1.8rem);
+        padding: 0 0.5rem;
+      }
+      .seo-content h2 { font-size: 1.05rem; }
+      .seo-content h3 { font-size: 0.9rem; }
+      .seo-content p { font-size: 0.85rem; }
+
+      .seo-section {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+      .seo-intro { padding: 0 0.5rem; }
+
+      /* Tables: horizontal scroll on mobile */
+      .gesture-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .gesture-table::-webkit-scrollbar { display: none; }
+      .gesture-table th,
+      .gesture-table td {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
+      }
+      .gesture-table th { font-size: 0.6rem; }
+
+      .faq-item {
+        padding: 0.8rem 1rem;
+      }
+      .faq-item summary { font-size: 0.9rem; }
+      .faq-item p { font-size: 0.8rem; }
+
+      .ad-slot { min-height: 60px; margin: 1rem 0; }
+      .ad-slot.ad-tall { min-height: 200px; }
+
+      .site-footer { padding: 1.5rem 1rem; font-size: 0.7rem; }
     }
   </style>
 </head>

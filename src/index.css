@@ -1,4 +1,4 @@
-/* ─── Gesture Synth Weld — Full-Screen Cyberpunk Theme ─────────────── */
+/* ─── Gesture Synth Weld — Liquid Glass Theme ──────────────────────── */
 
 :root {
   --bg-primary: #0a0a1a;
@@ -16,6 +16,12 @@
 
   --glass-bg: rgba(10, 15, 30, 0.75);
   --glass-border: rgba(0, 255, 204, 0.15);
+
+  /* Liquid Glass (Apple-style frosted glass) */
+  --frost-bg: rgba(22, 22, 32, 0.55);
+  --frost-border: rgba(255, 255, 255, 0.08);
+  --frost-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --frost-blur: blur(24px) saturate(180%);
 
   --font-display: 'Orbitron', monospace;
   --font-body: 'Inter', system-ui, sans-serif;
@@ -362,7 +368,132 @@ body {
   text-transform: uppercase;
 }
 
-/* ─── Floating Control Panel ─────────────────────────────────────────── */
+/* ─── Liquid Glass Toolbar ──────────────────────────────────────────── */
+
+.frost-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-border);
+  border-radius: 20px;
+  box-shadow: var(--frost-shadow);
+  z-index: 20;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.frost-toolbar .brand {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: var(--text-primary);
+  margin-right: 8px;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.frost-toolbar button,
+.frost-toolbar select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+  backdrop-filter: blur(4px);
+}
+
+.frost-toolbar button:hover,
+.frost-toolbar select:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.frost-toolbar button.active {
+  background: rgba(0, 255, 204, 0.12);
+  border-color: rgba(0, 255, 204, 0.3);
+  color: var(--neon-cyan);
+}
+
+.frost-toolbar button.icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+}
+
+.frost-toolbar button.icon-btn.recording {
+  background: rgba(255, 60, 60, 0.15);
+  border-color: rgba(255, 60, 60, 0.4);
+  color: #ff4444;
+  animation: pulse-rec 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-rec {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 60, 60, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(255, 60, 60, 0.4); }
+}
+
+.frost-toolbar .divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 4px;
+}
+
+/* Frosted settings panel */
+.frost-panel {
+  position: absolute;
+  top: 56px;
+  left: 12px;
+  padding: 14px;
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-border);
+  border-radius: 16px;
+  box-shadow: var(--frost-shadow);
+  z-index: 19;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 180px;
+  font-size: 0.65rem;
+}
+
+.frost-panel label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.frost-panel select {
+  width: 100%;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+/* ─── Floating Control Panel (legacy, kept for mobile) ───────────── */
 
 .floating-panel {
   position: absolute;

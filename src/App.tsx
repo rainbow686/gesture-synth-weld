@@ -97,6 +97,7 @@ export default function App() {
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 
@@ -862,174 +863,84 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── Floating Control Panel ───────────────────────────────── */}
+        {/* ─── Liquid Glass Toolbar ──────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
           <>
-            {/* Desktop panel */}
-            <div className="floating-panel desktop-only">
-              {/* Product name + mode */}
-              <div className="panel-section">
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.7rem', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
-                  Gesture Synth Weld
-                </div>
-                <div className="mode-toggle">
-                  <button
-                    className={`mode-btn ${synthState.appMode === 'gesture' ? 'active' : ''}`}
-                    onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))}
-                  >
-                    Gesture
-                  </button>
-                  <button
-                    className={`mode-btn ${synthState.appMode === 'theremin' ? 'active' : ''}`}
-                    onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))}
-                  >
-                    Theremin
-                  </button>
-                  <button
-                    className={`mode-btn ${synthState.appMode === 'monoPiano' ? 'active' : ''}`}
-                    onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))}
-                  >
-                    Piano
-                  </button>
-                </div>
-              </div>
+            {/* Desktop toolbar */}
+            <div className="frost-toolbar desktop-only">
+              <span className="brand">GSW</span>
 
-              {/* Gesture mode controls */}
-              {synthState.appMode === 'gesture' && (
-                <>
-                  {/* Left Hand */}
-                  <div className="panel-section">
-                    <label className="panel-label">Left Hand — Harmony</label>
-                    <select
-                      value={KEYS[synthState.keyOffset]?.name ?? 'C'}
-                      onChange={(e) => {
-                        const keyIndex = KEYS.findIndex(k => k.name === e.target.value);
-                        setSynthState(prev => ({ ...prev, keyOffset: keyIndex }));
-                      }}
-                      style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.7rem', marginBottom: '0.3rem' }}
-                    >
-                      {KEYS.map(key => (
-                        <option key={key.name} value={key.name}>{key.name}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={synthState.leftHandMode}
-                      onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}
-                      style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.65rem' }}
-                    >
-                      <option value="scaleTilt">Scale + Tilt Major/Minor</option>
-                      <option value="scaleLocked">Scale Only (Locked)</option>
-                    </select>
-                    {synthState.leftHandMode === 'scaleLocked' && (
-                      <select
-                        value={synthState.lockedMode ?? 'major'}
-                        onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}
-                        style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.65rem', marginTop: '0.3rem' }}
-                      >
-                        <option value="major">Major</option>
-                        <option value="minor">Minor</option>
-                      </select>
-                    )}
-                  </div>
+              {/* Mode */}
+              <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))}>Gesture</button>
+              <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))}>Theremin</button>
+              <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))}>Piano</button>
 
-                  {/* Right Hand */}
-                  <div className="panel-section">
-                    <label className="panel-label">Right Hand — Expression</label>
-                    <select
-                      value={synthState.rightHandMode}
-                      onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}
-                      style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.65rem' }}
-                    >
-                      <option value="fingerLayout">Chord Style = Finger Layout</option>
-                      <option value="fixedChordStyle">Fixed Chord Style</option>
-                    </select>
-                    {synthState.rightHandMode === 'fixedChordStyle' && (
-                      <select
-                        value={synthState.lockedChordStyle ?? 'majorTriad'}
-                        onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}
-                        style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.65rem', marginTop: '0.3rem' }}
-                      >
-                        {CHORD_STYLE_OPTIONS.map(opt => (
-                          <option key={opt.id} value={opt.id}>{opt.label}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                </>
-              )}
+              <span className="divider" />
 
-              {/* Arpeggiator */}
-              <div className="panel-section">
-                <label className="panel-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={synthState.arpeggiate}
-                    onChange={(e) => setSynthState(prev => ({ ...prev, arpeggiate: e.target.checked }))}
-                    style={{ accentColor: 'var(--neon-cyan)' }}
-                  />
-                  Arpeggiate
-                </label>
-                {synthState.arpeggiate && (
-                  <select
-                    value={synthState.arpSpeed}
-                    onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))}
-                    style={{ width: '100%', padding: '0.3rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', fontSize: '0.65rem' }}
-                  >
-                    <option value="slow">Slow (120ms)</option>
-                    <option value="normal">Normal (80ms)</option>
-                    <option value="fast">Fast (50ms)</option>
+              {/* Key */}
+              <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }}>
+                {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
+              </select>
+
+              {/* Icon buttons */}
+              <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} title="Arpeggiator">⟿</button>
+              <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} title="Auto Bass">∿</button>
+
+              <span className="divider" />
+
+              <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} title="Record">
+                {isRecording ? `${recordingTime}s` : '●'}
+              </button>
+
+              <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} title="Settings">⚙</button>
+              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} title="Help">?</button>
+            </div>
+
+            {/* Settings panel */}
+            {showSettings && (
+              <div className="frost-panel desktop-only">
+                <label>Left Hand</label>
+                <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}>
+                  <option value="scaleTilt">Scale + Tilt Major/Minor</option>
+                  <option value="scaleLocked">Scale Only (Locked)</option>
+                </select>
+                {synthState.leftHandMode === 'scaleLocked' && (
+                  <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
+                    <option value="major">Major</option>
+                    <option value="minor">Minor</option>
                   </select>
                 )}
-              </div>
 
-              {/* Auto Bass */}
-              <div className="panel-section">
-                <label className="panel-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={synthState.autoBass}
-                    onChange={(e) => setSynthState(prev => ({ ...prev, autoBass: e.target.checked }))}
-                    style={{ accentColor: 'var(--neon-cyan)' }}
-                  />
-                  Auto Bass
-                </label>
+                <label>Right Hand</label>
+                <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}>
+                  <option value="fingerLayout">Finger Layout = Chord Style</option>
+                  <option value="fixedChordStyle">Fixed Chord Style</option>
+                </select>
+                {synthState.rightHandMode === 'fixedChordStyle' && (
+                  <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
+                    {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                  </select>
+                )}
+
+                {synthState.arpeggiate && (
+                  <>
+                    <label>Arpeggiator Speed</label>
+                    <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))}>
+                      <option value="slow">Slow (120ms)</option>
+                      <option value="normal">Normal (80ms)</option>
+                      <option value="fast">Fast (50ms)</option>
+                    </select>
+                  </>
+                )}
+
                 {synthState.autoBass && (
-                  <div style={{ marginTop: '0.3rem' }}>
-                    <label style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Bass Volume</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={synthState.bassVolume}
-                      onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))}
-                      style={{ width: '100%', accentColor: 'var(--neon-cyan)' }}
-                    />
-                  </div>
+                  <>
+                    <label>Bass Volume</label>
+                    <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ width: '100%', accentColor: 'var(--neon-cyan)' }} />
+                  </>
                 )}
               </div>
-
-              {/* Record */}
-              <div className="panel-section">
-                <button
-                  className={`record-btn ${isRecording ? 'recording' : ''}`}
-                  onClick={toggleRecording}
-                >
-                  <span className="record-dot" />
-                  {isRecording ? `${recordingTime}s / 15s` : 'Rec'}
-                </button>
-              </div>
-
-              {/* Help */}
-              <div className="panel-section">
-                <button
-                  onClick={() => setShowHelp(!showHelp)}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--text-primary)', padding: '0.3rem 0.6rem', fontSize: '0.65rem', cursor: 'pointer', width: '100%' }}
-                >
-                  {showHelp ? '✕ Close' : '? Help'}
-                </button>
-              </div>
-            </div>
+            )}
 
             {/* Help Modal */}
             {showHelp && (

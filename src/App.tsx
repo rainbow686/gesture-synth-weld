@@ -582,9 +582,10 @@ export default function App() {
     // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const playing = synthRef.current.isPlaying;
-    // No hands active at all → hide waveform entirely
-    if (!playing && rms < 0.005) return;
+    const hands = gestureRef.current;
+    const handsPresent = !!(hands.left || hands.right);
+    // No hands in frame at all → hide waveform entirely
+    if (!handsPresent && rms < 0.005) return;
 
     // Muted (hands present but silent) → thin gray line
     // Playing → cyan with variable width

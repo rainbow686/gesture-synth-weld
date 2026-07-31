@@ -735,9 +735,10 @@ body {
   left: 0;
   right: 0;
   z-index: 15;
-  background: rgba(5, 5, 16, 0.85);
-  border-top: 1px solid rgba(0, 255, 204, 0.1);
-  backdrop-filter: blur(8px);
+  background: var(--frost-bg);
+  border-top: 1px solid var(--frost-border);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
   padding: 0.6rem 1.5rem;
   display: flex;
   align-items: center;

@@ -1256,6 +1256,9 @@ export default function App() {
             <select value={metronomeTimeSig} onChange={(e) => setMetronomeTimeSig(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
               <option>3/4</option><option>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option>
             </select>
+            <select value={metronomeBars} onChange={(e) => setMetronomeBars(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+              <option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option>
+            </select>
             <select value={metronomeSound} onChange={(e) => setMetronomeSound(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
               <option value="click">Click</option><option value="wood">Wood</option><option value="beep">Beep</option><option value="hihat">Hi-hat</option>
             </select>
@@ -1270,7 +1273,8 @@ export default function App() {
             >
               ♪
             </button>
-            <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => setMetronomeVolume(Number(e.target.value))} style={{ width: '30px', accentColor: 'var(--neon-cyan)' }} />
+            <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => setMetronomeVolume(Number(e.target.value))} style={{ width: '50px', accentColor: 'var(--neon-cyan)' }} />
+            <span style={{ fontSize: '0.6rem', width: '26px' }}>{Math.round(metronomeVolume * 100)}%</span>
           </div>
         )}
       </section>

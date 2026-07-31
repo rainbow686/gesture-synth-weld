@@ -983,54 +983,34 @@ export default function App() {
           </div>
         )}
 
-            {/* Help Modal */}
+            {/* Help Modal — concise quick reference, positioned left */}
             {showHelp && (
               <div className="help-modal desktop-only" style={{
                 position: 'absolute',
                 top: '1rem',
-                left: '220px',
-                width: '320px',
-                maxHeight: '80vh',
+                left: '12px',
+                width: '280px',
+                maxHeight: '70vh',
                 overflowY: 'auto',
-                background: 'rgba(10, 15, 30, 0.95)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '12px',
+                background: 'var(--frost-bg)',
+                backdropFilter: 'var(--frost-blur)',
+                WebkitBackdropFilter: 'var(--frost-blur)',
+                border: '1px solid var(--frost-border)',
+                borderRadius: '16px',
                 padding: '1rem',
-                backdropFilter: 'blur(12px)',
+                boxShadow: 'var(--frost-shadow)',
                 zIndex: 100,
-                fontSize: '0.75rem',
+                fontSize: '0.7rem',
                 color: 'var(--text-secondary)',
               }}>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.9rem', color: 'var(--neon-cyan)', marginBottom: '0.8rem' }}>How to Play</h3>
-                <div style={{ marginBottom: '0.8rem' }}>
-                  <strong style={{ color: 'var(--neon-cyan)' }}>Left Hand — Harmony</strong>
-                  <p style={{ marginTop: '0.3rem' }}>• Fingers = scale degree (1-5 → I, ii, iii, IV, V)</p>
-                  <p>• Index + Pinky = VI (6th chord)</p>
-                  <p>• Index + Pinky + Thumb = VII (7th chord)</p>
-                  <p>• Wrist tilt = major ↔ minor (in Scale + Tilt mode)</p>
-                  <p>• Key selector = transpose to any of 12 keys</p>
-                </div>
-                <div style={{ marginBottom: '0.8rem' }}>
-                  <strong style={{ color: 'var(--neon-magenta)' }}>Right Hand — Expression</strong>
-                  <p style={{ marginTop: '0.3rem' }}>• Height = volume (higher = louder)</p>
-                  <p>• Wrist tilt = tone (filter sweep)</p>
-                  <p>• Finger Layout mode:</p>
-                  <p style={{ paddingLeft: '0.5rem' }}>1 finger = triad, 2 = 1st inversion, 3 = 7th, 4+ = 9th</p>
-                  <p>• Fixed Chord Style: lock to specific chord type</p>
-                </div>
-                <div style={{ marginBottom: '0.8rem' }}>
-                  <strong style={{ color: 'var(--neon-purple)' }}>Features</strong>
-                  <p style={{ marginTop: '0.3rem' }}>• 🎛️ 3 modes: Gesture (two-hand chords), Theremin (pitch+volume), Piano (single notes)</p>
-                  <p>• 🎼 Arpeggiate: harp-like strumming</p>
-                  <p>• 🎸 Auto Bass: adds low-end foundation</p>
-                  <p>• ⏺️ Record: save as WebM (max 15s)</p>
-                </div>
-                <div>
-                  <strong style={{ color: 'var(--neon-amber)' }}>Theremin Mode</strong>
-                  <p style={{ marginTop: '0.3rem' }}>• Right hand Y-axis = pitch (continuous)</p>
-                  <p>• Left hand Y-axis = volume</p>
-                  <p>• Dual-hand control: both hands work together</p>
-                </div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.8rem', color: 'var(--neon-cyan)', marginBottom: '0.6rem' }}>Quick Guide</h3>
+                <p style={{ marginBottom: '0.5rem' }}><strong style={{ color: 'var(--neon-cyan)' }}>Left Hand</strong> — scale degree<br/>1–5 fingers → I, II, III, IV, V<br/>Index+Pinky → VI, +Thumb → VII<br/>Wrist tilt → major / minor</p>
+                <p style={{ marginBottom: '0.5rem' }}><strong style={{ color: 'var(--neon-magenta)' }}>Right Hand</strong> — expression<br/>Height = volume · Tilt = tone<br/>Fingers = chord type (triad/7th/9th)</p>
+                <p style={{ marginBottom: '0.5rem' }}><strong>Both hands required</strong> for sound.<br/>Either hand fist = silence.</p>
+                <p style={{ marginBottom: '0.5rem' }}>⟿ Arpeggiator · ∿ Auto Bass<br/>● Record (15s WebM) · ♪ Metronome</p>
+                <p style={{ marginTop: '0.8rem' }}>
+                  <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.65rem', textDecoration: 'underline' }}>Full guide & tips below ↓</a>
+                </p>
               </div>
             )}
 

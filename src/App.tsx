@@ -526,17 +526,15 @@ export default function App() {
         audioEngine.updateFilterSweep(rightHand.tiltAngle);
       }
     } else {
-      // Matching competitor: fist mutes (keeps notes held), hand loss stops
-      const lFist = leftHand && leftHand.fingerCount === 0;
-      const rFist = rightHand && rightHand.fingerCount === 0;
-
-      if (lFist || rFist) {
-        // Fist = mute, don't release notes (they resume when fingers return)
+      // Left fist → mute (competitor: no chord → silent)
+      // Right fist → don't mute, just let octave state change naturally
+      const lFistOnly = leftHand && leftHand.fingerCount === 0;
+      if (lFistOnly) {
         audioEngine.setVolume(0);
         return;
       }
 
-      // Hand(s) disappeared from frame → grace period → stop
+      // Right fist or hand(s) missing → grace period → stop
       const now = performance.now();
       const stabilizer = stabilizerRef.current;
       if (stabilizer.lastSeen > 0 && now - stabilizer.lastSeen < GRACE_MS) {

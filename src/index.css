@@ -74,7 +74,7 @@ body {
   object-fit: cover;
 }
 
-/* ─── Camera Placeholder (replaces Start Screen) ────────────────────── */
+/* ─── Camera Placeholder — glass card floats on transparent overlay ─ */
 
 .camera-placeholder {
   position: absolute;
@@ -84,9 +84,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.5rem;
-  text-align: center;
-  /* No background — elements float directly over the canvas */
+  padding-top: 80px; /* clear the toolbar area */
   pointer-events: none;
 }
 
@@ -94,24 +92,28 @@ body {
   pointer-events: auto;
 }
 
-.camera-placeholder-icon {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
+/* Visible glass card wrapping icon + button + hint */
+.camera-placeholder-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2.5rem 3.5rem;
   background: var(--frost-bg);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid var(--frost-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 24px;
   box-shadow: var(--frost-shadow);
+}
+
+.camera-placeholder-icon {
   animation: float 3s ease-in-out infinite;
 }
 
 .camera-placeholder-icon svg {
-  width: 64px;
-  height: 64px;
+  width: 100px;
+  height: 100px;
 }
 
 .camera-placeholder-icon.error-icon svg {
@@ -903,13 +905,12 @@ body {
     padding: 0.8rem 2rem;
   }
 
-  .camera-placeholder-icon {
-    width: 80px;
-    height: 80px;
+  .camera-placeholder-card {
+    padding: 1.8rem 2.2rem;
   }
   .camera-placeholder-icon svg {
-    width: 48px;
-    height: 48px;
+    width: 72px;
+    height: 72px;
   }
 
   .keyboard-chord-name {

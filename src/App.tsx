@@ -821,7 +821,7 @@ export default function App() {
         <canvas ref={canvasRef} className="camera-canvas" />
 
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
-        <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', zIndex: 20 }}>
+        <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
           <div className="frost-toolbar" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
             <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
             <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
@@ -984,25 +984,27 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Camera placeholder — semi-transparent, button floats on top ─ */}
+        {/* ─── Camera placeholder — glass card floats over canvas ──── */}
         {!isRunning && !isLoading && !error && (
           <div className="camera-placeholder">
-            <div className="camera-placeholder-icon">
-              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" />
-                <path d="M48 30l16-9v32l-16-9" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="32" cy="40" r="8" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" />
-                <circle cx="32" cy="40" r="3" fill="rgba(0,255,204,0.2)" />
-                <rect x="26" y="52" width="12" height="3" rx="1.5" fill="rgba(255,0,255,0.25)" />
-              </svg>
+            <div className="camera-placeholder-card">
+              <div className="camera-placeholder-icon">
+                <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" />
+                  <path d="M48 30l16-9v32l-16-9" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="32" cy="40" r="8" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" />
+                  <circle cx="32" cy="40" r="3" fill="rgba(0,255,204,0.2)" />
+                  <rect x="26" y="52" width="12" height="3" rx="1.5" fill="rgba(255,0,255,0.25)" />
+                </svg>
+              </div>
+              <button className="enable-camera-btn" onClick={startCamera} disabled={isLoading}>
+                <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+                  <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                </svg>
+                <span>Enable Camera</span>
+              </button>
+              <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
             </div>
-            <button className="enable-camera-btn" onClick={startCamera} disabled={isLoading}>
-              <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
-              </svg>
-              <span>Enable Camera</span>
-            </button>
-            <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
           </div>
         )}
 

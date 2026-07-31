@@ -74,7 +74,7 @@ body {
   object-fit: cover;
 }
 
-/* ─── Camera Placeholder — glass card floats on transparent overlay ─ */
+/* ─── Camera Placeholder — dimmed overlay, clear button area ──────── */
 
 .camera-placeholder {
   position: absolute;
@@ -84,27 +84,21 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 80px; /* clear the toolbar area */
+  gap: 1.5rem;
+  text-align: center;
+  /* Dark vignette: edges dimmed, center clear around the button */
+  background: radial-gradient(
+    ellipse at center,
+    transparent 20%,
+    rgba(5, 5, 16, 0.15) 40%,
+    rgba(5, 5, 16, 0.55) 75%,
+    rgba(5, 5, 16, 0.7) 100%
+  );
   pointer-events: none;
 }
 
 .camera-placeholder > * {
   pointer-events: auto;
-}
-
-/* Visible glass card wrapping icon + button + hint */
-.camera-placeholder-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 2.5rem 3.5rem;
-  background: var(--frost-bg);
-  backdrop-filter: var(--frost-blur);
-  -webkit-backdrop-filter: var(--frost-blur);
-  border: 1px solid var(--frost-border);
-  border-radius: 24px;
-  box-shadow: var(--frost-shadow);
 }
 
 .camera-placeholder-icon {
@@ -905,9 +899,6 @@ body {
     padding: 0.8rem 2rem;
   }
 
-  .camera-placeholder-card {
-    padding: 1.8rem 2.2rem;
-  }
   .camera-placeholder-icon svg {
     width: 72px;
     height: 72px;

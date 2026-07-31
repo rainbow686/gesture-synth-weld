@@ -883,8 +883,8 @@ export default function App() {
               <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
               <span className="divider" />
               <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
-              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide">?</button>
               <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
+              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide">?</button>
             </div>
 
             {/* Row 2: hand settings panel — only for Gesture mode (Theremin/Piano don't use hand division) */}

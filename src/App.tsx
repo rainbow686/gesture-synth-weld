@@ -987,14 +987,8 @@ export default function App() {
         {/* ─── Dimmed overlay + Enable Camera button ───────────────── */}
         {!isRunning && !isLoading && !error && (
           <div className="camera-placeholder">
-            <div className="camera-placeholder-icon">
-              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(0,255,204,0.3)" strokeWidth="2.5" />
-                <path d="M48 30l16-9v32l-16-9" stroke="rgba(0,255,204,0.3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="32" cy="40" r="8" stroke="rgba(0,255,204,0.3)" strokeWidth="2.5" />
-                <circle cx="32" cy="40" r="3" fill="rgba(0,255,204,0.15)" />
-                <rect x="26" y="52" width="12" height="3" rx="1.5" fill="rgba(255,0,255,0.2)" />
-              </svg>
+            <div className="camera-placeholder-brand">
+              <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
             <button className="enable-camera-btn" onClick={startCamera} disabled={isLoading}>
               <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
@@ -1154,6 +1148,12 @@ export default function App() {
               </div>
             )}
 
+          </>
+        )}
+
+        {/* ─── Status bar — always visible ──────────────────────────── */}
+        {!isLoading && (
+          <>
             {/* Bottom status bar */}
             <div className="status-bar-bottom">
               <div className="status-chord">

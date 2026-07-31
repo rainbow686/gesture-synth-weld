@@ -104,16 +104,34 @@ body {
   pointer-events: auto;
 }
 
-.camera-placeholder-icon {
-  animation: float 3s ease-in-out infinite;
+.camera-placeholder-brand {
+  margin-bottom: 0.5rem;
 }
 
-.camera-placeholder-icon svg {
+.camera-placeholder-brand-text {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--neon-cyan) 0%, #00cc99 50%, var(--neon-magenta) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(0, 255, 204, 0.3));
+  animation: brand-float 3s ease-in-out infinite;
+}
+
+@keyframes brand-float {
+  0%, 100% { filter: drop-shadow(0 2px 8px rgba(0, 255, 204, 0.3)); }
+  50% { filter: drop-shadow(0 4px 16px rgba(0, 255, 204, 0.5)) drop-shadow(0 0 24px rgba(255, 0, 255, 0.2)); }
+}
+
+.camera-placeholder-icon.error-icon {
+  margin-bottom: 0.5rem;
+}
+.camera-placeholder-icon.error-icon svg {
   width: 100px;
   height: 100px;
-}
-
-.camera-placeholder-icon.error-icon svg {
   animation: none;
   opacity: 0.7;
 }
@@ -902,9 +920,8 @@ body {
     padding: 0.8rem 2rem;
   }
 
-  .camera-placeholder-icon svg {
-    width: 72px;
-    height: 72px;
+  .camera-placeholder-brand-text {
+    font-size: 1.4rem;
   }
 
   .keyboard-chord-name {

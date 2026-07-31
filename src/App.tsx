@@ -429,12 +429,8 @@ export default function App() {
       hasValidChord = stableFingerCount > 0; // 0 fingers (fist) = no valid chord
 
       if (s.leftHandMode === 'scaleTilt') {
-        // Wrist tilt → major/minor
-        const tilt = leftHand.tiltAngle;
-        const tiltThreshold = 0.15;
-        if (tilt > tiltThreshold) mode = 'major';
-        else if (tilt < -tiltThreshold) mode = 'minor';
-        else mode = 'neutral';
+        // Wrist tilt → major/minor (>=0 = major, <0 = minor like competitor)
+        mode = leftHand.tiltAngle >= 0 ? 'major' : 'minor';
       } else {
         // scaleLocked: use locked mode
         mode = s.lockedMode ?? 'neutral';
@@ -491,10 +487,11 @@ export default function App() {
       }
     }
 
-    // CRITICAL: Sound only plays if:
-    // 1. Left hand has a valid chord (not a fist)
-    // 2. Right hand has at least 1 finger raised (not a fist)
-    const isPlaying = !!(leftHand && rightHand && hasValidChord && qualityIndex >= 1);
+    // CRITICAL: Sound only plays if BOTH hands have at least 1 finger raised
+    // Left fist or right fist = immediate stop (use raw count for instant response)
+    const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
+    const rightFist = rightHand ? rightHand.fingerCount === 0 : true;
+    const isPlaying = !!(leftHand && rightHand && !leftFist && !rightFist);
     const chordName = getChordName(
       chordIndex,
       mode === 'neutral' ? undefined : mode,

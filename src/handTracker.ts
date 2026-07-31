@@ -97,7 +97,7 @@ function parseResults(result: HandLandmarkerResult): HandData[] {
 
     const extendedFingers = getExtendedFingers(landmarks, label);
     const fingerCount = extendedFingers.length;
-    const tiltAngle = computeWristTilt(landmarks);
+    const tiltAngle = computeWristTilt(landmarks, label);
     const wrist = landmarks[0];
 
     hands.push({
@@ -164,24 +164,30 @@ function countExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): nu
 /* ─── Wrist Tilt ─────────────────────────────────────────────────────── */
 
 /**
- * Compute the wrist tilt angle in radians.
- * Uses the vector from index MCP (5) to pinky MCP (17) as the hand's cross-axis.
- * The angle relative to horizontal indicates tilt direction.
- *
- * Positive = hand tilted "up" (thumb side raised) → major
- * Negative = hand tilted "down" (pinky side raised) → minor
+ * Compute wrist tilt as a normalized value in [-1, 1].
+ * Based on wrist X position relative to middle/ring MCP span.
+ * Positive = thumb side raised, negative = pinky side raised.
  */
-function computeWristTilt(pts: LandmarkPoint[]): number {
-  const indexMcp = pts[5];
-  const pinkyMcp = pts[17];
+function computeWristTilt(pts: LandmarkPoint[], label: 'Left' | 'Right'): number {
+  const wrist = pts[0];
+  const midMcp = pts[9];
+  const ringMcp = pts[13];
+  if (!wrist || !midMcp || !ringMcp) return 0;
 
-  const dx = pinkyMcp.x - indexMcp.x;
-  const dy = pinkyMcp.y - indexMcp.y;
+  const spanLeft = Math.min(midMcp.x, ringMcp.x);
+  const spanRight = Math.max(midMcp.x, ringMcp.x);
+  const deadZone = 0.12;
 
-  // atan2 gives the angle of the cross-axis from horizontal
-  const angle = Math.atan2(dy, dx);
+  let tilt = 0;
+  if (wrist.x < spanLeft) {
+    tilt = (wrist.x - spanLeft) / deadZone;
+  } else if (wrist.x > spanRight) {
+    tilt = (wrist.x - spanRight) / deadZone;
+  }
+  tilt = Math.max(-1, Math.min(1, tilt));
 
-  return angle;
+  // Flip sign for right hand to align with anatomical direction
+  return label === 'Right' ? -tilt : tilt;
 }
 
 /* ─── Hand Connection Map for Skeleton Drawing ──────────────────────── */

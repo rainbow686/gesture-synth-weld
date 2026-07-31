@@ -311,6 +311,8 @@ export class AudioEngine {
 
   startMetronome(bpm: number, timeSig: string, bars: string, sound: string, volume: number): void {
     if (!this.initCalled) return;
+    // Clamp BPM to safe range
+    bpm = Math.max(20, Math.min(300, isNaN(bpm) ? 120 : bpm));
     this.stopMetronome();
 
     // Create a short percussive synth connected through master gain
@@ -377,7 +379,6 @@ export class AudioEngine {
   }
 
   stopAll(): void {
-    this.stopMetronome();
     this.stopArpeggiator();
     this.releaseAllNotes();
     this.stopBassImmediately();

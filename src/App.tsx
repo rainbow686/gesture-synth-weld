@@ -171,7 +171,7 @@ export default function App() {
 
         setSynthState(prev => ({ ...prev, chordIndex: idx, chordName, isPlaying: true }));
         audioEngine.init().then(() => {
-          audioEngine.playChord(idx, 'sine', modeArg, 0, s.keyOffset);
+          audioEngine.playChord(idx, 'sine', modeArg, 0, s.keyOffset, s.lockedChordStyle, s.arpeggiate, s.arpSpeed);
         });
         return;
       }
@@ -196,7 +196,7 @@ export default function App() {
           const next = { ...prev, mode: 'major' as const };
           next.chordName = getChordName(prev.chordIndex, 'major', prev.keyOffset);
           if (prev.isPlaying) {
-            audioEngine.playChord(prev.chordIndex, 'sine', 'major', 0, prev.keyOffset);
+            audioEngine.playChord(prev.chordIndex, 'sine', 'major', 0, prev.keyOffset, prev.lockedChordStyle, prev.arpeggiate, prev.arpSpeed);
           }
           return next;
         });
@@ -207,7 +207,7 @@ export default function App() {
           const next = { ...prev, mode: 'minor' as const };
           next.chordName = getChordName(prev.chordIndex, 'minor', prev.keyOffset);
           if (prev.isPlaying) {
-            audioEngine.playChord(prev.chordIndex, 'sine', 'minor', 0, prev.keyOffset);
+            audioEngine.playChord(prev.chordIndex, 'sine', 'minor', 0, prev.keyOffset, prev.lockedChordStyle, prev.arpeggiate, prev.arpSpeed);
           }
           return next;
         });
@@ -298,30 +298,13 @@ export default function App() {
       const hasRight = !!rightHand;
       const hasLeft = !!leftHand;
 
-      if (hasRight || hasLeft) {
-        let freq = 0;
-        let volume = 0;
-
-        // Right hand Y position → pitch (continuous)
-        if (hasRight && rightHand) {
-          const minFreq = 130.81; // C3
-          const maxFreq = 1046.5; // C6
-          freq = minFreq * Math.pow(maxFreq / minFreq, 1 - rightHand.positionY);
-        }
-
-        // Left hand Y position → volume
-        if (hasLeft && leftHand) {
-          volume = Math.max(0.02, Math.min(1.0, 1.1 - leftHand.positionY));
-        } else {
-          // If no left hand, use default volume
-          volume = 0.5;
-        }
-
-        // Play note if we have a frequency
-        if (hasRight && freq > 0) {
-          audioEngine.playNote(freq);
-        }
-
+      // Theremin requires BOTH hands: right=pitch, left=volume
+      if (hasRight && hasLeft && rightHand && leftHand) {
+        const minFreq = 130.81;
+        const maxFreq = 1046.5;
+        const freq = minFreq * Math.pow(maxFreq / minFreq, 1 - rightHand.positionY);
+        const volume = Math.max(0.02, Math.min(1.0, 1.1 - leftHand.positionY));
+        audioEngine.playNote(freq);
         setSynthState(prev => ({ ...prev, volume, isPlaying: true }));
         audioEngine.setVolume(volume);
       } else {
@@ -744,6 +727,10 @@ export default function App() {
     }
 
     audioEngine.stopAll();
+
+    // Reset stabilizer state for clean restart
+    stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
+    rightHandHistoryRef.current = [];
 
     const canvas = canvasRef.current;
     if (canvas) {

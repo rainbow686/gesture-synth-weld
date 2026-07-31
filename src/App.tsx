@@ -75,9 +75,9 @@ export default function App() {
     lockedMode: 'major',
     rightHandMode: 'fixedChordStyle',
     lockedChordStyle: 'majorTriad',
-    arpeggiate: true,
+    arpeggiate: false,
     arpSpeed: 'normal',
-    autoBass: true,
+    autoBass: false,
     bassVolume: 0.5,
   });
   const [isRecording, setIsRecording] = useState(false);

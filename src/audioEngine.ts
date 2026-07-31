@@ -42,7 +42,7 @@ class SynthInstrument implements Instrument {
         sustain: envelope.sustain ?? 0.8,
         release: envelope.release ?? 0.5,
       },
-      voiceCount: 8,
+      maxPolyphony: 8,
     });
     this.synth.set({ detune: 5 });
 

@@ -384,43 +384,35 @@ export default function App() {
     let hasValidChord = false;
 
     if (leftHand) {
-      // Apply time-based stabilizer (similar to competitor's approach)
+      // Apply time-based stabilizer on chordIndex (catches VI/VII changes too)
       const now = performance.now();
-      const rawFingerCount = leftHand.fingerCount;
       const stabilizer = stabilizerRef.current;
-
-      // Update last seen time
       stabilizer.lastSeen = now;
 
-      // If we have a candidate, update pending
-      if (rawFingerCount !== stabilizer.pending) {
-        stabilizer.pending = rawFingerCount;
-        stabilizer.pendingSince = now;
+      // Compute raw chord index including VI/VII special gestures
+      const extended = leftHand.extendedFingers;
+      let rawChordIndex: number;
+      if (extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
+        rawChordIndex = 6; // VII
+      } else if (extended.includes('index') && extended.includes('pinky')) {
+        rawChordIndex = 5; // VI
+      } else {
+        rawChordIndex = FINGER_TO_CHORD_INDEX[leftHand.fingerCount] ?? 0;
       }
 
-      // Commit if pending has been stable for HOLD_MS
+      // Stabilize chordIndex (not finger count — catches all gesture changes)
+      if (rawChordIndex !== stabilizer.pending) {
+        stabilizer.pending = rawChordIndex;
+        stabilizer.pendingSince = now;
+      }
       if (now - stabilizer.pendingSince >= HOLD_MS) {
         stabilizer.committed = stabilizer.pending;
       } else if (stabilizer.committed === null) {
-        // First gesture: commit immediately for instant response
-        stabilizer.committed = rawFingerCount;
+        stabilizer.committed = rawChordIndex;
       }
 
-      // Use committed finger count for chord selection
-      const stableFingerCount = stabilizer.committed ?? rawFingerCount;
-
-      // VI/VII: check specific finger combos, but only if the stabilizer has committed
-      const extended = leftHand.extendedFingers;
-      const hasCommitted = stabilizer.committed !== null;
-      if (hasCommitted && extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
-        chordIndex = 6; // VII
-      } else if (hasCommitted && extended.includes('index') && extended.includes('pinky')) {
-        chordIndex = 5; // VI
-      } else {
-        // Standard finger count mapping
-        chordIndex = FINGER_TO_CHORD_INDEX[stableFingerCount] ?? 0;
-      }
-      hasValidChord = stableFingerCount > 0; // 0 fingers (fist) = no valid chord
+      chordIndex = stabilizer.committed ?? rawChordIndex;
+      hasValidChord = leftHand.fingerCount > 0; // 0 fingers (fist) = no valid chord
 
       if (s.leftHandMode === 'scaleTilt') {
         // Wrist tilt → major/minor (>=0 = major, <0 = minor like competitor)

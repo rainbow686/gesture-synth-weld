@@ -493,10 +493,10 @@ export class AudioEngine {
 
     switch (timbre) {
       case 'gesture':
-        // Instant attack for piano-like onset, routed through main filter
+        // Instant attack + quick release for crisp chord switching
         return new SynthInstrument({
           waveform: 'sawtooth',
-          envelope: { attack: 0.001, decay: 0, sustain: 1.0, release: 0.5 },
+          envelope: { attack: 0.001, decay: 0, sustain: 1.0, release: 0.1 },
           filter,
         });
 

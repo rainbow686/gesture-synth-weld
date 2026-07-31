@@ -929,9 +929,23 @@ body {
     height: 100svh;
   }
 
+  /* Toolbar: single row in landscape (enough width) */
   .frost-toolbar {
     padding: 3px 8px;
     border-radius: 12px;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .frost-toolbar::-webkit-scrollbar { display: none; }
+  .frost-toolbar .brand {
+    flex-basis: auto;
+    text-align: left;
+    font-size: 0.5rem;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
   }
 
   .frost-panel {
@@ -941,13 +955,19 @@ body {
     gap: 6px !important;
   }
 
+  /* Scale guide: wider spacing in landscape */
   .scale-guide {
     bottom: 50px !important;
+    justify-content: center !important;
+    gap: 6px !important;
   }
-
   .scale-guide > div {
-    width: 44px !important;
-    padding: 0.2rem 0.1rem !important;
+    width: 52px !important;
+    min-width: 52px !important;
+    padding: 0.3rem 0.2rem !important;
+  }
+  .scale-guide > div > span:first-child {
+    font-size: 1.1rem !important;
   }
 
   .status-bar-bottom {

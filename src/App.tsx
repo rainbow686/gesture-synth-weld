@@ -97,7 +97,7 @@ export default function App() {
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(true); // Show by default so users see hand options
+  const [showSettings, setShowSettings] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 

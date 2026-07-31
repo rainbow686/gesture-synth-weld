@@ -1066,20 +1066,25 @@ export default function App() {
         {/* ─── Error (including camera denied) ───────────────────────── */}
         {error && (
           <div className="camera-placeholder error-state">
-            <div className="camera-placeholder-icon error-icon">
-              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(255,80,80,0.4)" strokeWidth="2.5" />
-                <path d="M48 30l16-9v32l-16-9" stroke="rgba(255,80,80,0.4)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="24" y1="50" x2="44" y2="30" stroke="rgba(255,80,80,0.5)" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
+            <div className="camera-placeholder-brand">
+              <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
             <div className="camera-error-message">{error}</div>
             {isCameraError && (
-              <p className="camera-denied-hint">
-                On iPhone/iPad: go to Settings → Safari → Camera → Allow. Then reload this page.
-                On Android: go to Settings → Apps → Chrome → Permissions → Camera → Allow.
-                On desktop: click the lock icon (🔒) in the address bar and enable camera access.
-              </p>
+              <div className="camera-error-guide">
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">iPhone / iPad</span>
+                  Settings → Safari → Camera → <strong>Allow</strong>. Then reload.
+                </div>
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">Android</span>
+                  Settings → Apps → Chrome → Permissions → Camera → <strong>Allow</strong>.
+                </div>
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">Desktop</span>
+                  Click the lock icon (🔒) in the address bar → enable camera access.
+                </div>
+              </div>
             )}
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
           </div>

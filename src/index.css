@@ -897,53 +897,20 @@ body {
     display: none; /* hide hint text on mobile */
   }
 
-  /* Status bar: 2 rows — chord+volume top, controls bottom */
+  /* Status bar: single row, scrollable */
   .status-bar-bottom {
-    padding: 0.3rem 0.4rem !important;
-    font-size: 0.5rem !important;
-    gap: 0.2rem !important;
-    flex-wrap: wrap !important;
-    row-gap: 3px !important;
-    justify-content: center !important;
-    align-items: center !important;
-  }
-  .status-bar-bottom .status-chord {
+    padding: 0.4rem 0.6rem !important;
     font-size: 0.65rem !important;
-  }
-  .status-bar-bottom .status-volume {
-    max-width: 80px !important;
-  }
-  .status-bar-bottom .status-volume .status-label {
-    display: none;
-  }
-  /* Row 2 wrapper: forces break, all controls on one line */
-  .status-row {
-    display: flex !important;
+    gap: 0.5rem !important;
     flex-wrap: nowrap !important;
-    align-items: center !important;
-    gap: 0.2rem !important;
-    width: 100% !important;
-    justify-content: center !important;
-    overflow-x: auto;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
     scrollbar-width: none;
+    justify-content: flex-start !important;
   }
-  .status-row::-webkit-scrollbar { display: none; }
-  .status-bar-bottom input[type="number"] {
-    width: 24px !important;
-    font-size: 0.45rem !important;
-    padding: 0 !important;
-    text-align: center !important;
-  }
-  .status-bar-bottom input[type="range"] {
-    width: 26px !important;
-  }
-  .status-bar-bottom select {
-    font-size: 0.45rem !important;
-    padding: 0 !important;
-  }
-  .status-bar-bottom button {
-    font-size: 0.45rem !important;
-    padding: 0 2px !important;
+  .status-bar-bottom::-webkit-scrollbar { display: none; }
+  .status-bar-bottom > * {
+    flex-shrink: 0;
   }
 
   /* Camera placeholder */

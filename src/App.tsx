@@ -877,8 +877,8 @@ export default function App() {
         {(isRunning || keyboardMode) && (
           <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
-            <div className="frost-toolbar" style={{ gap: '4px', padding: '6px 14px', fontSize: '0.62rem' }}>
-              <span className="brand">Gesture Synth Weld</span>
+            <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 10px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
+              <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth</span>
               <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
               <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
               <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>

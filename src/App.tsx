@@ -1036,19 +1036,13 @@ export default function App() {
                   </tbody>
                 </table>
 
-                {/* Left / Right hand descriptions */}
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
-                  <p style={{ margin: 0, fontSize: '0.6rem', borderLeft: '2px solid var(--neon-cyan)', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                    <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span><br/>
-                    Fingers = scale degree<br/>
-                    Wrist tilt = major / minor
-                  </p>
-                  <p style={{ margin: 0, fontSize: '0.6rem', borderLeft: '2px solid var(--neon-magenta)', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                    <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span><br/>
-                    Height = volume<br/>
-                    Fingers = chord type
-                  </p>
-                </div>
+                {/* Left / Right hand descriptions — stacked vertically */}
+                <p style={{ margin: '0 0 4px', fontSize: '0.6rem', borderLeft: '2px solid var(--neon-cyan)', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
+                  <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor
+                </p>
+                <p style={{ margin: '0 0 8px', fontSize: '0.6rem', borderLeft: '2px solid var(--neon-magenta)', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
+                  <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type
+                </p>
 
                 <p style={{ fontSize: '0.58rem', color: 'var(--text-muted)', margin: '0 0 6px', whiteSpace: 'nowrap' }}>
                   Both hands required · Either fist = stop · ⟿ Arp ∿ Bass ● Rec ♪ Metronome

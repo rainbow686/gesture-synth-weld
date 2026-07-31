@@ -71,11 +71,13 @@ export default function App() {
     isPlaying: false,
     keyOffset: 0,
     appMode: 'gesture',
-    leftHandMode: 'scaleTilt',
-    rightHandMode: 'fingerLayout',
-    arpeggiate: false,
+    leftHandMode: 'scaleLocked',
+    lockedMode: 'major',
+    rightHandMode: 'fixedChordStyle',
+    lockedChordStyle: 'majorTriad',
+    arpeggiate: true,
     arpSpeed: 'normal',
-    autoBass: false,
+    autoBass: true,
     bassVolume: 0.5,
   });
   const [isRecording, setIsRecording] = useState(false);
@@ -865,7 +867,7 @@ export default function App() {
 
         {/* ─── Two-Row Toolbar ──────────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
-          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
             <div className="frost-toolbar" style={{ gap: '4px', padding: '6px 14px', fontSize: '0.62rem' }}>
               <span className="brand">GSW</span>

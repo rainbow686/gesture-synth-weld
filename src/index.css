@@ -815,12 +815,90 @@ body {
     height: 100svh;
   }
 
-  .app-title {
-    font-size: 0.6rem;
-    top: 0.5rem;
-    right: 0.75rem;
+  /* Toolbar: compact, scrollable */
+  .frost-toolbar {
+    gap: 2px;
+    padding: 4px 10px;
+    font-size: 0.55rem;
+    border-radius: 14px;
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .frost-toolbar::-webkit-scrollbar { display: none; }
+  .frost-toolbar button,
+  .frost-toolbar select {
+    font-size: 0.55rem;
+    padding: 4px 7px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .frost-toolbar button.icon-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+  }
+  .frost-toolbar .brand {
+    font-size: 0.5rem;
+    margin-right: 2px;
+    flex-shrink: 0;
+  }
+  .frost-toolbar .divider {
+    height: 14px;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+  .frost-toolbar [data-tip]:hover::after {
+    display: none; /* no tooltips on touch */
   }
 
+  /* Settings panel: stack vertically */
+  .frost-panel {
+    flex-direction: column !important;
+    max-width: calc(100vw - 32px) !important;
+    padding: 12px !important;
+    gap: 10px !important;
+    font-size: 0.6rem !important;
+    border-radius: 12px;
+  }
+  .frost-panel > span.divider {
+    height: 1px !important;
+    width: 100% !important;
+    align-self: auto !important;
+  }
+
+  /* Scale guide: compact, scrollable */
+  .scale-guide > div {
+    width: 52px !important;
+    padding: 0.4rem 0.2rem !important;
+  }
+  .scale-guide > div > span:first-child {
+    font-size: 1.2rem !important;
+  }
+  .scale-guide > div > span:nth-child(2) {
+    font-size: 0.65rem !important;
+  }
+  .scale-guide > div > span:nth-child(3) {
+    font-size: 0.5rem !important;
+  }
+
+  /* Status bar: hide metronome extras, keep essentials */
+  .status-bar-bottom {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
+    gap: 0.6rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .status-bar-bottom::-webkit-scrollbar { display: none; }
+  .status-bar-bottom > * {
+    flex-shrink: 0;
+  }
+
+  /* Camera placeholder */
   .enable-camera-btn {
     font-size: 1rem;
     padding: 0.8rem 2rem;
@@ -829,12 +907,40 @@ body {
   .camera-placeholder-brand-text {
     font-size: 1.4rem;
   }
+}
 
+/* ─── Mobile Landscape ────────────────────────────────────────────────── */
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .camera-stage {
+    height: 100svh;
+  }
+
+  .frost-toolbar {
+    padding: 3px 8px;
+    border-radius: 12px;
+  }
+
+  .frost-panel {
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 8px !important;
+    gap: 6px !important;
+  }
+
+  .scale-guide {
+    bottom: 50px !important;
+  }
+
+  .scale-guide > div {
+    width: 44px !important;
+    padding: 0.2rem 0.1rem !important;
+  }
 
   .status-bar-bottom {
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
-    gap: 1rem;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.6rem;
+    gap: 0.4rem;
   }
 }
 

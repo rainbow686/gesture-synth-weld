@@ -384,12 +384,12 @@
           <div class="step-card">
             <div class="step-num">2</div>
             <h3>Left Hand → Harmony</h3>
-            <p>Choose a key (C–B, default A) and mode. 1–5 fingers select scale degrees I–V. Index+Pinky = VI, +Thumb = VII. Wrist tilt flips major ↔ minor. Or lock to a fixed mode.</p>
+            <p>Choose a key (C–B, default A). 1–5 fingers select scale degrees I–V. Index+Pinky = VI, +Thumb = VII. Default mode is locked to Major — switch to Scale+Tilt in settings to control major/minor with wrist tilt.</p>
           </div>
           <div class="step-card">
             <div class="step-num">3</div>
             <h3>Right Hand → Expression</h3>
-            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — either fist stops it. Or lock chord style</p>
+            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — left fist mutes it, right fist restores octave. Or lock chord style</p>
           </div>
         </div>
       </div>
@@ -445,7 +445,7 @@
             <tr><td>2</td><td>Major 1st Inversion</td><td>Minor 1st Inversion</td></tr>
             <tr><td>3</td><td>Major 7th</td><td>Minor 7th</td></tr>
             <tr><td>4</td><td>Dominant 7th</td><td>Diminished 7th</td></tr>
-            <tr><td>0 (Fist)</td><td colspan="2"><em>Mute</em> — notes are held silently, resume when fingers return</td></tr>
+            <tr><td>0 (Fist)</td><td colspan="2"><em>Octave reset</em> — sound continues, returns to normal octave when hand opens</td></tr>
           </tbody>
         </table>
         <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Or lock to a fixed chord style in settings — choose from 8 types: Major Triad, Major 1st Inv, Minor Triad, Diminished, Sus2, Sus4, Major 7th, Dominant 7th.</p>
@@ -482,7 +482,7 @@
           </thead>
           <tbody>
             <tr><td><strong>Left fist</strong> (0 fingers)</td><td>Music mutes — notes held, resume when fingers return</td></tr>
-            <tr><td><strong>Right fist</strong> (0 fingers)</td><td>Music mutes — notes held, resume when fingers return</td></tr>
+            <tr><td><strong>Right fist</strong> (0 fingers)</td><td>Octave returns to normal — sound continues, chord keeps updating</td></tr>
             <tr><td><strong>One hand leaves frame</strong></td><td>Music stops after 80ms grace period</td></tr>
             <tr><td><strong>Both hands leave frame</strong></td><td>Music stops after 80ms grace period</td></tr>
           </tbody>
@@ -513,7 +513,7 @@
           The default settings are ready to play instantly: <strong>Key = A Major</strong>,
           <strong>Left Hand = Scale Only (Major locked)</strong>,
           <strong>Right Hand = Fixed Chord Style (Major triad)</strong>.
-          Arpeggiator and Auto Bass are on by default for a rich, full sound. Just raise
+          Arpeggiator and Auto Bass are off by default — toggle them on for a richer sound. Just raise
           both hands — left hand picks the scale degree, right hand triggers the chord.
         </p>
 
@@ -595,18 +595,10 @@
           The audio engine requires a user gesture to start (browser autoplay
           policy). Make sure you clicked "Enable Camera" before expecting sound. Also
           check that your browser isn't muted and your system volume is up.
-          If piano samples are still loading, you'll see "Loading samples…" in
-          the control panel — the synth will use a fallback sound until they finish.
+          Also make sure both hands are visible to the camera — sound only plays
+          when both hands are detected with at least one finger raised.
         </p>
 
-        <h3>Piano samples not loading</h3>
-        <p>
-          Piano sounds use the Salamander Grand Piano sample set loaded from a CDN.
-          If your network blocks the CDN or the connection is slow, the synth will
-          automatically fall back to a synthesized piano sound. You can switch to
-          the Gesture mode will use the built-in synth engine which needs no external downloads.
-          <a href="#how-it-works" style="color:#00ffcc">Back to How It Works ↑</a>
-        </p>
       </div>
 
       <!-- Ad Slot 3 -->
@@ -658,8 +650,8 @@
             In <strong>Finger Layout mode</strong>: 1 finger = triad, 2 fingers = 1st inversion,
             3 fingers = 7th chord, 4 fingers = 9th chord. In <strong>Fixed Chord mode</strong>,
             choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished,
-            Sus2, Sus4, Major 7th, and Dominant 7th. Left-hand wrist tilt dynamically switches
-            between major and minor tonality, or lock to a fixed mode.
+            Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt in settings
+            to switch between major and minor with left-hand wrist tilt.
           </p>
         </details>
 
@@ -670,8 +662,8 @@
             left hand controls harmony (key selection, scale degree, major/minor toggle) while your
             right hand controls expression (chord complexity, volume, tone, octave). Unlike basic
             gesture synths, it includes an <strong>arpeggiator</strong> for harp-like sweeps, an
-            <strong>auto bass generator</strong> for low-end foundation, <strong>5 distinct sound
-            presets</strong> including sampled piano, support for <strong>9th chords</strong>
+            <strong>auto bass generator</strong> for low-end foundation, a <strong>sawtooth synth engine</strong>
+            with real-time filter sweep, support for <strong>9th chords</strong>
             (4-finger), <strong>8 fixed chord styles</strong>, and built-in <strong>WebM recording</strong>.
             It's also open source under the MIT license.
           </p>

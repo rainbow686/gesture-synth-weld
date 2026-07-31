@@ -92,7 +92,6 @@ export default function App() {
   const HAND_STABLE_FRAMES = 3; // Require 3 frames for hand presence
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
-  const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [showSkeleton, setShowSkeleton] = useState(true);
@@ -657,7 +656,6 @@ export default function App() {
   const startCamera = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setKeyboardMode(false);
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -714,12 +712,6 @@ export default function App() {
     }
   }, []);
 
-  const enterKeyboardMode = useCallback(() => {
-    setKeyboardMode(true);
-    setIsRunning(false);
-    setError(null);
-  }, []);
-
   const stopCamera = useCallback(() => {
     runningRef.current = false;
     if (rafIdRef.current) {
@@ -751,7 +743,6 @@ export default function App() {
     setHasLeftHand(false);
     setHasRightHand(false);
     setIsRunning(false);
-    setKeyboardMode(false);
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
@@ -830,7 +821,7 @@ export default function App() {
         <canvas ref={canvasRef} className="camera-canvas" />
 
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
-        <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 20 }}>
+        <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', zIndex: 20 }}>
           <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
             <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
             <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
@@ -1002,8 +993,8 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Camera placeholder — "Enable Camera" instead of "Start" ─ */}
-        {!isRunning && !isLoading && !error && !keyboardMode && (
+        {/* ─── Camera placeholder — semi-transparent, button floats on top ─ */}
+        {!isRunning && !isLoading && !error && (
           <div className="camera-placeholder">
             <div className="camera-placeholder-icon">
               <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1021,21 +1012,6 @@ export default function App() {
               <span>Enable Camera</span>
             </button>
             <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
-            <button className="keyboard-mode-link" onClick={enterKeyboardMode}>
-              No camera? Try keyboard mode →
-            </button>
-          </div>
-        )}
-
-        {/* ─── Keyboard mode ─────────────────────────────────────────── */}
-        {keyboardMode && (
-          <div className="keyboard-mode-screen">
-            <div className="keyboard-chord-display">
-              <span className="keyboard-chord-name">{synthState.chordName}</span>
-            </div>
-            <div className="keyboard-volume-bar">
-              <div className="keyboard-volume-fill" style={{ width: `${synthState.volume * 100}%` }} />
-            </div>
           </div>
         )}
 
@@ -1064,9 +1040,6 @@ export default function App() {
               </p>
             )}
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
-            <button className="keyboard-mode-link" onClick={enterKeyboardMode}>
-              No camera? Try keyboard mode →
-            </button>
           </div>
         )}
 
@@ -1263,25 +1236,6 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Keyboard-mode status bar ──────────────────────────────── */}
-        {keyboardMode && (
-          <div className="status-bar-bottom">
-            <div className="status-chord">
-              🎵 {synthState.chordName}
-            </div>
-            <div className="status-volume">
-              <span className="status-label">Vol</span>
-              <div className="status-volume-track">
-                <div className="status-volume-fill" style={{ width: `${synthState.volume * 100}%` }} />
-              </div>
-            </div>
-            <div className="status-mode">
-              Keyboard
-            </div>
-            <span style={{ flex: 1 }} />
-            <button className="icon-btn" onClick={stopCamera} data-tip="Exit keyboard mode" style={{ color: 'var(--neon-magenta)', background: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '4px 10px', cursor: 'pointer', fontSize: '0.65rem' }}>■ Exit</button>
-          </div>
-        )}
       </section>
 
     </div>

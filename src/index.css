@@ -79,14 +79,20 @@ body {
 .camera-placeholder {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
   text-align: center;
-  background: radial-gradient(ellipse at center, rgba(0, 255, 204, 0.04) 0%, transparent 60%);
+  /* Semi-transparent: just a subtle vignette so the toolbar stands out above */
+  background: radial-gradient(ellipse at center, rgba(10, 10, 26, 0.25) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.camera-placeholder > * {
+  pointer-events: auto;
 }
 
 .camera-placeholder-icon svg {
@@ -179,7 +185,7 @@ body {
 }
 
 .camera-placeholder.error-state {
-  background: radial-gradient(ellipse at center, rgba(255, 50, 50, 0.04) 0%, transparent 60%);
+  background: radial-gradient(ellipse at center, rgba(255, 50, 50, 0.08) 0%, transparent 65%);
 }
 
 .keyboard-mode-link {

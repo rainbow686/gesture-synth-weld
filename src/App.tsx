@@ -582,22 +582,23 @@ export default function App() {
     // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // If nearly silent, don't draw at all
-    if (rms < 0.005) return;
+    const playing = synthRef.current.isPlaying;
+    // No hands active at all → hide waveform entirely
+    if (!playing && rms < 0.005) return;
 
-    // Line width: 1 (quiet) → 6 (loud)
-    const lineW = 1 + rms * 8;
-    // Color: gray when quiet/muted, cyan when active
-    const active = rms > 0.02;
-    const alpha = active ? 0.2 + rms * 0.8 : 0.15;
-    const r = active ? 0 : 128;
-    const g = active ? 255 : 128;
-    const b = active ? 204 : 128;
+    // Muted (hands present but silent) → thin gray line
+    // Playing → cyan with variable width
+    const muted = rms < 0.005;
+    const lineW = muted ? 1 : 1 + rms * 8;
+    const r = muted ? 128 : 0;
+    const g = muted ? 128 : 255;
+    const b = muted ? 128 : 204;
+    const alpha = muted ? 0.12 : 0.2 + rms * 0.8;
 
     ctx.lineWidth = lineW;
     ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    ctx.shadowColor = active ? '#00ffcc' : 'transparent';
-    ctx.shadowBlur = active ? 8 : 0;
+    ctx.shadowColor = muted ? 'transparent' : '#00ffcc';
+    ctx.shadowBlur = muted ? 0 : 8;
     ctx.beginPath();
 
     const sliceWidth = canvas.width / bufferLength;

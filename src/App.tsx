@@ -69,7 +69,7 @@ export default function App() {
     volume: 0.6,
     mode: 'neutral',
     isPlaying: false,
-    keyOffset: 0,
+    keyOffset: 9, // A major (matches competitor default)
     appMode: 'gesture',
     leftHandMode: 'scaleLocked',
     lockedMode: 'major',
@@ -1056,10 +1056,10 @@ export default function App() {
                     style={{
                       width: '70px',
                       padding: '0.6rem 0.3rem',
-                      background: isActive ? 'rgba(0, 255, 204, 0.25)' : 'var(--frost-bg)',
+                      background: isActive ? 'rgba(0, 255, 204, 0.2)' : 'rgba(22, 22, 32, 0.35)',
                       backdropFilter: 'var(--frost-blur)',
                       WebkitBackdropFilter: 'var(--frost-blur)',
-                      border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.7)' : 'rgba(255, 255, 255, 0.06)'}`,
+                      border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.6)' : 'rgba(255, 255, 255, 0.04)'}`,
                       borderRadius: '10px',
                       display: 'flex',
                       flexDirection: 'column',

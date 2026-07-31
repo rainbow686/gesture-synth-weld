@@ -555,7 +555,8 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
   };
 
-  // Draw waveform visualization - transparent overlay style at bottom
+  // Draw waveform visualization — line thickness follows volume,
+  // gray when muted, invisible when silent.
   const drawWaveformRef = useRef<() => void>();
   drawWaveformRef.current = () => {
     const canvas = waveformCanvasRef.current;
@@ -573,21 +574,37 @@ export default function App() {
     const waveform = analyser.getValue() as Float32Array;
     const bufferLength = waveform.length;
 
-    // Transparent background
+    // Compute RMS amplitude from waveform data
+    let sumSq = 0;
+    for (let i = 0; i < bufferLength; i++) sumSq += waveform[i] * waveform[i];
+    const rms = Math.sqrt(sumSq / bufferLength); // 0 (silent) … ~0.7 (loud)
+
+    // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
-    ctx.shadowColor = '#00ffcc';
-    ctx.shadowBlur = 8;
+    // If nearly silent, don't draw at all
+    if (rms < 0.005) return;
+
+    // Line width: 1 (quiet) → 6 (loud)
+    const lineW = 1 + rms * 8;
+    // Color: gray when quiet/muted, cyan when active
+    const active = rms > 0.02;
+    const alpha = active ? 0.2 + rms * 0.8 : 0.15;
+    const r = active ? 0 : 128;
+    const g = active ? 255 : 128;
+    const b = active ? 204 : 128;
+
+    ctx.lineWidth = lineW;
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    ctx.shadowColor = active ? '#00ffcc' : 'transparent';
+    ctx.shadowBlur = active ? 8 : 0;
     ctx.beginPath();
 
     const sliceWidth = canvas.width / bufferLength;
     let x = 0;
 
     for (let i = 0; i < bufferLength; i++) {
-      // waveform values are in range [-1, 1]
-      const v = (waveform[i] + 1) / 2; // normalize to [0, 1]
+      const v = (waveform[i] + 1) / 2;
       const y = v * canvas.height;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
@@ -1136,23 +1153,21 @@ export default function App() {
               </div>
             )}
 
-            {/* Waveform visualization — full-width, transparent overlay at bottom */}
-            {synthState.isPlaying && (
-              <div style={{
-                position: 'absolute',
-                bottom: '45px',
-                left: 0,
-                right: 0,
-                height: '36px',
-                zIndex: 5,
-                pointerEvents: 'none',
-              }}>
-                <canvas
-                  ref={waveformCanvasRef}
-                  style={{ width: '100%', height: '100%', opacity: 0.5 }}
-                />
-              </div>
-            )}
+            {/* Waveform visualization — shows whenever hands are active */}
+            <div style={{
+              position: 'absolute',
+              bottom: '45px',
+              left: 0,
+              right: 0,
+              height: '36px',
+              zIndex: 5,
+              pointerEvents: 'none',
+            }}>
+              <canvas
+                ref={waveformCanvasRef}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
 
           </>
         )}

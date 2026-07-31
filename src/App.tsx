@@ -95,6 +95,7 @@ export default function App() {
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(false); // Off by default — less visual distraction
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 
@@ -536,6 +537,7 @@ export default function App() {
 
   const drawOverlayRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number) => void>();
   drawOverlayRef.current = (ctx, w, h) => {
+    if (!showSkeleton) return;
     const g = gestureRef.current;
     if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)');
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
@@ -953,6 +955,12 @@ export default function App() {
                     </>
                   )}
                 </div>
+
+                {/* Skeleton toggle */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.58rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                  <input type="checkbox" checked={showSkeleton} onChange={(e) => setShowSkeleton(e.target.checked)} style={{ accentColor: 'var(--neon-cyan)' }} />
+                  Show hand skeleton
+                </label>
 
                 {/* Arp / Bass extras */}
                 {(synthState.arpeggiate || synthState.autoBass) && (

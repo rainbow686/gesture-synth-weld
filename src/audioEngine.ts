@@ -33,16 +33,16 @@ class SynthInstrument implements Instrument {
   }) {
     const { waveform, envelope, filterFreq, filter } = options;
 
-    // Use two detuned oscillators per voice for a thicker sound
+    // Use voiceCount=6 for fuller polyphony with subtle thickness
     this.synth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: waveform, spread: 8, count: 1 },
+      oscillator: { type: waveform, detune: 6 },
       envelope: {
         attack: envelope.attack ?? 0.02,
         decay: envelope.decay ?? 0.1,
         sustain: envelope.sustain ?? 0.8,
         release: envelope.release ?? 0.5,
       },
-      voiceCount: 4,
+      voiceCount: 6,
     });
 
     // Warmth: gentle drive after synth for subtle harmonics

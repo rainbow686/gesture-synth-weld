@@ -1074,19 +1074,19 @@ export default function App() {
               <div className="camera-error-guide">
                 <div className="camera-error-guide-item">
                   <span className="camera-error-guide-label">iPhone / iPad</span>
-                  Settings → Safari → Camera → <strong>Allow</strong>. Then reload.
+                  Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
                 </div>
                 <div className="camera-error-guide-item">
                   <span className="camera-error-guide-label">Android</span>
-                  Settings → Apps → Chrome → Permissions → Camera → <strong>Allow</strong>.
+                  Settings → Apps → your browser → Permissions → <strong>Camera</strong> → Allow. Then reload.
                 </div>
                 <div className="camera-error-guide-item">
                   <span className="camera-error-guide-label">Mac</span>
-                  Chrome: menu bar → <strong>Chrome</strong> → Settings → Privacy and Security → Site Settings → Camera → find gesturesynthweld.com → <strong>Allow</strong>
+                  System Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
                 </div>
                 <div className="camera-error-guide-item">
                   <span className="camera-error-guide-label">Windows</span>
-                  Chrome: ⋮ → Settings → Privacy and Security → Site Settings → Camera → find gesturesynthweld.com → <strong>Allow</strong>
+                  Settings → Privacy &amp; Security → <strong>Camera</strong> → Camera access: On → make sure your browser is allowed. Then reload.
                 </div>
               </div>
             )}

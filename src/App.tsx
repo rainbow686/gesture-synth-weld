@@ -100,6 +100,16 @@ export default function App() {
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 
+  /* ─── Metronome state ───────────────────────────────────────────────── */
+
+  const [metronomeBpm, setMetronomeBpm] = useState(120);
+  const [metronomeTimeSig, setMetronomeTimeSig] = useState('4/4');
+  const [metronomeBars, setMetronomeBars] = useState('1');
+  const [metronomeSound, setMetronomeSound] = useState('click');
+  const [metronomeVolume, setMetronomeVolume] = useState(0.25);
+  const [metronomeOn, setMetronomeOn] = useState(false);
+  const tapTimesRef = useRef<number[]>([]);
+
   const gestureRef = useRef(gesture);
   gestureRef.current = gesture;
 
@@ -1175,20 +1185,132 @@ export default function App() {
           </div>
         )}
 
+        {/* Metronome control bar — below scale blocks */}
+        {(isRunning || keyboardMode) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            zIndex: 10,
+            background: 'rgba(10, 15, 30, 0.85)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '8px',
+            padding: '6px 12px',
+            fontSize: '0.7rem',
+            color: 'var(--text-secondary)',
+          }}>
+            {/* BPM + Tap */}
+            <input
+              type="number"
+              value={metronomeBpm}
+              onChange={(e) => setMetronomeBpm(Number(e.target.value))}
+              style={{ width: '40px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '0.7rem', textAlign: 'center', padding: '2px' }}
+            />
+            <span>BPM</span>
+            <button
+              onClick={() => {
+                const now = performance.now();
+                const taps = tapTimesRef.current;
+                taps.push(now);
+                if (taps.length > 4) taps.shift();
+                if (taps.length >= 2) {
+                  const intervals = taps.slice(1).map((t, i) => t - taps[i]);
+                  const avgMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                  const newBpm = Math.round(60000 / avgMs);
+                  setMetronomeBpm(Math.max(40, Math.min(240, newBpm)));
+                }
+              }}
+              style={{ background: 'rgba(0,255,204,0.1)', border: '1px solid rgba(0,255,204,0.2)', borderRadius: '4px', color: 'var(--neon-cyan)', fontSize: '0.6rem', padding: '2px 6px', cursor: 'pointer' }}
+            >
+              TAP
+            </button>
+
+            {/* Time signature */}
+            <select
+              value={metronomeTimeSig}
+              onChange={(e) => setMetronomeTimeSig(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '0.65rem', padding: '2px' }}
+            >
+              <option>3/4</option>
+              <option>4/4</option>
+              <option>5/4</option>
+              <option>6/8</option>
+              <option>7/8</option>
+            </select>
+
+            {/* Bar length */}
+            <select
+              value={metronomeBars}
+              onChange={(e) => setMetronomeBars(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '0.65rem', padding: '2px' }}
+            >
+              <option value="1">1 bar</option>
+              <option value="2">2 bars</option>
+              <option value="4">4 bars</option>
+              <option value="8">8 bars</option>
+              <option value="16">16 bars</option>
+            </select>
+
+            {/* Mute toggle */}
+            <button
+              onClick={() => setMetronomeOn(!metronomeOn)}
+              style={{
+                background: metronomeOn ? 'rgba(0,255,204,0.15)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${metronomeOn ? 'rgba(0,255,204,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: '4px',
+                color: metronomeOn ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                fontSize: '0.6rem',
+                padding: '2px 6px',
+                cursor: 'pointer',
+              }}
+            >
+              ♪
+            </button>
+
+            {/* Sound selector */}
+            <select
+              value={metronomeSound}
+              onChange={(e) => setMetronomeSound(e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '0.65rem', padding: '2px' }}
+            >
+              <option value="click">Click</option>
+              <option value="wood">Wood</option>
+              <option value="beep">Beep</option>
+              <option value="hihat">Hi-hat</option>
+            </select>
+
+            {/* Volume slider */}
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={metronomeVolume}
+              onChange={(e) => setMetronomeVolume(Number(e.target.value))}
+              style={{ width: '40px', accentColor: 'var(--neon-cyan)' }}
+            />
+            <span style={{ fontSize: '0.6rem', width: '28px' }}>{Math.round(metronomeVolume * 100)}%</span>
+          </div>
+        )}
+
         {/* Waveform visualization - full-width, transparent overlay at bottom */}
         {(isRunning || keyboardMode) && synthState.isPlaying && (
           <div style={{
             position: 'absolute',
-            bottom: '70px',
+            bottom: '45px',
             left: 0,
             right: 0,
-            height: '50px',
+            height: '36px',
             zIndex: 5,
             pointerEvents: 'none',
           }}>
             <canvas
               ref={waveformCanvasRef}
-              style={{ width: '100%', height: '100%', opacity: 0.6 }}
+              style={{ width: '100%', height: '100%', opacity: 0.5 }}
             />
           </div>
         )}

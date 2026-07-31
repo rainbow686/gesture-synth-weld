@@ -805,12 +805,20 @@ export default function App() {
         <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
         <canvas ref={canvasRef} className="camera-canvas" />
 
-        {/* Hand tags */}
+        {/* Hand tags on sides */}
         {isRunning && (
-          <div className="hand-tag-overlay">
-            {hasLeftHand && <span className="hand-tag left">L</span>}
-            {hasRightHand && <span className="hand-tag right">R</span>}
-          </div>
+          <>
+            {hasLeftHand && (
+              <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', zIndex: 15, padding: '6px 10px', background: 'var(--frost-bg)', backdropFilter: 'var(--frost-blur)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '12px', color: 'var(--neon-cyan)', fontSize: '0.7rem', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
+                L
+              </div>
+            )}
+            {hasRightHand && (
+              <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', zIndex: 15, padding: '6px 10px', background: 'var(--frost-bg)', backdropFilter: 'var(--frost-blur)', border: '1px solid rgba(255,0,255,0.3)', borderRadius: '12px', color: 'var(--neon-magenta)', fontSize: '0.7rem', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
+                R
+              </div>
+            )}
+          </>
         )}
 
         {/* Start screen */}
@@ -867,10 +875,10 @@ export default function App() {
 
         {/* ─── Two-Row Toolbar ──────────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
-          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
             <div className="frost-toolbar" style={{ gap: '4px', padding: '6px 14px', fontSize: '0.62rem' }}>
-              <span className="brand">GSW</span>
+              <span className="brand">Gesture Synth Weld</span>
               <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
               <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
               <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
@@ -885,6 +893,8 @@ export default function App() {
               <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
               <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
               <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide">?</button>
+              <span className="divider" />
+              <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
             </div>
 
             {/* Row 2: hand settings panel — only for Gesture mode (Theremin/Piano don't use hand division) */}
@@ -1010,11 +1020,6 @@ export default function App() {
                 </div>
               </div>
             )}
-
-        {/* Title */}
-        <div className="app-title">
-          <span>Gesture Synth Weld</span>
-        </div>
 
         {/* Scale Guide - 8 blocks showing scale degrees (positioned at bottom) */}
         {(isRunning || keyboardMode) && synthState.appMode === 'gesture' && (
@@ -1198,12 +1203,6 @@ export default function App() {
         )}
       </section>
 
-      {/* Stop button */}
-      {isRunning && (
-        <button className="stop-btn-floating" onClick={stopCamera}>
-          ■ Stop
-        </button>
-      )}
     </div>
   );
 }

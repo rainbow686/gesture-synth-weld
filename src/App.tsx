@@ -394,10 +394,10 @@ export default function App() {
 
       // Compute raw chord index including VI/VII special gestures
       const extended = leftHand.extendedFingers;
-      // Pinky memory: if detected in last 20 frames (~660ms), treat as extended.
-      // Longer window catches sporadic detections from the 3D distance ratio.
+      // Pinky memory: if detected in last 60 frames (~2s), treat as extended.
+      // Long window compensates for unreliable Y-axis pinky detection.
       if (extended.includes('pinky')) {
-        pinkyMemoryRef.current = 20;
+        pinkyMemoryRef.current = 60;
       } else if (pinkyMemoryRef.current > 0) {
         pinkyMemoryRef.current--;
       }

@@ -147,17 +147,8 @@ function getExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): stri
     }
   }
 
-  // Pinky: distance ratio — pinkyTip-to-ringMcp / pinkyMcp-to-ringMcp.
-  // Extended: pinkyTip stretches away from ring MCP → ratio > 1.4
-  // Curled:   pinkyTip hugs ring MCP             → ratio ≈ 1.0
-  // This is hand-size and orientation independent (relative distance).
-  const pTip = pts[20], pMcp = pts[17], rMcp = pts[13];
-  const dist = (a: LandmarkPoint, b: LandmarkPoint) =>
-    Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
-  const tipDist = dist(pTip, rMcp);   // pinky tip → ring MCP
-  const baseDist = dist(pMcp, rMcp);  // pinky MCP → ring MCP (base distance)
-  const ratio = baseDist > 0 ? tipDist / baseDist : 0;
-  if (ratio > 1.2) {
+  // Pinky: standard tip-vs-PIP, same as other fingers
+  if (pts[20].y < pts[18].y) {
     extended.push('pinky');
   }
 

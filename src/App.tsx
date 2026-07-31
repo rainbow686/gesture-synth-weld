@@ -389,13 +389,18 @@ export default function App() {
       stabilizer.lastSeen = now;
 
       // Compute raw chord index including VI/VII special gestures
+      // Matches competitor: exact finger combinations with exclusion
       const extended = leftHand.extendedFingers;
+      const thumb = extended.includes('thumb');
+      const index = extended.includes('index');
+      const middle = extended.includes('middle');
+      const ring = extended.includes('ring');
+      const pinky = extended.includes('pinky');
       let rawChordIndex: number;
-      // VI/VII require EXACT finger combinations (not "contains")
-      if (extended.length === 3 && extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
-        rawChordIndex = 6; // VII — exactly index+pinky+thumb
-      } else if (extended.length === 2 && extended.includes('index') && extended.includes('pinky')) {
-        rawChordIndex = 5; // VI — exactly index+pinky
+      if (index && pinky && !middle && !ring && !thumb) {
+        rawChordIndex = 5; // VI — exactly index+pinky only
+      } else if (index && pinky && !middle && !ring && thumb) {
+        rawChordIndex = 6; // VII — exactly index+pinky+thumb, no others
       } else {
         rawChordIndex = FINGER_TO_CHORD_INDEX[leftHand.fingerCount] ?? 0;
       }
@@ -517,15 +522,17 @@ export default function App() {
         audioEngine.updateFilterSweep(rightHand.tiltAngle);
       }
     } else {
-      // Fist detected (hand present but 0 fingers) → stop immediately
-      const eitherFist = (leftHand && leftHand.fingerCount === 0) || (rightHand && rightHand.fingerCount === 0);
-      if (eitherFist) {
-        audioEngine.stopAll();
-        lastChordRef.current = '';
+      // Matching competitor: fist mutes (keeps notes held), hand loss stops
+      const lFist = leftHand && leftHand.fingerCount === 0;
+      const rFist = rightHand && rightHand.fingerCount === 0;
+
+      if (lFist || rFist) {
+        // Fist = mute, don't release notes (they resume when fingers return)
+        audioEngine.setVolume(0);
         return;
       }
 
-      // Hand(s) missing entirely → apply grace period before stopping
+      // Hand(s) disappeared from frame → grace period → stop
       const now = performance.now();
       const stabilizer = stabilizerRef.current;
       if (stabilizer.lastSeen > 0 && now - stabilizer.lastSeen < GRACE_MS) {

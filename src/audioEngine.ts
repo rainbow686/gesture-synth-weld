@@ -173,6 +173,9 @@ export class AudioEngine {
   updateFilterSweep(tilt: number): void {
     if (!this.filter || !this.ctx) return;
 
+    // Ignore tiny fluctuations to prevent filter warble
+    if (Math.abs(tilt) < 0.05) return;
+
     let freq = 1200;
     let q = 0.7;
     if (tilt < 0) {

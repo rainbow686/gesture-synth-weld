@@ -274,12 +274,12 @@ export class AudioEngine {
       return;
     }
 
-    const bassMidi = midiNote - 24; // drop 2 octaves
+    const bassMidi = midiNote - 24; // drop 2 octaves below root
     if (this.bassNote !== bassMidi) {
       const now = Tone.now();
       this.bassSynth.triggerRelease();
       this.bassSynth.volume.value = Tone.gainToDb(volume) - 12;
-      this.bassSynth.triggerAttack(midiToFreq(bassMidi + 12), now);
+      this.bassSynth.triggerAttack(midiToFreq(bassMidi), now);
       this.bassNote = bassMidi;
     }
   }
@@ -456,12 +456,15 @@ export class AudioEngine {
     this.activeNotes.add(this.arpNotes[0]);
     this.arpIndex = 1;
 
-    // Schedule remaining notes
     this.arpTimer = window.setInterval(() => {
       if (this.arpIndex >= this.arpNotes.length) {
         this.arpIndex = 0; // loop
       }
       const t = Tone.now();
+      // Release previous note before playing next to avoid voice stacking
+      const prevFreq = this.arpNotes[(this.arpIndex - 1 + this.arpNotes.length) % this.arpNotes.length];
+      instrument.triggerRelease(prevFreq, t);
+      this.activeNotes.delete(prevFreq);
       instrument.triggerAttack(this.arpNotes[this.arpIndex], t, 0.7);
       this.activeNotes.add(this.arpNotes[this.arpIndex]);
       this.arpIndex++;

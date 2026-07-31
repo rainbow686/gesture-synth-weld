@@ -136,7 +136,6 @@ export default function App() {
     lastSeen: 0,
   });
   const HOLD_MS = 150; // Require 150ms stability before committing
-  const GRACE_MS = 50; // Grace period for temporary hand loss
 
   // Right hand finger count history for chord style smoothing
   const rightHandHistoryRef = useRef<number[]>([]);
@@ -149,7 +148,9 @@ export default function App() {
     } else {
       audioEngine.stopMetronome();
     }
-  }, [metronomeOn, metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound, metronomeVolume]);
+    // Only restart on structural changes, not volume
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metronomeOn, metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound]);
 
   /* ─── Keyboard Shortcuts ─────────────────────────────────────────── */
 
@@ -414,11 +415,12 @@ export default function App() {
       // Use committed finger count for chord selection
       const stableFingerCount = stabilizer.committed ?? rawFingerCount;
 
-      // Check for specific finger combinations (VI and VII)
+      // VI/VII: check specific finger combos, but only if the stabilizer has committed
       const extended = leftHand.extendedFingers;
-      if (extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
+      const hasCommitted = stabilizer.committed !== null;
+      if (hasCommitted && extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
         chordIndex = 6; // VII
-      } else if (extended.includes('index') && extended.includes('pinky')) {
+      } else if (hasCommitted && extended.includes('index') && extended.includes('pinky')) {
         chordIndex = 5; // VI
       } else {
         // Standard finger count mapping
@@ -471,9 +473,8 @@ export default function App() {
       const stableFingerCount = majorityCount !== -1 ? majorityCount : rawFingerCount;
 
       // CRITICAL: Right hand finger count determines if sound plays
-      // 0 fingers (fist) = no sound - apply immediately without smoothing for fists
-      // 1+ fingers = sound
-      qualityIndex = rawFingerCount === 0 ? 0 : Math.max(stableFingerCount, 1);
+      // 0 fingers (fist) = no sound, 1+ fingers = sound
+      qualityIndex = stableFingerCount;
 
       // Y position → volume
       volume = Math.max(0.02, Math.min(1.0, 1.1 - rightHand.positionY));
@@ -512,9 +513,7 @@ export default function App() {
     setSynthState(newSynth);
 
     // Create chord fingerprint to detect actual changes
-    // Only include chord root (index + mode + key), not chord style
-    // This prevents right hand finger jitter from triggering new chords
-    const chordFingerprint = `${chordIndex}|${mode}|${s.keyOffset}`;
+    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}`;
 
     // Play chord - only if chord actually changed
     if (isPlaying) {
@@ -776,7 +775,8 @@ export default function App() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // Delay revocation to avoid Firefox download race
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
       }
       setIsRecording(false);
       setRecordingTime(0);
@@ -790,18 +790,39 @@ export default function App() {
     }
   }, [isRecording]);
 
-  // Recording timer
+  // Recording timer with 15s auto-stop
   useEffect(() => {
     if (!isRecording) return;
 
     const interval = setInterval(() => {
       if (recordingStartRef.current) {
         const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        setRecordingTime(Math.min(elapsed, 15)); // Max 15 seconds
+        setRecordingTime(Math.min(elapsed, 15));
       }
     }, 100);
 
-    return () => clearInterval(interval);
+    // Auto-stop at 15s
+    const timeout = setTimeout(async () => {
+      const blob = await audioEngine.stopRecording();
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = makeRecordingFilename();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }
+      setIsRecording(false);
+      setRecordingTime(0);
+      recordingStartRef.current = null;
+    }, 15000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, [isRecording]);
 
   /* ─── Render ───────────────────────────────────────────────────────── */
@@ -1018,7 +1039,7 @@ export default function App() {
                   <p style={{ marginTop: '0.3rem' }}>• 🎹 5 timbres: Piano, Strings, Organ, Synth, Vibraphone</p>
                   <p>• 🎼 Arpeggiate: harp-like strumming</p>
                   <p>• 🎸 Auto Bass: adds low-end foundation</p>
-                  <p>• ⏺️ Record: save as WAV (max 15s)</p>
+                  <p>• ⏺️ Record: save as WebM (max 15s)</p>
                 </div>
                 <div>
                   <strong style={{ color: 'var(--neon-amber)' }}>Theremin Mode</strong>

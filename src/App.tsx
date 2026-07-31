@@ -831,30 +831,21 @@ export default function App() {
             <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
               {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
             </select>
-            {isRunning && (
-              <>
-                <span className="divider" />
-                <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
-                <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
-                <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
-                <span className="divider" />
-                <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
-              </>
-            )}
             <span className="divider" />
+            <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
+            <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
+            <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
+            <span className="divider" />
+            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
             <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
-            {isRunning && (
-              <>
-                <span className="divider" />
-                <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
-              </>
-            )}
+            <span className="divider" />
+            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
           </div>
 
           {/* Settings panel — only for Gesture mode */}
           {showSettings && synthState.appMode === 'gesture' && (
-            <div className="frost-panel" style={{ flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
               {/* Left Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                 <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>

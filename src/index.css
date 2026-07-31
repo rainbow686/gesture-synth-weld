@@ -86,8 +86,8 @@ body {
   justify-content: center;
   gap: 1.5rem;
   text-align: center;
-  /* Semi-transparent: just a subtle vignette so the toolbar stands out above */
-  background: radial-gradient(ellipse at center, rgba(10, 10, 26, 0.25) 0%, transparent 65%);
+  /* Nearly transparent — the glass button is the focal point */
+  background: radial-gradient(ellipse at center, rgba(10, 10, 26, 0.12) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -117,9 +117,11 @@ body {
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--bg-dark);
-  background: linear-gradient(135deg, var(--neon-cyan), #00cc99);
-  border: none;
+  color: var(--neon-cyan);
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 50px;
   padding: 1rem 3rem;
   cursor: pointer;
@@ -127,8 +129,8 @@ body {
   align-items: center;
   gap: 0.75rem;
   transition: all 0.3s ease;
-  box-shadow: 0 0 30px rgba(0, 255, 204, 0.4), 0 0 60px rgba(0, 255, 204, 0.2);
-  animation: pulse-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(0, 255, 204, 0.25), 0 0 60px rgba(0, 255, 204, 0.1), var(--frost-shadow);
+  animation: pulse-glow-glass 2s ease-in-out infinite;
 }
 
 .enable-camera-btn-icon {
@@ -138,7 +140,8 @@ body {
 
 .enable-camera-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 40px rgba(0, 255, 204, 0.6), 0 0 80px rgba(0, 255, 204, 0.3);
+  border-color: rgba(0, 255, 204, 0.6);
+  box-shadow: 0 0 40px rgba(0, 255, 204, 0.4), 0 0 80px rgba(0, 255, 204, 0.2), var(--frost-shadow);
 }
 
 .enable-camera-btn:active {
@@ -152,13 +155,14 @@ body {
 }
 
 .enable-camera-btn.retry {
-  background: linear-gradient(135deg, var(--neon-magenta), #cc0066);
-  box-shadow: 0 0 30px rgba(255, 0, 255, 0.3), 0 0 60px rgba(255, 0, 255, 0.15);
+  color: var(--neon-magenta);
+  border-color: rgba(255, 0, 255, 0.35);
+  box-shadow: 0 0 30px rgba(255, 0, 255, 0.2), 0 0 60px rgba(255, 0, 255, 0.08), var(--frost-shadow);
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 204, 0.4), 0 0 60px rgba(0, 255, 204, 0.2); }
-  50% { box-shadow: 0 0 50px rgba(0, 255, 204, 0.6), 0 0 100px rgba(0, 255, 204, 0.3); }
+@keyframes pulse-glow-glass {
+  0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 204, 0.25), 0 0 60px rgba(0, 255, 204, 0.1), var(--frost-shadow); }
+  50% { box-shadow: 0 0 45px rgba(0, 255, 204, 0.4), 0 0 80px rgba(0, 255, 204, 0.2), var(--frost-shadow); }
 }
 
 .camera-placeholder-hint {

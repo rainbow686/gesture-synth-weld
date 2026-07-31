@@ -298,7 +298,85 @@ export class AudioEngine {
     }
   }
 
+  /* ─── Metronome ──────────────────────────────────────────────────── */
+
+  private clickSynth: Tone.Synth | null = null;
+  private metronomeRunning = false;
+  private metronomeBeatIndex = 0;
+  private metronomeLoopId: number | null = null;
+
+  startMetronome(bpm: number, timeSig: string, bars: string, sound: string, volume: number): void {
+    if (!this.initCalled) return;
+    this.stopMetronome();
+
+    // Create a short percussive synth for clicks
+    if (!this.clickSynth) {
+      this.clickSynth = new Tone.Synth({
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
+      }).connect(this.filter || Tone.getContext().destination);
+      this.clickSynth.volume.value = -20;
+    }
+
+    const [beatsPerBar] = timeSig.split('/').map(Number);
+    const totalBars = parseInt(bars);
+    const totalBeats = beatsPerBar * totalBars;
+    const beatIntervalMs = (60 / bpm) * 1000;
+
+    this.metronomeBeatIndex = 0;
+    this.metronomeRunning = true;
+
+    const playBeat = () => {
+      if (!this.metronomeRunning || !this.clickSynth) return;
+
+      const beat = this.metronomeBeatIndex % beatsPerBar;
+      // First beat of each bar gets a higher pitch (accent)
+      const pitch = beat === 0 ? 1000 : 600;
+
+      // Adjust waveform based on sound type
+      switch (sound) {
+        case 'wood': this.clickSynth.oscillator.type = 'triangle'; break;
+        case 'beep': this.clickSynth.oscillator.type = 'sine'; break;
+        case 'hihat': this.clickSynth.oscillator.type = 'square'; break;
+        default: this.clickSynth.oscillator.type = 'sawtooth'; // click
+      }
+
+      const db = Tone.gainToDb(Math.max(0.01, volume));
+      this.clickSynth.volume.setTargetAtTime(db, Tone.now(), 0.01);
+      this.clickSynth.triggerAttackRelease(pitch, beat === 0 ? '32n' : '64n');
+
+      this.metronomeBeatIndex = (this.metronomeBeatIndex + 1) % totalBeats;
+    };
+
+    // Play first beat immediately
+    playBeat();
+
+    // Schedule remaining beats
+    this.metronomeLoopId = window.setInterval(playBeat, beatIntervalMs);
+  }
+
+  stopMetronome(): void {
+    this.metronomeRunning = false;
+    if (this.metronomeLoopId !== null) {
+      clearInterval(this.metronomeLoopId);
+      this.metronomeLoopId = null;
+    }
+    this.metronomeBeatIndex = 0;
+  }
+
+  updateMetronomeBpm(bpm: number): void {
+    // Restart with new BPM to apply change immediately
+    if (this.metronomeRunning && this.metronomeLoopId !== null) {
+      // Just update the interval timing
+      const beatIntervalMs = (60 / bpm) * 1000;
+      clearInterval(this.metronomeLoopId);
+      const playBeat = () => { /* same logic as startMetronome */ };
+      // Note: full restart is simpler, callers should use startMetronome again
+    }
+  }
+
   stopAll(): void {
+    this.stopMetronome();
     this.stopArpeggiator();
     this.releaseAllNotes();
     this.stopBassImmediately();

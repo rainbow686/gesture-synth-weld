@@ -138,6 +138,16 @@ export default function App() {
   // Right hand finger count history for chord style smoothing
   const rightHandHistoryRef = useRef<number[]>([]);
 
+  /* ─── Metronome effect ──────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (metronomeOn) {
+      audioEngine.startMetronome(metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound, metronomeVolume);
+    } else {
+      audioEngine.stopMetronome();
+    }
+  }, [metronomeOn, metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound, metronomeVolume]);
+
   /* ─── Keyboard Shortcuts ─────────────────────────────────────────── */
 
   useEffect(() => {

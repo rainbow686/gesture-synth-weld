@@ -97,7 +97,7 @@ export default function App() {
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(true); // Show by default so users see hand options
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 
@@ -898,45 +898,64 @@ export default function App() {
 
             {/* Settings panel */}
             {showSettings && (
-              <div className="frost-panel desktop-only">
-                <label>Left Hand</label>
+              <div className="frost-panel desktop-only" style={{ maxWidth: '280px' }}>
+                {/* Left Hand */}
+                <label style={{ fontSize: '0.6rem', color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
                 <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}>
-                  <option value="scaleTilt">Scale + Tilt Major/Minor</option>
-                  <option value="scaleLocked">Scale Only (Locked)</option>
+                  <option value="scaleTilt">Scale notes + tilt major/minor</option>
+                  <option value="scaleLocked">Scale notes only (lock mode)</option>
                 </select>
-                {synthState.leftHandMode === 'scaleLocked' && (
-                  <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
-                    <option value="major">Major</option>
-                    <option value="minor">Minor</option>
-                  </select>
+                {synthState.leftHandMode === 'scaleTilt' ? (
+                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
+                ) : (
+                  <>
+                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
+                      <option value="major">Major</option>
+                      <option value="minor">Minor</option>
+                    </select>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree only. Mode is locked above.</p>
+                  </>
                 )}
 
-                <label>Right Hand</label>
+                {/* Right Hand */}
+                <label style={{ fontSize: '0.6rem', color: 'var(--neon-magenta)', fontWeight: 600, marginTop: '6px' }}>Right Hand — Expression</label>
                 <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}>
-                  <option value="fingerLayout">Finger Layout = Chord Style</option>
-                  <option value="fixedChordStyle">Fixed Chord Style</option>
+                  <option value="fingerLayout">Finger layout = chord style</option>
+                  <option value="fixedChordStyle">Fixed chord style</option>
                 </select>
-                {synthState.rightHandMode === 'fixedChordStyle' && (
-                  <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
-                    {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                  </select>
+                {synthState.rightHandMode === 'fingerLayout' ? (
+                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
+                ) : (
+                  <>
+                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
+                      {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                    </select>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
+                  </>
                 )}
 
+                {/* Arpeggiator */}
                 {synthState.arpeggiate && (
                   <>
-                    <label>Arpeggiator Speed</label>
+                    <label style={{ fontSize: '0.6rem', color: 'var(--neon-purple)', fontWeight: 600, marginTop: '6px' }}>Arpeggiator</label>
                     <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))}>
                       <option value="slow">Slow (120ms)</option>
                       <option value="normal">Normal (80ms)</option>
                       <option value="fast">Fast (50ms)</option>
                     </select>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Sweeps through chord notes sequentially at the selected speed.</p>
                   </>
                 )}
 
+                {/* Auto Bass */}
                 {synthState.autoBass && (
                   <>
-                    <label>Bass Volume</label>
-                    <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ width: '100%', accentColor: 'var(--neon-cyan)' }} />
+                    <label style={{ fontSize: '0.6rem', color: 'var(--neon-amber)', fontWeight: 600, marginTop: '6px' }}>Auto Bass Volume</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', width: '26px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
+                    </div>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Adds low-end root note foundation that follows the chord.</p>
                   </>
                 )}
               </div>

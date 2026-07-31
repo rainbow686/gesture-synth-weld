@@ -740,12 +740,28 @@ export default function App() {
       console.error('Failed to start:', err);
       setIsLoading(false);
 
+      // Detect mobile: iOS Safari has stricter camera rules
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
       if (isDomError(err, 'NotAllowedError')) {
-        setError('Camera access was denied.');
+        setError(isMobile
+          ? 'Camera access was denied. On mobile, check your browser app permissions or system Settings > Privacy > Camera.'
+          : 'Camera access was denied. Click the lock icon in the address bar to allow camera access.');
       } else if (isDomError(err, 'NotFoundError')) {
-        setError('No camera found.');
+        setError(isMobile
+          ? 'No camera found. Make sure your device has a front-facing camera and it is not in use by another app.'
+          : 'No camera found. Connect a webcam and try again.');
       } else {
-        setError(`Failed to start: ${getErrorMessage(err)}`);
+        const msg = getErrorMessage(err);
+        if (msg.includes('support') || msg.includes('not supported')) {
+          setError(isMobile
+            ? 'Your browser does not support camera access. Try Chrome or Edge on Android, or Safari on iOS.'
+            : 'Your browser does not support camera access. Try Chrome, Edge, or Firefox.');
+        } else {
+          setError(isMobile
+            ? `Camera error: ${msg}. Try a different browser like Chrome or Safari.`
+            : `Camera error: ${msg}. Check that your webcam is connected and not in use.`);
+        }
       }
     }
   }, []);
@@ -850,7 +866,7 @@ export default function App() {
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
-  const isCameraDenied = error?.toLowerCase().includes('denied');
+  const isCameraError = !!error;
 
   return (
     <div className="full-screen-app">
@@ -1058,9 +1074,11 @@ export default function App() {
               </svg>
             </div>
             <div className="camera-error-message">{error}</div>
-            {isCameraDenied && (
+            {isCameraError && (
               <p className="camera-denied-hint">
-                Camera access is required to use the gesture synth. Please allow camera access in your browser settings.
+                On iPhone/iPad: go to Settings → Safari → Camera → Allow. Then reload this page.
+                On Android: go to Settings → Apps → Chrome → Permissions → Camera → Allow.
+                On desktop: click the lock icon (🔒) in the address bar and enable camera access.
               </p>
             )}
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>

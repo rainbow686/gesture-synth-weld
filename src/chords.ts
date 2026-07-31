@@ -80,9 +80,12 @@ export function getChordFreqs(
   const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
   let intervals: number[];
 
+  // Determine effective major/minor for chord style
+  const effectiveMajor = modeOverride === 'major' ? true : modeOverride === 'minor' ? false : chord.isMajor;
+
   // Determine base intervals based on chord style
   if (chordStyle) {
-    intervals = getChordStyleIntervals(chordStyle, chord.isMajor);
+    intervals = getChordStyleIntervals(chordStyle, effectiveMajor);
     // Shift by chord's root note so each degree plays a different pitch
     intervals = intervals.map(i => i + chord.intervals[0]);
   } else {
@@ -127,7 +130,7 @@ function getChordStyleIntervals(style: ChordStyle, isNaturallyMajor: boolean): n
     case '9th':
       return isNaturallyMajor ? [0, 4, 7, 11, 14] : [0, 3, 7, 10, 14];
     case 'majorTriad':
-      return [0, 7, 12, 16]; // root, fifth, octave root, octave third (fuller voicing)
+      return isNaturallyMajor ? [0, 7, 12, 16] : [0, 7, 12, 15]; // major vs minor third
     case 'major1stInv':
       return [4, 7, 12]; // 1st inversion: 3rd in bass
     case 'minorTriad':

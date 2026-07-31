@@ -76,6 +76,7 @@ export function getChordFreqs(
   inversion: number = 0,
   keyOffset: number = 0, // semitones to transpose
   chordStyle?: ChordStyle,
+  octaveDown: boolean = false,
 ): number[] {
   const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
   let intervals: number[];
@@ -112,8 +113,9 @@ export function getChordFreqs(
   // Sort so the bass note is the lowest
   intervals.sort((a, b) => a - b);
 
-  // Apply key transposition
-  return intervals.map((interval) => midiToFreq(ROOT_MIDI + interval + keyOffset));
+  // Apply key transposition + optional octave shift
+  const baseMidi = ROOT_MIDI + (octaveDown ? -12 : 0);
+  return intervals.map((interval) => midiToFreq(baseMidi + interval + keyOffset));
 }
 
 /**

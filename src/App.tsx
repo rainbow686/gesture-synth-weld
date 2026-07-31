@@ -472,6 +472,9 @@ export default function App() {
       }
     }
 
+    // Right thumb extended → octave down (matching competitor)
+    const thumbDown = !!(rightHand?.extendedFingers.includes('thumb'));
+
     // CRITICAL: Sound only plays if BOTH hands have at least 1 finger raised
     // Left fist or right fist = immediate stop (use raw count for instant response)
     const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
@@ -482,7 +485,7 @@ export default function App() {
       mode === 'neutral' ? undefined : mode,
       s.keyOffset,
       chordStyle,
-    );
+    ) + (thumbDown ? ' (-8ve)' : '');
 
     const newSynth: SynthState = {
       ...s,
@@ -495,7 +498,7 @@ export default function App() {
     setSynthState(newSynth);
 
     // Create chord fingerprint to detect actual changes
-    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}`;
+    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
 
     // Play chord - only if chord actually changed
     if (isPlaying) {
@@ -511,6 +514,7 @@ export default function App() {
           chordStyle,
           s.arpeggiate,
           s.arpSpeed,
+          thumbDown,
         );
       }
 
@@ -543,10 +547,10 @@ export default function App() {
       stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     }
 
-    // Auto bass
+    // Auto bass — follows octave shift
     if (s.autoBass && isPlaying) {
       const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
-      const bassMidi = 60 + chord.intervals[0] + s.keyOffset; // root note
+      const bassMidi = 60 + chord.intervals[0] + s.keyOffset - (thumbDown ? 12 : 0);
       audioEngine.setBassNote(bassMidi, s.bassVolume);
     } else {
       audioEngine.setBassNote(null);

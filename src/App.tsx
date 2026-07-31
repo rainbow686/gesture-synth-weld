@@ -236,7 +236,7 @@ export default function App() {
     let rightHand: HandData | null = null;
 
     for (const hand of hands) {
-      if (hand.positionX > 0.5) {
+      if (hand.label === 'Left') {
         leftHand = hand;
       } else {
         rightHand = hand;

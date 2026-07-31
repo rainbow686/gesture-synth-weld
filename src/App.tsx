@@ -1089,16 +1089,20 @@ export default function App() {
             zIndex: 5,
           }}>
             {(() => {
-              // Calculate note names based on current key
+              // Calculate note names based on current key (use sharp notation only)
+              const mkNote = (semis: number) => {
+                const key = KEYS[(semis + synthState.keyOffset) % 12];
+                return key?.name?.split('/')[0] ?? '?';
+              };
               const keyNotes = [
-                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I',   hint: '1 finger' },
-                { note: KEYS[(2 + synthState.keyOffset) % 12]?.name ?? 'D', roman: 'II',  hint: '2 fingers' },
-                { note: KEYS[(4 + synthState.keyOffset) % 12]?.name ?? 'E', roman: 'III', hint: '3 fingers' },
-                { note: KEYS[(5 + synthState.keyOffset) % 12]?.name ?? 'F', roman: 'IV',  hint: '4 fingers' },
-                { note: KEYS[(7 + synthState.keyOffset) % 12]?.name ?? 'G', roman: 'V',   hint: '5 fingers' },
-                { note: KEYS[(9 + synthState.keyOffset) % 12]?.name ?? 'A', roman: 'VI',  hint: 'idx + pky' },
-                { note: KEYS[(11 + synthState.keyOffset) % 12]?.name ?? 'B', roman: 'VII', hint: 'i + p + t' },
-                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I\'', hint: '1 fing (oct)' },
+                { note: mkNote(0),  roman: 'I',   hint: '1 finger' },
+                { note: mkNote(2),  roman: 'II',  hint: '2 fingers' },
+                { note: mkNote(4),  roman: 'III', hint: '3 fingers' },
+                { note: mkNote(5),  roman: 'IV',  hint: '4 fingers' },
+                { note: mkNote(7),  roman: 'V',   hint: '5 fingers' },
+                { note: mkNote(9),  roman: 'VI',  hint: 'idx + pky' },
+                { note: mkNote(11), roman: 'VII', hint: 'i + p + t' },
+                { note: mkNote(0),  roman: 'I\'', hint: '1 fing (oct)' },
               ];
               return keyNotes.map((block, i) => {
                 const isActive = synthState.chordIndex === i && synthState.isPlaying;

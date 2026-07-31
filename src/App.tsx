@@ -504,7 +504,9 @@ export default function App() {
     // Create chord fingerprint to detect actual changes
     const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
 
-    const rightFistOnly = rightFist && leftHand && leftHand.fingerCount > 0;
+    // Right fist: hand IS present but non-thumb fingers = 0
+    // (rightHand check prevents matching when right hand is completely missing)
+    const rightFistOnly = rightHand && rightFist && leftHand && leftHand.fingerCount > 0;
 
     // Play chord - only if chord actually changed
     if (isPlaying) {

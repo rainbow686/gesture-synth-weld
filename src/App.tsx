@@ -986,7 +986,7 @@ export default function App() {
             {/* Help Modal */}
             {showHelp && (
               <div style={{
-                position: 'absolute', top: '12px', left: '340px', width: '360px',
+                position: 'absolute', top: '12px', left: '12px', width: '360px',
                 background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
                 border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
                 padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,

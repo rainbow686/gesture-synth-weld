@@ -865,24 +865,24 @@ export default function App() {
 
         {/* ─── Two-Row Toolbar ──────────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
-          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
             <div className="frost-toolbar" style={{ gap: '4px', padding: '6px 14px', fontSize: '0.62rem' }}>
-              <span className="brand" title="Gesture Synth Weld">GSW</span>
-              <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} title="Two-hand chord mode: left hand selects harmony, right hand controls expression">Gesture</button>
-              <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} title="Theremin mode: right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
-              <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} title="Mono Piano mode: finger count selects a single note interval">Piano</button>
+              <span className="brand">GSW</span>
+              <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
+              <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
+              <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
               <span className="divider" />
-              <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} title="Transpose all chords to a different key (12 keys)">
+              <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
                 {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
               </select>
               <span className="divider" />
-              <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} title="Arpeggiator: plays chord notes one-by-one like a harp (slow/normal/fast)">⟿</button>
-              <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} title="Auto Bass: automatically plays the root note two octaves below for a fuller sound">∿</button>
+              <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
+              <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
               <span className="divider" />
-              <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} title={isRecording ? `Recording… ${recordingTime}s / 15s` : 'Record performance: captures audio as WebM (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
-              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} title="How to play — hand gesture guide">?</button>
-              <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} title={showSettings ? 'Hide hand settings panel' : 'Show hand settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
+              <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
+              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide">?</button>
+              <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
             </div>
 
             {/* Row 2: hand settings panel — only for Gesture mode (Theremin/Piano don't use hand division) */}

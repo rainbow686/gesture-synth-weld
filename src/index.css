@@ -448,6 +448,29 @@ body {
   50% { box-shadow: 0 0 20px rgba(255, 60, 60, 0.4); }
 }
 
+/* Custom inline tooltip */
+.frost-toolbar [data-tip] {
+  position: relative;
+}
+.frost-toolbar [data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  font-size: 0.6rem;
+  color: var(--text-primary);
+  background: rgba(22, 22, 32, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  z-index: 30;
+  pointer-events: none;
+}
+
 .frost-toolbar .divider {
   width: 1px;
   height: 20px;

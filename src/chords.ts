@@ -56,8 +56,8 @@ export const CHORD_STYLE_OPTIONS: { id: ChordStyle; label: string }[] = [
   { id: 'dominant7th', label: 'Dominant 7th' },
 ];
 
-/** Base MIDI note: C4 */
-export const ROOT_MIDI = 60;
+/** Base MIDI note: C3 — matches competitor's A3=220Hz root */
+export const ROOT_MIDI = 48;
 
 /**
  * Convert a MIDI note number to frequency in Hz.

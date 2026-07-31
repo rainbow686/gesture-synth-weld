@@ -493,11 +493,11 @@ export class AudioEngine {
 
     switch (timbre) {
       case 'gesture':
-        // Sawtooth routed directly through main filter (no second filter)
+        // Instant attack for piano-like onset, routed through main filter
         return new SynthInstrument({
           waveform: 'sawtooth',
-          envelope: { attack: 0.01, decay: 0.05, sustain: 0.8, release: 0.3 },
-          filter, // no extra toneFilter
+          envelope: { attack: 0.001, decay: 0, sustain: 1.0, release: 0.5 },
+          filter,
         });
 
       case 'theremin':

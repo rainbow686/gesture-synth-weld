@@ -1091,14 +1091,14 @@ export default function App() {
             {(() => {
               // Calculate note names based on current key
               const keyNotes = [
-                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I',   hint: '1 指' },
-                { note: KEYS[(2 + synthState.keyOffset) % 12]?.name ?? 'D', roman: 'II',  hint: '2 指' },
-                { note: KEYS[(4 + synthState.keyOffset) % 12]?.name ?? 'E', roman: 'III', hint: '3 指' },
-                { note: KEYS[(5 + synthState.keyOffset) % 12]?.name ?? 'F', roman: 'IV',  hint: '4 指' },
-                { note: KEYS[(7 + synthState.keyOffset) % 12]?.name ?? 'G', roman: 'V',   hint: '5 指' },
-                { note: KEYS[(9 + synthState.keyOffset) % 12]?.name ?? 'A', roman: 'VI',  hint: '食+小' },
-                { note: KEYS[(11 + synthState.keyOffset) % 12]?.name ?? 'B', roman: 'VII', hint: '食+小+拇' },
-                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I\'', hint: '1 指(8va)' },
+                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I',   hint: '1 finger' },
+                { note: KEYS[(2 + synthState.keyOffset) % 12]?.name ?? 'D', roman: 'II',  hint: '2 fingers' },
+                { note: KEYS[(4 + synthState.keyOffset) % 12]?.name ?? 'E', roman: 'III', hint: '3 fingers' },
+                { note: KEYS[(5 + synthState.keyOffset) % 12]?.name ?? 'F', roman: 'IV',  hint: '4 fingers' },
+                { note: KEYS[(7 + synthState.keyOffset) % 12]?.name ?? 'G', roman: 'V',   hint: '5 fingers' },
+                { note: KEYS[(9 + synthState.keyOffset) % 12]?.name ?? 'A', roman: 'VI',  hint: 'idx + pky' },
+                { note: KEYS[(11 + synthState.keyOffset) % 12]?.name ?? 'B', roman: 'VII', hint: 'i + p + t' },
+                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I\'', hint: '1 fing (oct)' },
               ];
               return keyNotes.map((block, i) => {
                 const isActive = synthState.chordIndex === i && synthState.isPlaying;

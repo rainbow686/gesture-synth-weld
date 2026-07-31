@@ -440,9 +440,9 @@ export default function App() {
       const stableFingerCount = majorityCount !== -1 ? majorityCount : rawFingerCount;
 
       // CRITICAL: Right hand finger count determines if sound plays
-      // 0 fingers (fist) = no sound
+      // 0 fingers (fist) = no sound - apply immediately without smoothing for fists
       // 1+ fingers = sound
-      qualityIndex = stableFingerCount;
+      qualityIndex = rawFingerCount === 0 ? 0 : Math.max(stableFingerCount, 1);
 
       // Y position → volume
       volume = Math.max(0.02, Math.min(1.0, 1.1 - rightHand.positionY));
@@ -534,7 +534,7 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
   };
 
-  // Draw waveform visualization
+  // Draw waveform visualization - transparent overlay style at bottom
   const drawWaveformRef = useRef<() => void>();
   drawWaveformRef.current = () => {
     const canvas = waveformCanvasRef.current;
@@ -549,17 +549,16 @@ export default function App() {
       canvas.height = canvas.clientHeight * 2;
     }
 
-    // Get waveform data from Tone.js analyser
     const waveform = analyser.getValue() as Float32Array;
     const bufferLength = waveform.length;
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Transparent background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#00ffcc';
+    ctx.strokeStyle = 'rgba(0, 255, 204, 0.6)';
     ctx.shadowColor = '#00ffcc';
-    ctx.shadowBlur = 4;
+    ctx.shadowBlur = 8;
     ctx.beginPath();
 
     const sliceWidth = canvas.width / bufferLength;
@@ -1139,23 +1138,20 @@ export default function App() {
           </div>
         )}
 
-        {/* Waveform visualization - positioned at top right (doesn't block hand view) */}
-        {(isRunning || keyboardMode) && (
+        {/* Waveform visualization - full-width, transparent overlay at bottom */}
+        {(isRunning || keyboardMode) && synthState.isPlaying && (
           <div style={{
             position: 'absolute',
-            top: '1rem',
-            right: '1rem',
-            width: '120px',
-            height: '60px',
-            background: 'rgba(0, 0, 0, 0.3)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px',
+            bottom: '70px',
+            left: 0,
+            right: 0,
+            height: '50px',
             zIndex: 5,
-            overflow: 'hidden',
+            pointerEvents: 'none',
           }}>
             <canvas
               ref={waveformCanvasRef}
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: '100%', height: '100%', opacity: 0.6 }}
             />
           </div>
         )}

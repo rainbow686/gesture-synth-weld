@@ -43,14 +43,9 @@ class SynthInstrument implements Instrument {
       },
     });
 
-    // Warmth: gentle drive after synth for subtle harmonics
-    const warmth = new Tone.Filter(4000, 'lowpass');
-    warmth.Q.value = 0.5;
-    this.synth.chain(warmth);
-
     if (filterFreq) {
       const toneFilter = new Tone.Filter(filterFreq, 'lowpass');
-      warmth.connect(toneFilter);
+      this.synth.connect(toneFilter);
       if (filter) {
         toneFilter.connect(filter);
       } else {
@@ -58,9 +53,9 @@ class SynthInstrument implements Instrument {
       }
     } else {
       if (filter) {
-        warmth.connect(filter);
+        this.synth.connect(filter);
       } else {
-        warmth.toDestination();
+        this.synth.toDestination();
       }
     }
   }

@@ -1199,7 +1199,7 @@ export default function App() {
         {(isRunning || keyboardMode) && (
           <div style={{
             position: 'absolute',
-            bottom: '10px',
+            bottom: '36px',
             left: '50%',
             transform: 'translateX(-50%)',
             display: 'flex',

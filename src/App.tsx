@@ -877,8 +877,8 @@ export default function App() {
         {(isRunning || keyboardMode) && (
           <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
-            <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 10px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
-              <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth</span>
+            <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
+              <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
               <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
               <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
               <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
@@ -1201,6 +1201,12 @@ export default function App() {
             </button>
             <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => setMetronomeVolume(Number(e.target.value))} style={{ width: '50px', accentColor: 'var(--neon-cyan)' }} />
             <span style={{ fontSize: '0.6rem', width: '26px' }}>{Math.round(metronomeVolume * 100)}%</span>
+
+            <span style={{ flex: 1 }} />
+
+            <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" style={{ color: 'var(--text-muted)', fontSize: '0.6rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }} title="Open source on GitHub">
+              GitHub ↗
+            </a>
           </div>
         )}
       </section>

@@ -987,10 +987,10 @@ export default function App() {
             {showHelp && (
               <div style={{
                 position: 'absolute', top: '56px', left: '12px', width: '360px',
-                background: 'var(--frost-bg)', backdropFilter: 'var(--frost-blur)',
-                border: '1px solid var(--frost-border)', borderRadius: '16px',
+                background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
+                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
                 padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,
-                fontSize: '0.68rem', color: 'var(--text-secondary)', lineHeight: 1.45,
+                fontSize: '0.68rem', color: '#d0d0e8', lineHeight: 1.45,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
@@ -999,10 +999,10 @@ export default function App() {
 
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
                   <thead>
-                    <tr style={{ color: 'var(--text-muted)', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.08)', width: '60px' }}>Fingers</th>
-                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.08)', width: '40px' }}>Chord</th>
-                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Gesture</th>
+                    <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '60px' }}>Fingers</th>
+                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '40px' }}>Chord</th>
+                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Gesture</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1024,10 +1024,10 @@ export default function App() {
                   </tbody>
                 </table>
 
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
                   <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor<br/>
                   <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
-                  <span style={{ color: 'var(--text-muted)' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
+                  <span style={{ color: '#b0b0d0' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
                 </div>
 
                 <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>

@@ -897,7 +897,7 @@ export default function App() {
 
         {/* ─── Two-Row Toolbar ──────────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
-          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px', zIndex: 20 }}>
+          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', zIndex: 20 }}>
             {/* Row 1: compact controls */}
             <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
               <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
@@ -922,7 +922,7 @@ export default function App() {
 
             {/* Row 2: hand settings panel — only for Gesture mode (Theremin/Piano don't use hand division) */}
             {showSettings && synthState.appMode === 'gesture' && (
-              <div className="frost-panel" style={{ flexDirection: 'row', gap: '16px', padding: '12px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+              <div className="frost-panel" style={{ flexDirection: 'row', gap: '16px', padding: '16px 18px', marginTop: '8px', maxWidth: '700px', fontSize: '0.65rem' }}>
                 {/* Left Hand */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                   <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>

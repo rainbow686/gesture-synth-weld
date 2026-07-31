@@ -309,12 +309,17 @@ export class AudioEngine {
     if (!this.initCalled) return;
     this.stopMetronome();
 
-    // Create a short percussive synth for clicks
+    // Create a short percussive synth connected through master gain
     if (!this.clickSynth) {
       this.clickSynth = new Tone.Synth({
         oscillator: { type: 'sine' },
         envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 },
-      }).connect(this.filter || Tone.getContext().destination);
+      });
+      if (this.masterGain) {
+        this.clickSynth.connect(this.masterGain);
+      } else {
+        this.clickSynth.toDestination();
+      }
       this.clickSynth.volume.value = -20;
     }
 
@@ -326,26 +331,29 @@ export class AudioEngine {
     this.metronomeBeatIndex = 0;
     this.metronomeRunning = true;
 
+    // Store config for restart
+    const self = this;
     const playBeat = () => {
-      if (!this.metronomeRunning || !this.clickSynth) return;
+      if (!self.metronomeRunning || !self.clickSynth) return;
 
-      const beat = this.metronomeBeatIndex % beatsPerBar;
+      self.metronomeBeatIndex = self.metronomeBeatIndex % totalBeats;
+      const beat = self.metronomeBeatIndex % beatsPerBar;
       // First beat of each bar gets a higher pitch (accent)
       const pitch = beat === 0 ? 1000 : 600;
 
       // Adjust waveform based on sound type
       switch (sound) {
-        case 'wood': this.clickSynth.oscillator.type = 'triangle'; break;
-        case 'beep': this.clickSynth.oscillator.type = 'sine'; break;
-        case 'hihat': this.clickSynth.oscillator.type = 'square'; break;
-        default: this.clickSynth.oscillator.type = 'sawtooth'; // click
+        case 'wood': self.clickSynth.oscillator.type = 'triangle'; break;
+        case 'beep': self.clickSynth.oscillator.type = 'sine'; break;
+        case 'hihat': self.clickSynth.oscillator.type = 'square'; break;
+        default: self.clickSynth.oscillator.type = 'sawtooth'; // click
       }
 
       const db = Tone.gainToDb(Math.max(0.01, volume));
-      this.clickSynth.volume.setTargetAtTime(db, Tone.now(), 0.01);
-      this.clickSynth.triggerAttackRelease(pitch, beat === 0 ? '32n' : '64n');
+      self.clickSynth.volume.setTargetAtTime(db, Tone.now(), 0.01);
+      self.clickSynth.triggerAttackRelease(pitch, beat === 0 ? '32n' : '64n');
 
-      this.metronomeBeatIndex = (this.metronomeBeatIndex + 1) % totalBeats;
+      self.metronomeBeatIndex++;
     };
 
     // Play first beat immediately
@@ -362,17 +370,6 @@ export class AudioEngine {
       this.metronomeLoopId = null;
     }
     this.metronomeBeatIndex = 0;
-  }
-
-  updateMetronomeBpm(bpm: number): void {
-    // Restart with new BPM to apply change immediately
-    if (this.metronomeRunning && this.metronomeLoopId !== null) {
-      // Just update the interval timing
-      const beatIntervalMs = (60 / bpm) * 1000;
-      clearInterval(this.metronomeLoopId);
-      const playBeat = () => { /* same logic as startMetronome */ };
-      // Note: full restart is simpler, callers should use startMetronome again
-    }
   }
 
   stopAll(): void {

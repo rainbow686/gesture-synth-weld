@@ -340,6 +340,9 @@ export default function App() {
         // Commit if pending has been stable for HOLD_MS
         if (now - stabilizer.pendingSince >= HOLD_MS) {
           stabilizer.committed = stabilizer.pending;
+        } else if (stabilizer.committed === null) {
+          // First gesture: commit immediately
+          stabilizer.committed = rawFingerCount;
         }
 
         // Use committed finger count for note selection
@@ -397,6 +400,9 @@ export default function App() {
       // Commit if pending has been stable for HOLD_MS
       if (now - stabilizer.pendingSince >= HOLD_MS) {
         stabilizer.committed = stabilizer.pending;
+      } else if (stabilizer.committed === null) {
+        // First gesture: commit immediately for instant response
+        stabilizer.committed = rawFingerCount;
       }
 
       // Use committed finger count for chord selection
@@ -518,9 +524,10 @@ export default function App() {
         audioEngine.updateFilterSweep(rightHand.tiltAngle);
       }
     } else {
-      // No hands detected - stop all sounds immediately
+      // No hands detected - stop all and reset state
       audioEngine.stopAll();
       lastChordRef.current = '';
+      stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     }
 
     // Auto bass

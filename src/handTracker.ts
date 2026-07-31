@@ -157,7 +157,7 @@ function getExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): stri
   const tipDist = dist(pTip, rMcp);   // pinky tip → ring MCP
   const baseDist = dist(pMcp, rMcp);  // pinky MCP → ring MCP (base distance)
   const ratio = baseDist > 0 ? tipDist / baseDist : 0;
-  if (ratio > 1.4) {
+  if (ratio > 1.2) {
     extended.push('pinky');
   }
 

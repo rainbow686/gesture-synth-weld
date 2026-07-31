@@ -394,10 +394,10 @@ export default function App() {
 
       // Compute raw chord index including VI/VII special gestures
       const extended = leftHand.extendedFingers;
-      // Pinky memory: if detected in last 8 frames (~260ms), treat as extended.
-      // Prevents flicker from resetting the stabilizer's HOLD timer.
+      // Pinky memory: if detected in last 20 frames (~660ms), treat as extended.
+      // Longer window catches sporadic detections from the 3D distance ratio.
       if (extended.includes('pinky')) {
-        pinkyMemoryRef.current = 8;
+        pinkyMemoryRef.current = 20;
       } else if (pinkyMemoryRef.current > 0) {
         pinkyMemoryRef.current--;
       }

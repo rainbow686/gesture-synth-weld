@@ -1066,6 +1066,9 @@ export default function App() {
         {/* ─── Error (including camera denied) ───────────────────────── */}
         {error && (
           <div className="camera-placeholder error-state">
+            <div className="camera-placeholder-brand">
+              <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
+            </div>
             <div className="camera-error-message">{error}</div>
             {isCameraError && (
               <div className="camera-error-guide">
@@ -1088,9 +1091,6 @@ export default function App() {
               </div>
             )}
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
-            <div className="camera-placeholder-brand">
-              <span className="camera-placeholder-brand-text" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.6rem)' }}>Gesture Synth Weld</span>
-            </div>
           </div>
         )}
 

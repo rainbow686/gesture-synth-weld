@@ -391,10 +391,11 @@ export default function App() {
       // Compute raw chord index including VI/VII special gestures
       const extended = leftHand.extendedFingers;
       let rawChordIndex: number;
-      if (extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
-        rawChordIndex = 6; // VII
-      } else if (extended.includes('index') && extended.includes('pinky')) {
-        rawChordIndex = 5; // VI
+      // VI/VII require EXACT finger combinations (not "contains")
+      if (extended.length === 3 && extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
+        rawChordIndex = 6; // VII — exactly index+pinky+thumb
+      } else if (extended.length === 2 && extended.includes('index') && extended.includes('pinky')) {
+        rawChordIndex = 5; // VI — exactly index+pinky
       } else {
         rawChordIndex = FINGER_TO_CHORD_INDEX[leftHand.fingerCount] ?? 0;
       }
@@ -516,14 +517,20 @@ export default function App() {
         audioEngine.updateFilterSweep(rightHand.tiltAngle);
       }
     } else {
-      // No hands detected — apply grace period before stopping
+      // Fist detected (hand present but 0 fingers) → stop immediately
+      const eitherFist = (leftHand && leftHand.fingerCount === 0) || (rightHand && rightHand.fingerCount === 0);
+      if (eitherFist) {
+        audioEngine.stopAll();
+        lastChordRef.current = '';
+        return;
+      }
+
+      // Hand(s) missing entirely → apply grace period before stopping
       const now = performance.now();
       const stabilizer = stabilizerRef.current;
       if (stabilizer.lastSeen > 0 && now - stabilizer.lastSeen < GRACE_MS) {
-        // Within grace period: keep previous chord playing, don't reset
         return;
       }
-      // Beyond grace: stop all and reset state
       audioEngine.stopAll();
       lastChordRef.current = '';
       stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };

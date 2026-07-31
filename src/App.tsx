@@ -130,7 +130,7 @@ export default function App() {
     pendingSince: 0,
     lastSeen: 0,
   });
-  const HOLD_MS = 180; // Require 180ms stability (reduces jitter)
+  const HOLD_MS = 100; // Require 100ms stability (matching competitor)
   const GRACE_MS = 80; // Keep previous chord if hand briefly disappears
 
   // Right hand finger count history for chord style smoothing

@@ -1106,11 +1106,11 @@ export default function App() {
                   <div
                     key={i}
                     style={{
-                      width: '56px',
-                      padding: '0.4rem 0.2rem',
+                      width: '70px',
+                      padding: '0.6rem 0.3rem',
                       background: isActive ? 'rgba(0, 255, 204, 0.3)' : 'rgba(255, 255, 255, 0.04)',
                       border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.8)' : 'rgba(255, 255, 255, 0.06)'}`,
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -1121,7 +1121,7 @@ export default function App() {
                     }}
                   >
                     <span style={{
-                      fontSize: '1.3rem',
+                      fontSize: '1.6rem',
                       fontWeight: 700,
                       color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
                       fontFamily: 'var(--font-display)',
@@ -1130,17 +1130,17 @@ export default function App() {
                       {block.note}
                     </span>
                     <span style={{
-                      fontSize: '0.7rem',
+                      fontSize: '0.85rem',
                       fontWeight: 500,
                       color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
-                      marginTop: '0.15rem',
+                      marginTop: '0.2rem',
                     }}>
                       {block.roman}
                     </span>
                     <span style={{
-                      fontSize: '0.5rem',
+                      fontSize: '0.6rem',
                       color: isActive ? 'rgba(0, 255, 204, 0.7)' : 'var(--text-muted)',
-                      marginTop: '0.1rem',
+                      marginTop: '0.15rem',
                       whiteSpace: 'nowrap',
                     }}>
                       {block.hint}

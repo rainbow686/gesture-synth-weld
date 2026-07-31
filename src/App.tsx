@@ -822,7 +822,7 @@ export default function App() {
 
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', zIndex: 20 }}>
-          <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
+          <div className="frost-toolbar" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
             <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
             <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
             <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>

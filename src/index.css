@@ -86,8 +86,7 @@ body {
   justify-content: center;
   gap: 1.5rem;
   text-align: center;
-  /* Nearly transparent — the glass button is the focal point */
-  background: radial-gradient(ellipse at center, rgba(10, 10, 26, 0.12) 0%, transparent 70%);
+  /* No background — elements float directly over the canvas */
   pointer-events: none;
 }
 
@@ -95,10 +94,24 @@ body {
   pointer-events: auto;
 }
 
-.camera-placeholder-icon svg {
+.camera-placeholder-icon {
   width: 120px;
   height: 120px;
+  border-radius: 50%;
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--frost-shadow);
   animation: float 3s ease-in-out infinite;
+}
+
+.camera-placeholder-icon svg {
+  width: 64px;
+  height: 64px;
 }
 
 .camera-placeholder-icon.error-icon svg {
@@ -890,9 +903,13 @@ body {
     padding: 0.8rem 2rem;
   }
 
-  .camera-placeholder-icon svg {
+  .camera-placeholder-icon {
     width: 80px;
     height: 80px;
+  }
+  .camera-placeholder-icon svg {
+    width: 48px;
+    height: 48px;
   }
 
   .keyboard-chord-name {

@@ -126,14 +126,36 @@ body {
   50% { filter: drop-shadow(0 4px 16px rgba(0, 255, 204, 0.5)) drop-shadow(0 0 24px rgba(255, 0, 255, 0.2)); }
 }
 
-.camera-placeholder-icon.error-icon {
-  margin-bottom: 0.5rem;
+.camera-error-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 440px;
+  text-align: left;
 }
-.camera-placeholder-icon.error-icon svg {
-  width: 100px;
-  height: 100px;
-  animation: none;
-  opacity: 0.7;
+
+.camera-error-guide-item {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: #c0c0d8;
+  line-height: 1.5;
+}
+
+.camera-error-guide-label {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 8px;
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.25);
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #ff8888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 @keyframes float {
@@ -793,12 +815,105 @@ body {
     height: 100svh;
   }
 
-  .app-title {
-    font-size: 0.6rem;
-    top: 0.5rem;
-    right: 0.75rem;
+  /* Toolbar: two rows — brand on top, controls wrap below */
+  .frost-toolbar {
+    gap: 2px;
+    padding: 4px 8px;
+    font-size: 0.55rem;
+    border-radius: 14px;
+    max-width: calc(100vw - 16px);
+    overflow-x: visible;
+    white-space: normal;
+    flex-wrap: wrap;
+    justify-content: center;
+    -webkit-overflow-scrolling: touch;
+  }
+  .frost-toolbar .brand {
+    flex-basis: 100%;
+    text-align: center;
+    font-size: 0.55rem;
+    margin-right: 0;
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .frost-toolbar button,
+  .frost-toolbar select {
+    font-size: 0.55rem;
+    padding: 3px 6px;
+    border-radius: 7px;
+    flex-shrink: 0;
+  }
+  .frost-toolbar button.icon-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.65rem;
+  }
+  .frost-toolbar .divider {
+    height: 12px;
+    margin: 0 1px;
+    flex-shrink: 0;
+  }
+  .frost-toolbar [data-tip]:hover::after {
+    display: none;
   }
 
+  /* Settings panel: stack vertically */
+  .frost-panel {
+    flex-direction: column !important;
+    max-width: calc(100vw - 32px) !important;
+    padding: 12px !important;
+    gap: 10px !important;
+    font-size: 0.6rem !important;
+    border-radius: 12px;
+  }
+  .frost-panel > span.divider {
+    height: 1px !important;
+    width: 100% !important;
+    align-self: auto !important;
+  }
+
+  /* Scale guide: compact, margin on edges */
+  .scale-guide {
+    padding: 0 8px;
+    max-width: 100vw;
+    overflow-x: auto;
+    scrollbar-width: none;
+    justify-content: flex-start !important;
+  }
+  .scale-guide::-webkit-scrollbar { display: none; }
+  .scale-guide > div {
+    width: 48px !important;
+    min-width: 48px !important;
+    padding: 0.3rem 0.15rem !important;
+  }
+  .scale-guide > div > span:first-child {
+    font-size: 1rem !important;
+  }
+  .scale-guide > div > span:nth-child(2) {
+    font-size: 0.6rem !important;
+  }
+  .scale-guide > div > span:nth-child(3) {
+    display: none; /* hide hint text on mobile */
+  }
+
+  /* Status bar: single row, scrollable */
+  .status-bar-bottom {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.65rem !important;
+    gap: 0.5rem !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    scrollbar-width: none;
+    justify-content: flex-start !important;
+  }
+  .status-bar-bottom::-webkit-scrollbar { display: none; }
+  .status-bar-bottom > * {
+    flex-shrink: 0;
+  }
+
+  /* Camera placeholder */
   .enable-camera-btn {
     font-size: 1rem;
     padding: 0.8rem 2rem;
@@ -807,12 +922,60 @@ body {
   .camera-placeholder-brand-text {
     font-size: 1.4rem;
   }
+}
 
+/* ─── Mobile Landscape ────────────────────────────────────────────────── */
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .camera-stage {
+    height: 100svh;
+  }
+
+  /* Toolbar: single row in landscape (enough width) */
+  .frost-toolbar {
+    padding: 3px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .frost-toolbar::-webkit-scrollbar { display: none; }
+  .frost-toolbar .brand {
+    flex-basis: auto;
+    text-align: left;
+    font-size: 0.5rem;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+
+  .frost-panel {
+    max-height: 40vh;
+    overflow-y: auto;
+    padding: 8px !important;
+    gap: 6px !important;
+  }
+
+  /* Scale guide: wider spacing in landscape */
+  .scale-guide {
+    bottom: 50px !important;
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+  .scale-guide > div {
+    width: 52px !important;
+    min-width: 52px !important;
+    padding: 0.3rem 0.2rem !important;
+  }
+  .scale-guide > div > span:first-child {
+    font-size: 1.1rem !important;
+  }
 
   .status-bar-bottom {
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
-    gap: 1rem;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.6rem;
+    gap: 0.4rem;
   }
 }
 

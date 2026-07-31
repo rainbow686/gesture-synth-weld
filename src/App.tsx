@@ -93,7 +93,8 @@ export default function App() {
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const [showSettings, setShowSettings] = useState(!isMobile);
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
@@ -741,11 +742,24 @@ export default function App() {
       setIsLoading(false);
 
       if (isDomError(err, 'NotAllowedError')) {
-        setError('Camera access was denied.');
+        setError(isMobile
+          ? 'Camera access was denied. On mobile, check your browser app permissions or system Settings > Privacy > Camera.'
+          : 'Camera access was denied. Click the lock icon in the address bar to allow camera access.');
       } else if (isDomError(err, 'NotFoundError')) {
-        setError('No camera found.');
+        setError(isMobile
+          ? 'No camera found. Make sure your device has a front-facing camera and it is not in use by another app.'
+          : 'No camera found. Connect a webcam and try again.');
       } else {
-        setError(`Failed to start: ${getErrorMessage(err)}`);
+        const msg = getErrorMessage(err);
+        if (msg.includes('support') || msg.includes('not supported')) {
+          setError(isMobile
+            ? 'Your browser does not support camera access. Try Chrome or Edge on Android, or Safari on iOS.'
+            : 'Your browser does not support camera access. Try Chrome, Edge, or Firefox.');
+        } else {
+          setError(isMobile
+            ? `Camera error: ${msg}. Try a different browser like Chrome or Safari.`
+            : `Camera error: ${msg}. Check that your webcam is connected and not in use.`);
+        }
       }
     }
   }, []);
@@ -850,7 +864,7 @@ export default function App() {
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
-  const isCameraDenied = error?.toLowerCase().includes('denied');
+  const isCameraError = !!error;
 
   return (
     <div className="full-screen-app">
@@ -1050,18 +1064,29 @@ export default function App() {
         {/* ─── Error (including camera denied) ───────────────────────── */}
         {error && (
           <div className="camera-placeholder error-state">
-            <div className="camera-placeholder-icon error-icon">
-              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(255,80,80,0.4)" strokeWidth="2.5" />
-                <path d="M48 30l16-9v32l-16-9" stroke="rgba(255,80,80,0.4)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="24" y1="50" x2="44" y2="30" stroke="rgba(255,80,80,0.5)" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
+            <div className="camera-placeholder-brand">
+              <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
             <div className="camera-error-message">{error}</div>
-            {isCameraDenied && (
-              <p className="camera-denied-hint">
-                Camera access is required to use the gesture synth. Please allow camera access in your browser settings.
-              </p>
+            {isCameraError && (
+              <div className="camera-error-guide">
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">iPhone / iPad</span>
+                  Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
+                </div>
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">Android</span>
+                  Settings → Apps → your browser → Permissions → <strong>Camera</strong> → Allow. Then reload.
+                </div>
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">Mac</span>
+                  System Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
+                </div>
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">Windows</span>
+                  Settings → Privacy &amp; Security → <strong>Camera</strong> → Camera access: On → make sure your browser is allowed. Then reload.
+                </div>
+              </div>
             )}
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
           </div>

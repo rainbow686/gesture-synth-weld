@@ -140,6 +140,14 @@ export default function App() {
   // Right hand finger count history for chord style smoothing
   const rightHandHistoryRef = useRef<number[]>([]);
 
+  /* ─── Reset stabilizer on mode switch ────────────────────────────────── */
+
+  useEffect(() => {
+    stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
+    rightHandHistoryRef.current = [];
+    lastChordRef.current = '';
+  }, [synthState.appMode]);
+
   /* ─── Metronome effect ──────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -727,10 +735,13 @@ export default function App() {
     }
 
     audioEngine.stopAll();
+    audioEngine.stopMetronome();
+    setMetronomeOn(false);
 
     // Reset stabilizer state for clean restart
     stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     rightHandHistoryRef.current = [];
+    handDetectionHistoryRef.current = { left: [], right: [] };
 
     const canvas = canvasRef.current;
     if (canvas) {

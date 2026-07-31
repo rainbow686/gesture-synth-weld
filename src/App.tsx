@@ -1085,56 +1085,72 @@ export default function App() {
             left: '50%',
             transform: 'translateX(-50%)',
             display: 'flex',
-            gap: '0.5rem',
+            gap: '4px',
             zIndex: 5,
           }}>
-            {[
-              { degree: 'I', label: '1 finger', index: 0 },
-              { degree: 'II', label: '2 fingers', index: 1 },
-              { degree: 'III', label: '3 fingers', index: 2 },
-              { degree: 'IV', label: '4 fingers', index: 3 },
-              { degree: 'V', label: '5 fingers', index: 4 },
-              { degree: 'VI', label: 'index + pinky', index: 5 },
-              { degree: 'VII', label: 'index + pinky + thumb', index: 6 },
-              { degree: 'I\'', label: '1 finger (oct)', index: 7 },
-            ].map((block, i) => {
-              const isActive = synthState.chordIndex === block.index && synthState.isPlaying;
-              return (
-                <div
-                  key={i}
-                  style={{
-                    width: '60px',
-                    height: '80px',
-                    background: isActive ? 'rgba(0, 255, 204, 0.3)' : 'rgba(255, 255, 255, 0.05)',
-                    border: `2px solid ${isActive ? 'var(--neon-cyan)' : 'rgba(255, 255, 255, 0.1)'}`,
-                    borderRadius: '8px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.15s ease',
-                    boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.6)' : 'none',
-                  }}
-                >
-                  <div style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 'bold',
-                    color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
-                    fontFamily: 'var(--font-display)',
-                  }}>
-                    {block.degree}
+            {(() => {
+              // Calculate note names based on current key
+              const keyNotes = [
+                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I',   hint: '1 finger' },
+                { note: KEYS[(2 + synthState.keyOffset) % 12]?.name ?? 'D', roman: 'II',  hint: '2 fingers' },
+                { note: KEYS[(4 + synthState.keyOffset) % 12]?.name ?? 'E', roman: 'III', hint: '3 fingers' },
+                { note: KEYS[(5 + synthState.keyOffset) % 12]?.name ?? 'F', roman: 'IV',  hint: '4 fingers' },
+                { note: KEYS[(7 + synthState.keyOffset) % 12]?.name ?? 'G', roman: 'V',   hint: '5 fingers' },
+                { note: KEYS[(9 + synthState.keyOffset) % 12]?.name ?? 'A', roman: 'VI',  hint: 'index + pinky' },
+                { note: KEYS[(11 + synthState.keyOffset) % 12]?.name ?? 'B', roman: 'VII', hint: 'index + pinky + thumb' },
+                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I\'', hint: '1 finger (oct)' },
+              ];
+              return keyNotes.map((block, i) => {
+                const isActive = synthState.chordIndex === i && synthState.isPlaying;
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      width: '70px',
+                      padding: '0.5rem 0.3rem',
+                      background: isActive ? 'rgba(0, 255, 204, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                      border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.7)' : 'rgba(255, 255, 255, 0.08)'}`,
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isActive ? '0 0 16px rgba(0, 255, 204, 0.5)' : 'none',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 700,
+                      color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
+                      fontFamily: 'var(--font-display)',
+                      lineHeight: 1.2,
+                    }}>
+                      {block.note}
+                    </span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                      marginTop: '0.2rem',
+                    }}>
+                      {block.roman}
+                    </span>
+                    <span style={{
+                      fontSize: '0.55rem',
+                      color: isActive ? 'rgba(0, 255, 204, 0.7)' : 'var(--text-muted)',
+                      marginTop: '0.2rem',
+                      maxWidth: '60px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      {block.hint}
+                    </span>
                   </div>
-                  <div style={{
-                    fontSize: '0.6rem',
-                    color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
-                    marginTop: '0.3rem',
-                    textAlign: 'center',
-                  }}>
-                    {block.label}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         )}
 

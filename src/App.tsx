@@ -97,7 +97,6 @@ export default function App() {
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
 
@@ -863,103 +862,80 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── Liquid Glass Toolbar ──────────────────────────────────── */}
+        {/* ─── Unified Top Bar ──────────────────────────────────────── */}
         {(isRunning || keyboardMode) && (
-          <>
-            {/* Desktop toolbar */}
-            <div className="frost-toolbar desktop-only">
-              <span className="brand">GSW</span>
+          <div className="frost-toolbar desktop-only" style={{ gap: '4px', padding: '6px 12px', fontSize: '0.62rem' }}>
+            <span className="brand">GSW</span>
 
-              {/* Mode */}
-              <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))}>Gesture</button>
-              <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))}>Theremin</button>
-              <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))}>Piano</button>
+            {/* Mode */}
+            <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} title="Two-hand chord mode">Gesture</button>
+            <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} title="Continuous pitch + volume">Theremin</button>
+            <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} title="Single note per finger">Piano</button>
 
-              <span className="divider" />
+            <span className="divider" />
 
-              {/* Key */}
-              <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }}>
-                {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
+            {/* Key selector */}
+            <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} title="Transpose key">
+              {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
+            </select>
+
+            {/* Left hand mode */}
+            <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))} title={
+              synthState.leftHandMode === 'scaleTilt'
+                ? 'Fingers pick scale degree; wrist tilt flips major ↔ minor'
+                : 'Fingers pick scale degree only. Mode is locked.'
+            }>
+              <option value="scaleTilt">LH: Scale + Tilt</option>
+              <option value="scaleLocked">LH: Scale Only</option>
+            </select>
+            {synthState.leftHandMode === 'scaleLocked' && (
+              <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
+                <option value="major">Major</option>
+                <option value="minor">Minor</option>
               </select>
-
-              {/* Icon buttons */}
-              <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} title="Arpeggiator">⟿</button>
-              <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} title="Auto Bass">∿</button>
-
-              <span className="divider" />
-
-              <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} title="Record">
-                {isRecording ? `${recordingTime}s` : '●'}
-              </button>
-
-              <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} title="Settings">⚙</button>
-              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} title="Help">?</button>
-            </div>
-
-            {/* Settings panel */}
-            {showSettings && (
-              <div className="frost-panel desktop-only" style={{ maxWidth: '280px' }}>
-                {/* Left Hand */}
-                <label style={{ fontSize: '0.6rem', color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
-                <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}>
-                  <option value="scaleTilt">Scale notes + tilt major/minor</option>
-                  <option value="scaleLocked">Scale notes only (lock mode)</option>
-                </select>
-                {synthState.leftHandMode === 'scaleTilt' ? (
-                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
-                ) : (
-                  <>
-                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
-                      <option value="major">Major</option>
-                      <option value="minor">Minor</option>
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree only. Mode is locked above.</p>
-                  </>
-                )}
-
-                {/* Right Hand */}
-                <label style={{ fontSize: '0.6rem', color: 'var(--neon-magenta)', fontWeight: 600, marginTop: '6px' }}>Right Hand — Expression</label>
-                <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}>
-                  <option value="fingerLayout">Finger layout = chord style</option>
-                  <option value="fixedChordStyle">Fixed chord style</option>
-                </select>
-                {synthState.rightHandMode === 'fingerLayout' ? (
-                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
-                ) : (
-                  <>
-                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
-                      {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
-                  </>
-                )}
-
-                {/* Arpeggiator */}
-                {synthState.arpeggiate && (
-                  <>
-                    <label style={{ fontSize: '0.6rem', color: 'var(--neon-purple)', fontWeight: 600, marginTop: '6px' }}>Arpeggiator</label>
-                    <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))}>
-                      <option value="slow">Slow (120ms)</option>
-                      <option value="normal">Normal (80ms)</option>
-                      <option value="fast">Fast (50ms)</option>
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Sweeps through chord notes sequentially at the selected speed.</p>
-                  </>
-                )}
-
-                {/* Auto Bass */}
-                {synthState.autoBass && (
-                  <>
-                    <label style={{ fontSize: '0.6rem', color: 'var(--neon-amber)', fontWeight: 600, marginTop: '6px' }}>Auto Bass Volume</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
-                      <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', width: '26px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
-                    </div>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Adds low-end root note foundation that follows the chord.</p>
-                  </>
-                )}
-              </div>
             )}
+
+            {/* Right hand mode */}
+            <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))} title={
+              synthState.rightHandMode === 'fingerLayout'
+                ? '1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.'
+                : 'Chord style is locked. Right hand still controls volume and tone.'
+            }>
+              <option value="fingerLayout">RH: Finger Layout</option>
+              <option value="fixedChordStyle">RH: Fixed Style</option>
+            </select>
+            {synthState.rightHandMode === 'fixedChordStyle' && (
+              <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
+                {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+              </select>
+            )}
+
+            <span className="divider" />
+
+            {/* Arpeggiator */}
+            <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} title="Arpeggiator: sweeps chord notes sequentially">⟿</button>
+            {synthState.arpeggiate && (
+              <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))} title="Arpeggiator speed">
+                <option value="slow">120ms</option>
+                <option value="normal">80ms</option>
+                <option value="fast">50ms</option>
+              </select>
+            )}
+
+            {/* Auto Bass */}
+            <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} title="Auto Bass: low-end root note foundation">∿</button>
+            {synthState.autoBass && (
+              <input type="range" min="0" max="1" step="0.1" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} title="Bass volume" style={{ width: '40px', accentColor: 'var(--neon-cyan)' }} />
+            )}
+
+            <span className="divider" />
+
+            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} title={isRecording ? `${recordingTime}s / 15s` : 'Record'}>
+              {isRecording ? `${recordingTime}s` : '●'}
+            </button>
+            <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} title="How to play">?</button>
+          </div>
+        )}
 
             {/* Help Modal */}
             {showHelp && (
@@ -1011,16 +987,6 @@ export default function App() {
                 </div>
               </div>
             )}
-
-            {/* Mobile toggle */}
-            <button
-              className="mobile-panel-toggle mobile-only"
-              onClick={() => setShowMobilePanel(!showMobilePanel)}
-            >
-              ⚙️
-            </button>
-          </>
-        )}
 
         {/* Title */}
         <div className="app-title">

@@ -134,21 +134,22 @@ function getExtendedFingers(pts: LandmarkPoint[], label: 'Left' | 'Right'): stri
     extended.push('thumb');
   }
 
-  // Other four fingers: fingertip above PIP joint (tip.y < pip.y)
-  const fingerSpecs: [number, number, string][] = [
-    [8, 6, 'index'],   // Index:  tip vs PIP
-    [12, 10, 'middle'], // Middle: tip vs PIP
-    [16, 14, 'ring'],   // Ring:   tip vs PIP
-    [20, 18, 'pinky'],  // Pinky:  tip vs PIP
+  // Index / Middle / Ring: standard tip-vs-PIP (matching competitor)
+  const standardFingers: [number, number, string][] = [
+    [8, 6, 'index'],
+    [12, 10, 'middle'],
+    [16, 14, 'ring'],
   ];
 
-  for (const [tipIdx, pipIdx, name] of fingerSpecs) {
-    const tip = pts[tipIdx];
-    const pip = pts[pipIdx];
-    // Fingertip is above PIP joint → finger is extended
-    if (tip.y < pip.y) {
+  for (const [tipIdx, pipIdx, name] of standardFingers) {
+    if (pts[tipIdx].y < pts[pipIdx].y) {
       extended.push(name);
     }
+  }
+
+  // Pinky: standard tip-vs-PIP, same as other fingers
+  if (pts[20].y < pts[18].y) {
+    extended.push('pinky');
   }
 
   return extended;

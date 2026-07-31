@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4TF2TBSZFT"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-4TF2TBSZFT');
+  </script>
+  <!-- Microsoft Clarity -->
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "xv2860e4rz");
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0a0a1a" />
@@ -57,9 +73,9 @@
       "Synthesized sawtooth wave engine with real-time filter control",
       "Arpeggiator with 3 speed settings (Slow/Normal/Fast)",
       "Auto Bass line generator with independent volume control",
-      "Performance recording with WebM video export (up to 15 seconds)",
-      "Theremin mode: single-hand continuous pitch and volume control",
-      "Keyboard fallback mode for camera-free access"
+      "WebM audio recording (up to 15 seconds) — capture and download your performances",
+      "Theremin mode: continuous pitch and volume control with both hands",
+      "Mono Piano mode: single-note melody with finger-count intervals"
     ],
     "screenshot": "https://gesturesynthweld.com/og-image.svg",
     "softwareVersion": "2.0.0",
@@ -94,7 +110,7 @@
         "name": "Can I record my performance?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes! Click the Record button to start capturing your performance (up to 15 seconds). When you stop recording, a WebM video file with audio is automatically downloaded. The recording captures both the canvas visuals and synthesized audio — your camera feed is never uploaded. You can share the video directly to social media or edit it further."
+          "text": "Yes! Click the Record button to start capturing your performance (up to 15 seconds). When you stop recording, a WebM audio file is automatically downloaded. The recording captures the synthesized audio output — your camera feed is never uploaded. You can share the video directly to social media or edit it further."
         }
       },
       {
@@ -102,7 +118,7 @@
         "name": "What chords can I play?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes. In Finger Layout mode: 1 finger = triad, 2 fingers = 1st inversion, 3 fingers = 7th chord, 4 fingers = 9th chord. In Fixed Chord mode, choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished, Sus2, Sus4, Major 7th, and Dominant 7th. Left-hand wrist tilt dynamically switches between major and minor tonality, or lock to a fixed mode."
+          "text": "Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes. In Finger Layout mode: 1 finger = triad, 2 fingers = 1st inversion, 3 fingers = 7th chord, 4 fingers = 9th chord. In Fixed Chord mode, choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished, Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt to switch between them with left-hand wrist tilt."
         }
       },
       {
@@ -261,34 +277,41 @@
       font-size: 0.9rem;
     }
 
-    /* Keyboard shortcuts table */
-    .shortcuts-table {
+    }
+
+    /* Gesture guide tables */
+    .gesture-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.9rem;
+      margin: 0.5rem 0 1rem;
     }
-    .shortcuts-table th {
+    .gesture-table th {
       text-align: left;
-      padding: 0.5rem;
+      padding: 0.5rem 0.7rem;
       color: #00ffcc;
       font-family: 'Orbitron', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      border-bottom: 1px solid rgba(0, 255, 204, 0.15);
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+      background: rgba(0, 255, 204, 0.04);
     }
-    .shortcuts-table td {
-      padding: 0.5rem;
-      color: #b0b0d0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    .gesture-table td {
+      padding: 0.45rem 0.7rem;
+      color: #d0d0e8;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      vertical-align: top;
     }
-    .shortcuts-table kbd {
-      display: inline-block;
-      padding: 0.1rem 0.4rem;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
+    .gesture-table tr:hover td {
+      background: rgba(0, 255, 204, 0.03);
+    }
+    .gesture-table td.special {
+      color: #ff00ff;
+      font-weight: 600;
+    }
+    .gesture-table td em {
+      color: #9090b8;
+      font-style: italic;
     }
 
     /* Footer */
@@ -372,17 +395,17 @@
           <div class="step-card">
             <div class="step-num">1</div>
             <h3>Allow Camera</h3>
-            <p>Click "Start" and grant camera permission. Your video stays on your device — nothing is uploaded.</p>
+            <p>Click "Enable Camera" and grant camera permission. Your video stays on your device — nothing is uploaded.</p>
           </div>
           <div class="step-card">
             <div class="step-num">2</div>
             <h3>Left Hand → Harmony</h3>
-            <p>Choose a key (C–B, default A) and mode. 1–5 fingers select scale degrees I–V. Index+Pinky = VI, +Thumb = VII. Wrist tilt flips major ↔ minor. Or lock to a fixed mode.</p>
+            <p>Choose a key (C–B, default A). 1–5 fingers select scale degrees I–V. Index+Pinky = VI, +Thumb = VII. Default mode is locked to Major — switch to Scale+Tilt in settings to control major/minor with wrist tilt.</p>
           </div>
           <div class="step-card">
             <div class="step-num">3</div>
             <h3>Right Hand → Expression</h3>
-            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — either fist stops it. Or lock chord style. <a href="#shortcuts" style="color:#00ffcc">No camera? Use keyboard shortcuts →</a></p>
+            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — left fist mutes it, right fist restores octave. Or lock chord style</p>
           </div>
         </div>
       </div>
@@ -390,6 +413,112 @@
       <!-- Ad Slot 1 -->
       <!-- Ad Slot 1: 728×90 -->
       <div class="ad-slot" aria-hidden="true">Advertisement</div>
+
+      <!-- Gesture Guide -->
+      <div class="seo-section" id="gesture-guide">
+        <h2>🖐 Gesture Guide — Complete Hand Gesture Playbook</h2>
+        <p style="margin-bottom:1.2rem;font-size:0.9rem;color:#a0a0d0">All gesture combinations for Gesture mode. Both hands required — left hand sets harmony, right hand controls expression. <a href="#how-it-works" style="color:#00ffcc">Quick start ↑</a></p>
+
+        <!-- Left Hand: Harmony -->
+        <h3 style="color:#00ffcc">👈 Left Hand — Harmony (Scale Degree + Mode)</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Fingers</th><th>Chord</th><th>Gesture</th><th>Example (A Major)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td><strong>I</strong></td><td>Any 1 finger raised</td><td>A</td></tr>
+            <tr><td>2</td><td><strong>ii</strong></td><td>Any 2 fingers (not VI combo)</td><td>Bm</td></tr>
+            <tr><td>3</td><td><strong>iii</strong></td><td>Any 3 fingers (not VII combo)</td><td>C#m</td></tr>
+            <tr><td>4</td><td><strong>IV</strong></td><td>Any 4 fingers raised</td><td>D</td></tr>
+            <tr><td>5</td><td><strong>V</strong></td><td>All 5 fingers raised</td><td>E</td></tr>
+            <tr><td class="special">VI</td><td><strong>vi</strong></td><td><strong>Index + Pinky ONLY</strong> (middle/ring/thumb must be down)</td><td>F#m</td></tr>
+            <tr><td class="special">VII</td><td><strong>vii°</strong></td><td><strong>Index + Pinky + Thumb ONLY</strong> (middle/ring must be down)</td><td>G#dim</td></tr>
+            <tr><td>0 (Fist)</td><td>—</td><td>All fingers curled in</td><td><em>Mute</em> (notes held, resume when fingers return)</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Left Wrist: Major/Minor -->
+        <h3 style="color:#00ffcc;margin-top:1.5rem">🤚 Left Wrist Tilt — Major / Minor Toggle</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Wrist Action</th><th>Result</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Tilt Left (tilt &lt; 0)</td><td><strong>Minor</strong></td><td>All chords become minor (I→i, IV→iv, V→v, etc.)</td></tr>
+            <tr><td>Tilt Right (tilt ≥ 0)</td><td><strong>Major</strong></td><td>All chords become major (I, IV, V, etc.)</td></tr>
+            <tr><td>Locked Mode</td><td><strong>Fixed</strong></td><td>Select "Scale notes only (lock mode)" in settings — ignores wrist tilt</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Right Hand: Expression -->
+        <h3 style="color:#ff00ff;margin-top:1.5rem">👉 Right Hand — Expression (Chord Type, Volume, Tone)</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Fingers</th><th>Major Chord Type</th><th>Minor Chord Type</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Major Triad</td><td>Minor Triad</td></tr>
+            <tr><td>2</td><td>Major 1st Inversion</td><td>Minor 1st Inversion</td></tr>
+            <tr><td>3</td><td>Major 7th</td><td>Minor 7th</td></tr>
+            <tr><td>4</td><td>Dominant 7th</td><td>Diminished 7th</td></tr>
+            <tr><td>0 (Fist)</td><td colspan="2"><em>Octave reset</em> — sound continues, returns to normal octave when hand opens</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Or lock to a fixed chord style in settings — choose from 8 types: Major Triad, Major 1st Inv, Minor Triad, Diminished, Sus2, Sus4, Major 7th, Dominant 7th.</p>
+
+        <!-- Right Hand Position -->
+        <h3 style="color:#ff00ff;margin-top:1.5rem">✋ Right Hand Position — Volume &amp; Tone</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Movement</th><th>Controls</th><th>How It Works</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Hand Height</strong> (Y-axis)</td><td>Volume</td><td>Hand higher = louder. Hand lower = quieter.</td></tr>
+            <tr><td><strong>Wrist Tilt</strong> (left/right)</td><td>Filter Sweep / Tone</td><td>Tilt right = brighter (filter opens). Tilt left = darker (filter closes).</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Right Thumb: Octave -->
+        <h3 style="color:#ff00ff;margin-top:1.5rem">👍 Right Thumb — Octave Shift</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Thumb Position</th><th>Result</th><th>Status Display</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Thumb curled in (default)</td><td>Normal octave</td><td>e.g. <strong>A</strong></td></tr>
+            <tr><td><strong>Thumb extended out</strong></td><td><strong>Down one octave (-8ve)</strong></td><td>e.g. <strong>A (-8ve)</strong></td></tr>
+          </tbody>
+        </table>
+
+        <!-- Stop / Mute -->
+        <h3 style="color:#7850ff;margin-top:1.5rem">⏹ Stop &amp; Mute Conditions</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Condition</th><th>Behavior</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Left fist</strong> (0 fingers)</td><td>Music mutes — notes held, resume when fingers return</td></tr>
+            <tr><td><strong>Right fist</strong> (0 fingers)</td><td>Octave returns to normal — sound continues, chord keeps updating</td></tr>
+            <tr><td><strong>One hand leaves frame</strong></td><td>Music stops after 80ms grace period</td></tr>
+            <tr><td><strong>Both hands leave frame</strong></td><td>Music stops after 80ms grace period</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Default Settings -->
+        <h3 style="color:#ffaa00;margin-top:1.5rem">⚙ Default Settings</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Key</td><td><strong>A</strong></td><td>All chords transposed to A major scale (can change via toolbar dropdown)</td></tr>
+            <tr><td>Left Hand Mode</td><td><strong>Scale Only (Major locked)</strong></td><td>Fingers pick scale degree, mode locked to Major</td></tr>
+            <tr><td>Right Hand Mode</td><td><strong>Fixed Chord Style (Major Triad)</strong></td><td>Chord type locked, right hand controls volume + tone</td></tr>
+            <tr><td>Arpeggiator</td><td><strong>Off</strong></td><td>Toggle ⟿ to sweep chord notes sequentially</td></tr>
+            <tr><td>Auto Bass</td><td><strong>Off</strong></td><td>Toggle ∿ for automatic low-end root note</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Tips & Tricks -->
       <div class="seo-section">
@@ -400,7 +529,7 @@
           The default settings are ready to play instantly: <strong>Key = A Major</strong>,
           <strong>Left Hand = Scale Only (Major locked)</strong>,
           <strong>Right Hand = Fixed Chord Style (Major triad)</strong>.
-          Arpeggiator and Auto Bass are on by default for a rich, full sound. Just raise
+          Arpeggiator and Auto Bass are off by default — toggle them on for a richer sound. Just raise
           both hands — left hand picks the scale degree, right hand triggers the chord.
         </p>
 
@@ -444,7 +573,7 @@
         <h3>Recording and sharing</h3>
         <p>
           Click the red Record button to capture up to 15 seconds of your performance as a
-          WebM video with audio. The recording includes your canvas visuals and synthesized
+          WebM audio file. The recording captures your synthesized
           sound — perfect for sharing on social media or messaging apps. Your camera feed is
           never recorded or uploaded. <a href="#faq" style="color:#00ffcc">More questions? Check the FAQ →</a>
         </p>
@@ -466,7 +595,7 @@
         <p>
           You may have previously blocked camera access for this site. Click the
           lock icon (🔒) in your browser's address bar, find Camera permissions,
-          and change it to "Allow". Then reload the page and click Start again.
+          and change it to "Allow". Then reload the page and click "Enable Camera" again.
         </p>
 
         <h3>Hand tracking feels laggy or inaccurate</h3>
@@ -480,50 +609,17 @@
         <h3>No sound</h3>
         <p>
           The audio engine requires a user gesture to start (browser autoplay
-          policy). Make sure you clicked "Start" before expecting sound. Also
+          policy). Make sure you clicked "Enable Camera" before expecting sound. Also
           check that your browser isn't muted and your system volume is up.
-          If piano samples are still loading, you'll see "Loading samples…" in
-          the control panel — the synth will use a fallback sound until they finish.
+          Also make sure both hands are visible to the camera — sound only plays
+          when both hands are detected with at least one finger raised.
         </p>
 
-        <h3>Piano samples not loading</h3>
-        <p>
-          Piano sounds use the Salamander Grand Piano sample set loaded from a CDN.
-          If your network blocks the CDN or the connection is slow, the synth will
-          automatically fall back to a synthesized piano sound. You can switch to
-          the Gesture mode will use the built-in synth engine which needs no external downloads.
-          <a href="#how-it-works" style="color:#00ffcc">Back to How It Works ↑</a>
-        </p>
       </div>
 
       <!-- Ad Slot 3 -->
       <!-- Ad Slot 3: 728×90 -->
       <div class="ad-slot" aria-hidden="true">Advertisement</div>
-
-      <!-- Keyboard Shortcuts Reference -->
-      <div class="seo-section" id="shortcuts">
-        <h2>📋 Keyboard Shortcuts</h2>
-        <p style="margin-bottom:1rem;font-size:0.9rem;color:#a0a0d0">These shortcuts work when camera mode is unavailable. <a href="#how-it-works" style="color:#00ffcc">Prefer hand gestures? See How It Works →</a></p>
-        <table class="shortcuts-table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td><kbd>1</kbd> – <kbd>7</kbd></td><td>Select chord (I through vii°)</td></tr>
-            <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Increase / decrease volume</td></tr>
-            <tr><td><kbd>T</kbd></td><td>Force major mode</td></tr>
-            <tr><td><kbd>Y</kbd></td><td>Force minor mode</td></tr>
-            <tr><td><kbd>A</kbd></td><td>Toggle Arpeggiator</td></tr>
-            <tr><td><kbd>B</kbd></td><td>Toggle Auto Bass</td></tr>
-            <tr><td><kbd>B</kbd></td><td>Toggle Auto Bass</td></tr>
-            <tr><td><kbd>Space</kbd></td><td>Stop all notes</td></tr>
-            <tr><td><kbd>Esc</kbd></td><td>Reset state</td></tr>
-          </tbody>
-        </table>
-      </div>
 
       <!-- FAQ -->
       <div class="seo-section" id="faq">
@@ -570,8 +666,8 @@
             In <strong>Finger Layout mode</strong>: 1 finger = triad, 2 fingers = 1st inversion,
             3 fingers = 7th chord, 4 fingers = 9th chord. In <strong>Fixed Chord mode</strong>,
             choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished,
-            Sus2, Sus4, Major 7th, and Dominant 7th. Left-hand wrist tilt dynamically switches
-            between major and minor tonality, or lock to a fixed mode.
+            Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt in settings
+            to switch between major and minor with left-hand wrist tilt.
           </p>
         </details>
 
@@ -582,8 +678,8 @@
             left hand controls harmony (key selection, scale degree, major/minor toggle) while your
             right hand controls expression (chord complexity, volume, tone, octave). Unlike basic
             gesture synths, it includes an <strong>arpeggiator</strong> for harp-like sweeps, an
-            <strong>auto bass generator</strong> for low-end foundation, <strong>5 distinct sound
-            presets</strong> including sampled piano, support for <strong>9th chords</strong>
+            <strong>auto bass generator</strong> for low-end foundation, a <strong>sawtooth synth engine</strong>
+            with real-time filter sweep, support for <strong>9th chords</strong>
             (4-finger), <strong>8 fixed chord styles</strong>, and built-in <strong>WebM recording</strong>.
             It's also open source under the MIT license.
           </p>

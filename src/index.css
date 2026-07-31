@@ -59,7 +59,10 @@ body {
   position: relative;
   width: 100vw;
   height: 100svh;
-  background: var(--bg-dark);
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(0, 255, 204, 0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 55%, rgba(120, 80, 255, 0.04) 0%, transparent 50%),
+    var(--bg-dark);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -74,22 +77,63 @@ body {
   object-fit: cover;
 }
 
-/* ─── Start Screen ───────────────────────────────────────────────────── */
+/* ─── Camera Placeholder — dimmed overlay, clear button area ──────── */
 
-.start-screen {
-  position: relative;
-  z-index: 5;
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 1.5rem;
   text-align: center;
+  /* Dark vignette: edges dimmed, center clear around the button */
+  background: radial-gradient(
+    ellipse at center,
+    transparent 20%,
+    rgba(5, 5, 16, 0.15) 40%,
+    rgba(5, 5, 16, 0.55) 75%,
+    rgba(5, 5, 16, 0.7) 100%
+  );
+  pointer-events: none;
 }
 
-.start-graphic svg {
-  width: 120px;
-  height: 120px;
-  animation: float 3s ease-in-out infinite;
+.camera-placeholder > * {
+  pointer-events: auto;
+}
+
+.camera-placeholder-brand {
+  margin-bottom: 0.5rem;
+}
+
+.camera-placeholder-brand-text {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--neon-cyan) 0%, #00cc99 50%, var(--neon-magenta) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 8px rgba(0, 255, 204, 0.3));
+  animation: brand-float 3s ease-in-out infinite;
+}
+
+@keyframes brand-float {
+  0%, 100% { filter: drop-shadow(0 2px 8px rgba(0, 255, 204, 0.3)); }
+  50% { filter: drop-shadow(0 4px 16px rgba(0, 255, 204, 0.5)) drop-shadow(0 0 24px rgba(255, 0, 255, 0.2)); }
+}
+
+.camera-placeholder-icon.error-icon {
+  margin-bottom: 0.5rem;
+}
+.camera-placeholder-icon.error-icon svg {
+  width: 100px;
+  height: 100px;
+  animation: none;
+  opacity: 0.7;
 }
 
 @keyframes float {
@@ -97,15 +141,17 @@ body {
   50% { transform: translateY(-10px); }
 }
 
-.start-btn {
+.enable-camera-btn {
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--bg-dark);
-  background: linear-gradient(135deg, var(--neon-cyan), #00cc99);
-  border: none;
+  color: var(--neon-cyan);
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.35);
   border-radius: 50px;
   padding: 1rem 3rem;
   cursor: pointer;
@@ -113,154 +159,67 @@ body {
   align-items: center;
   gap: 0.75rem;
   transition: all 0.3s ease;
-  box-shadow: 0 0 30px rgba(0, 255, 204, 0.4), 0 0 60px rgba(0, 255, 204, 0.2);
-  animation: pulse-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(0, 255, 204, 0.25), 0 0 60px rgba(0, 255, 204, 0.1), var(--frost-shadow);
+  animation: pulse-glow-glass 2s ease-in-out infinite;
 }
 
-.start-btn:hover {
+.enable-camera-btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.enable-camera-btn:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 40px rgba(0, 255, 204, 0.6), 0 0 80px rgba(0, 255, 204, 0.3);
+  border-color: rgba(0, 255, 204, 0.6);
+  box-shadow: 0 0 40px rgba(0, 255, 204, 0.4), 0 0 80px rgba(0, 255, 204, 0.2), var(--frost-shadow);
 }
 
-.start-btn:active {
+.enable-camera-btn:active {
   transform: scale(0.98);
 }
 
-.start-btn:disabled {
+.enable-camera-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   animation: none;
 }
 
-.start-btn-icon {
-  font-size: 1rem;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 204, 0.4), 0 0 60px rgba(0, 255, 204, 0.2); }
-  50% { box-shadow: 0 0 50px rgba(0, 255, 204, 0.6), 0 0 100px rgba(0, 255, 204, 0.3); }
-}
-
-.start-hint {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  max-width: 300px;
-}
-
-.keyboard-mode-link {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  transition: color 0.2s;
-}
-
-.keyboard-mode-link:hover {
-  color: var(--neon-cyan);
-}
-
-/* ─── Keyboard Mode Screen ───────────────────────────────────────────── */
-
-.keyboard-mode-screen {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-  padding: 2rem;
-}
-
-.keyboard-chord-display {
-  text-align: center;
-}
-
-.keyboard-chord-name {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 4rem;
-  font-weight: 900;
-  color: var(--neon-cyan);
-  text-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
-  line-height: 1;
-}
-
-.keyboard-chord-roman {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 1.2rem;
+.enable-camera-btn.retry {
   color: var(--neon-magenta);
-  margin-top: 0.5rem;
+  border-color: rgba(255, 0, 255, 0.35);
+  box-shadow: 0 0 30px rgba(255, 0, 255, 0.2), 0 0 60px rgba(255, 0, 255, 0.08), var(--frost-shadow);
 }
 
-.keyboard-volume-bar {
-  width: 200px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
+@keyframes pulse-glow-glass {
+  0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 204, 0.25), 0 0 60px rgba(0, 255, 204, 0.1), var(--frost-shadow); }
+  50% { box-shadow: 0 0 45px rgba(0, 255, 204, 0.4), 0 0 80px rgba(0, 255, 204, 0.2), var(--frost-shadow); }
 }
 
-.keyboard-volume-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
-  border-radius: 4px;
-  transition: width 0.15s ease;
-}
-
-.keyboard-shortcuts-card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  backdrop-filter: blur(10px);
-  max-width: 400px;
-  width: 100%;
-}
-
-.keyboard-shortcuts-card h3 {
-  font-family: var(--font-display);
+.camera-placeholder-hint {
+  color: var(--text-secondary);
   font-size: 0.9rem;
-  color: var(--neon-cyan);
-  margin-bottom: 1rem;
-  text-align: center;
+  max-width: 360px;
 }
 
-.shortcut-grid {
-  display: grid;
-  gap: 0.6rem;
+.camera-error-message {
+  background: rgba(255, 50, 50, 0.1);
+  border: 1px solid rgba(255, 50, 50, 0.3);
+  border-radius: 12px;
+  padding: 0.8rem 1.5rem;
+  color: #ff6666;
+  font-size: 0.9rem;
+  max-width: 400px;
+}
+
+.camera-denied-hint {
+  color: #ff9999;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  max-width: 420px;
+  line-height: 1.5;
 }
 
-.shortcut-grid kbd {
-  display: inline-block;
-  padding: 0.1rem 0.4rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  margin: 0 0.1rem;
-}
-
-.back-to-camera-btn {
-  background: none;
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-}
-
-.back-to-camera-btn:hover {
-  border-color: var(--neon-cyan);
-  color: var(--neon-cyan);
+.camera-placeholder.error-state {
+  background: radial-gradient(ellipse at center, rgba(255, 50, 50, 0.08) 0%, transparent 65%);
 }
 
 /* ─── Loading / Error Screens ────────────────────────────────────────── */
@@ -840,19 +799,15 @@ body {
     right: 0.75rem;
   }
 
-  .start-btn {
+  .enable-camera-btn {
     font-size: 1rem;
     padding: 0.8rem 2rem;
   }
 
-  .start-graphic svg {
-    width: 80px;
-    height: 80px;
+  .camera-placeholder-brand-text {
+    font-size: 1.4rem;
   }
 
-  .keyboard-chord-name {
-    font-size: 3rem;
-  }
 
   .status-bar-bottom {
     padding: 0.5rem 1rem;

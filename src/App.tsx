@@ -414,8 +414,16 @@ export default function App() {
       // Use committed finger count for chord selection
       const stableFingerCount = stabilizer.committed ?? rawFingerCount;
 
-      // Use smoothed finger count mapping (VI/VII special gestures disabled for stability)
-      chordIndex = FINGER_TO_CHORD_INDEX[stableFingerCount] ?? 0;
+      // Check for specific finger combinations (VI and VII)
+      const extended = leftHand.extendedFingers;
+      if (extended.includes('index') && extended.includes('pinky') && extended.includes('thumb')) {
+        chordIndex = 6; // VII
+      } else if (extended.includes('index') && extended.includes('pinky')) {
+        chordIndex = 5; // VI
+      } else {
+        // Standard finger count mapping
+        chordIndex = FINGER_TO_CHORD_INDEX[stableFingerCount] ?? 0;
+      }
       hasValidChord = stableFingerCount > 0; // 0 fingers (fist) = no valid chord
 
       if (s.leftHandMode === 'scaleTilt') {

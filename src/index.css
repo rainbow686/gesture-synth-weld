@@ -897,7 +897,7 @@ body {
     display: none; /* hide hint text on mobile */
   }
 
-  /* Status bar: wrap to multiple lines */
+  /* Status bar: 2 rows — chord+volume top, controls bottom */
   .status-bar-bottom {
     padding: 0.4rem 0.5rem !important;
     font-size: 0.6rem !important;
@@ -905,10 +905,19 @@ body {
     flex-wrap: wrap !important;
     row-gap: 3px !important;
     justify-content: center !important;
-    flex-shrink: 1;
+    align-items: center !important;
   }
-  .status-bar-bottom > * {
-    flex-shrink: 0;
+  .status-bar-bottom .status-chord {
+    font-size: 0.7rem !important;
+  }
+  .status-bar-bottom .status-volume {
+    flex: 0 1 auto !important;
+  }
+  /* Force mode label to new row, rest follows */
+  .status-bar-bottom .status-mode {
+    width: 100% !important;
+    text-align: center !important;
+    font-size: 0.5rem !important;
   }
   .status-bar-bottom input[type="number"] {
     width: 28px !important;
@@ -924,12 +933,6 @@ body {
   .status-bar-bottom button {
     font-size: 0.5rem !important;
     padding: 0 3px !important;
-  }
-  .status-bar-bottom .status-chord {
-    font-size: 0.65rem !important;
-    flex-basis: 100% !important;
-    text-align: center !important;
-    margin-bottom: 2px;
   }
 
   /* Camera placeholder */

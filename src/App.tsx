@@ -4,7 +4,7 @@ import {
   detectHands,
   HAND_CONNECTIONS,
 } from './handTracker';
-import { audioEngine, TIMBRE_OPTIONS, type TimbreType } from './audioEngine';
+import { audioEngine } from './audioEngine';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -80,8 +80,19 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
-  const [currentTimbre, setCurrentTimbre] = useState<TimbreType>('piano');
-  const [pianoLoaded, setPianoLoaded] = useState(false);
+  // Track the last stable finger count
+  const lastStableFingerCountRef = useRef<{ left: number; right: number }>({
+    left: 0,
+    right: 0,
+  });
+
+  // Hand detection smoothing to prevent flickering
+  const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
+    left: [],
+    right: [],
+  });
+  const HAND_STABLE_FRAMES = 3; // Require 3 frames for hand presence
+
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [keyboardMode, setKeyboardMode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -115,30 +126,6 @@ export default function App() {
 
   // Right hand finger count history for chord style smoothing
   const rightHandHistoryRef = useRef<number[]>([]);
-
-  // Hand detection smoothing to prevent flickering
-  const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
-    left: [],
-    right: [],
-  });
-  const HAND_STABLE_FRAMES = 3; // Require 3 frames for hand presence
-
-  /* ─── Initialize audio ──────────────────────────────────────────────── */
-
-  useEffect(() => {
-    audioEngine.init().then(() => {
-      audioEngine.loadPianoSamples(() => {
-        setPianoLoaded(true);
-      });
-    });
-  }, []);
-
-  /* ─── Timbre Switch ────────────────────────────────────────────────── */
-
-  const switchTimbre = useCallback(async (timbre: TimbreType) => {
-    await audioEngine.setTimbre(timbre);
-    setCurrentTimbre(timbre);
-  }, []);
 
   /* ─── Keyboard Shortcuts ─────────────────────────────────────────── */
 
@@ -202,19 +189,7 @@ export default function App() {
         return;
       }
 
-      // Q/W/E/R/V: Timbre selection
-      const timbreMap: Record<string, TimbreType> = {
-        q: 'piano',
-        w: 'strings',
-        e: 'organ',
-        r: 'synth',
-        v: 'vibraphone',
-      };
-      const timbre = timbreMap[e.key.toLowerCase()];
-      if (timbre) {
-        switchTimbre(timbre);
-        return;
-      }
+      // Q/W/E/R/V: No longer used (timbre selection removed)
 
       // A: Toggle arpeggiator
       if (e.key === 'a' || e.key === 'A') {
@@ -250,7 +225,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [switchTimbre]);
+  }, []);
 
   /* ─── Process Detected Hands (Two-Hand Logic) ──────────────────────── */
 
@@ -333,11 +308,12 @@ export default function App() {
 
     // ─── Monophonic Piano Mode (single note per finger) ────────────
     if (s.appMode === 'monoPiano') {
-      const hand = rightHand || leftHand; // Prefer right hand
-      if (hand) {
+      // CRITICAL: Piano mode requires BOTH hands
+      // Left hand determines note, right hand triggers it and controls volume
+      if (leftHand && rightHand) {
         // Apply time-based stabilizer (same as Gesture mode)
         const now = performance.now();
-        const rawFingerCount = hand.fingerCount;
+        const rawFingerCount = leftHand.fingerCount;
         const stabilizer = stabilizerRef.current;
 
         // Update last seen time
@@ -363,17 +339,20 @@ export default function App() {
         const freq = midiToFreq(midiNote);
 
         // Only trigger if note changed (use lastChordRef for fingerprint)
+        // Piano mode: sustain like other timbres
         const pianoFingerprint = `mono|${midiNote}`;
         if (pianoFingerprint !== lastChordRef.current) {
           lastChordRef.current = pianoFingerprint;
+          // Play note and sustain (like other timbres)
           audioEngine.playNote(freq);
         }
 
-        // Volume: hand height
-        const volume = Math.max(0.02, Math.min(1.0, 1.1 - hand.positionY));
+        // Volume: right hand height (since right hand is required)
+        const volume = Math.max(0.02, Math.min(1.0, 1.1 - rightHand.positionY));
         setSynthState(prev => ({ ...prev, volume, isPlaying: true }));
         audioEngine.setVolume(volume);
       } else {
+        // No hands or missing one hand - stop all
         audioEngine.stopAll();
         lastChordRef.current = '';
         setSynthState(prev => ({ ...prev, isPlaying: false }));
@@ -427,8 +406,10 @@ export default function App() {
     }
 
     // Right Hand → Expression (volume + chord style)
-    let volume = s.volume;
+    // CRITICAL: Right hand is required to trigger sound
+    let volume = 0; // Default to 0 (no sound)
     let chordStyle: ChordStyle | undefined;
+    let hasRightHand = !!rightHand;
 
     if (rightHand) {
       // Apply sliding window majority vote for right hand (for chord style)
@@ -469,7 +450,8 @@ export default function App() {
       }
     }
 
-    const isPlaying = !!(leftHand || rightHand);
+    // CRITICAL: Only play sound if BOTH hands are present
+    const isPlaying = !!(leftHand && rightHand);
     const chordName = getChordName(
       chordIndex,
       mode === 'neutral' ? undefined : mode,
@@ -738,8 +720,6 @@ export default function App() {
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
-  const currentTimbreOption = TIMBRE_OPTIONS.find(t => t.id === currentTimbre) ?? TIMBRE_OPTIONS[0];
-
   return (
     <div className="full-screen-app">
       {/* ─── Full-screen camera area ────────────────────────────────── */}
@@ -954,23 +934,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Timbre */}
-              <div className="panel-section">
-                <label className="panel-label">Sound</label>
-                <div className="timbre-selector">
-                  {TIMBRE_OPTIONS.map(opt => (
-                    <button
-                      key={opt.id}
-                      className={`timbre-btn ${currentTimbre === opt.id ? 'active' : ''}`}
-                      onClick={() => switchTimbre(opt.id)}
-                      title={opt.label}
-                    >
-                      <span className="timbre-icon">{opt.icon}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Record */}
               <div className="panel-section">
                 <button
@@ -1059,6 +1022,84 @@ export default function App() {
           <span>Gesture Synth Weld</span>
         </div>
 
+        {/* Scale Guide - 8 blocks showing scale degrees */}
+        {(isRunning || keyboardMode) && synthState.appMode === 'gesture' && (
+          <div className="scale-guide" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            gap: '0.5rem',
+            zIndex: 5,
+          }}>
+            {[
+              { degree: 'I', label: '1 finger', index: 0 },
+              { degree: 'II', label: '2 fingers', index: 1 },
+              { degree: 'III', label: '3 fingers', index: 2 },
+              { degree: 'IV', label: '4 fingers', index: 3 },
+              { degree: 'V', label: '5 fingers', index: 4 },
+              { degree: 'VI', label: 'index + pinky', index: 5 },
+              { degree: 'VII', label: 'index + pinky + thumb', index: 6 },
+              { degree: 'I\'', label: '1 finger (oct)', index: 7 },
+            ].map((block, i) => {
+              const isActive = synthState.chordIndex === block.index && synthState.isPlaying;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: '60px',
+                    height: '80px',
+                    background: isActive ? 'rgba(0, 255, 204, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    border: `2px solid ${isActive ? 'var(--neon-cyan)' : 'rgba(255, 255, 255, 0.1)'}`,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.4)' : 'none',
+                  }}
+                >
+                  <div style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
+                    fontFamily: 'var(--font-display)',
+                  }}>
+                    {block.degree}
+                  </div>
+                  <div style={{
+                    fontSize: '0.6rem',
+                    color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                    marginTop: '0.3rem',
+                    textAlign: 'center',
+                  }}>
+                    {block.label}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Central note symbol */}
+        {(isRunning || keyboardMode) && synthState.isPlaying && (
+          <div style={{
+            position: 'absolute',
+            top: '35%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '4rem',
+            color: 'rgba(0, 255, 204, 0.3)',
+            fontFamily: 'var(--font-display)',
+            zIndex: 4,
+            pointerEvents: 'none',
+          }}>
+            ♪
+          </div>
+        )}
+
         {/* Bottom status bar */}
         {(isRunning || keyboardMode) && (
           <div className="status-bar-bottom">
@@ -1071,8 +1112,8 @@ export default function App() {
                 <div className="status-volume-fill" style={{ width: `${synthState.volume * 100}%` }} />
               </div>
             </div>
-            <div className="status-timbre">
-              {currentTimbreOption.icon} {currentTimbreOption.label}
+            <div className="status-mode">
+              {synthState.appMode === 'gesture' ? 'Gesture' : synthState.appMode === 'theremin' ? 'Theremin' : 'Piano'}
             </div>
           </div>
         )}

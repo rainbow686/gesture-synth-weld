@@ -59,7 +59,10 @@ body {
   position: relative;
   width: 100vw;
   height: 100svh;
-  background: var(--bg-dark);
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(0, 255, 204, 0.06) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 55%, rgba(120, 80, 255, 0.04) 0%, transparent 50%),
+    var(--bg-dark);
   overflow: hidden;
   display: flex;
   align-items: center;

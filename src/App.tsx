@@ -985,72 +985,60 @@ export default function App() {
 
             {/* Help Modal — visual finger-to-note guide */}
             {showHelp && (
-              <div className="help-modal desktop-only" style={{
+              <div style={{
                 position: 'absolute',
                 top: '56px',
                 left: '12px',
-                width: '460px',
+                width: '340px',
                 background: 'var(--frost-bg)',
                 backdropFilter: 'var(--frost-blur)',
-                WebkitBackdropFilter: 'var(--frost-blur)',
                 border: '1px solid var(--frost-border)',
                 borderRadius: '16px',
-                padding: '14px 18px',
+                padding: '14px 16px',
                 boxShadow: 'var(--frost-shadow)',
                 zIndex: 100,
-                fontSize: '0.7rem',
+                fontSize: '0.68rem',
                 color: 'var(--text-secondary)',
-                lineHeight: 1.4,
+                lineHeight: 1.5,
               }}>
-                {/* Header row: title + close button */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '0.8rem', color: 'var(--neon-cyan)', margin: 0 }}>Quick Guide</h3>
-                  <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.8rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
+                  <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '20px', height: '20px', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', lineHeight: 1 }}>✕</button>
                 </div>
 
-                {/* Finger → Chord Table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
-                  <thead>
-                    <tr style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      <th style={{ textAlign: 'left', padding: '3px 6px', borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap' }}>Fingers</th>
-                      <th style={{ textAlign: 'left', padding: '3px 6px', borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap' }}>Chord</th>
-                      <th style={{ textAlign: 'left', padding: '3px 6px', borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap' }}>Gesture</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ['1', 'I', '1 finger raised'],
-                      ['2', 'II', '2 fingers raised'],
-                      ['3', 'III', '3 fingers raised'],
-                      ['4', 'IV', '4 fingers raised'],
-                      ['5', 'V', '5 fingers raised'],
-                      ['VI', 'VI', 'Index + Pinky'],
-                      ['VII', 'VII', 'Idx + Pky + Thumb'],
-                    ].map(([deg, chord, gest]) => (
-                      <tr key={deg} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                        <td style={{ padding: '2px 6px', fontFamily: 'var(--font-display)', color: 'var(--neon-cyan)', fontWeight: 700, whiteSpace: 'nowrap' }}>{deg}</td>
-                        <td style={{ padding: '2px 6px', whiteSpace: 'nowrap' }}>{chord}</td>
-                        <td style={{ padding: '2px 6px', fontSize: '0.62rem', whiteSpace: 'nowrap' }}>{gest}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {/* Mapping list — each item on its own line */}
+                {[
+                  ['1 → I', '1 finger raised'],
+                  ['2 → II', '2 fingers raised'],
+                  ['3 → III', '3 fingers raised'],
+                  ['4 → IV', '4 fingers raised'],
+                  ['5 → V', '5 fingers raised'],
+                  ['VI → VI', 'Index + Pinky'],
+                  ['VII → VII', 'Idx + Pky + Thumb'],
+                ].map(([deg, gest]) => (
+                  <div key={deg} style={{ fontSize: '0.65rem', padding: '2px 0' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', color: 'var(--neon-cyan)', fontWeight: 700, marginRight: '8px' }}>{deg}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>{gest}</span>
+                  </div>
+                ))}
 
-                {/* Left / Right hand descriptions — stacked vertically */}
-                <p style={{ margin: '0 0 4px', fontSize: '0.6rem', borderLeft: '2px solid var(--neon-cyan)', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                  <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor
-                </p>
-                <p style={{ margin: '0 0 8px', fontSize: '0.6rem', borderLeft: '2px solid var(--neon-magenta)', paddingLeft: '8px', whiteSpace: 'nowrap' }}>
-                  <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type
-                </p>
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '8px 0' }} />
 
-                <p style={{ fontSize: '0.58rem', color: 'var(--text-muted)', margin: '0 0 6px', whiteSpace: 'nowrap' }}>
-                  Both hands required · Either fist = stop · ⟿ Arp ∿ Bass ● Rec ♪ Metronome
-                </p>
+                {/* Hand descriptions */}
+                <div style={{ fontSize: '0.58rem', lineHeight: 1.6 }}>
+                  <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left:</span> fingers = scale degree, tilt = major/minor<br/>
+                  <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right:</span> height = volume, fingers = chord type<br/>
+                  <span style={{ color: 'var(--text-muted)' }}>Both hands required · fist = stop</span>
+                </div>
 
-                <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.6rem', textDecoration: 'underline', display: 'block', whiteSpace: 'nowrap' }}>
-                  Full guide & tips below ↓
-                </a>
+                {/* Link */}
+                <div style={{ marginTop: '8px' }}>
+                  <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
+                    Full guide & tips below ↓
+                  </a>
+                </div>
               </div>
             )}
 

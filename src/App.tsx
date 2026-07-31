@@ -590,11 +590,11 @@ export default function App() {
     // Muted (hands present but silent) → thin gray line
     // Playing → cyan with variable width
     const muted = rms < 0.005;
-    const lineW = muted ? 1 : 1 + rms * 8;
-    const r = muted ? 128 : 0;
-    const g = muted ? 128 : 255;
-    const b = muted ? 128 : 204;
-    const alpha = muted ? 0.12 : 0.2 + rms * 0.8;
+    const lineW = muted ? 2 : 1 + rms * 8;
+    const r = muted ? 120 : 0;
+    const g = muted ? 120 : 255;
+    const b = muted ? 120 : 204;
+    const alpha = muted ? 0.25 : 0.2 + rms * 0.8;
 
     ctx.lineWidth = lineW;
     ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;

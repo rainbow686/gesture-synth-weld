@@ -1085,20 +1085,20 @@ export default function App() {
             left: '50%',
             transform: 'translateX(-50%)',
             display: 'flex',
-            gap: '4px',
+            gap: '3px',
             zIndex: 5,
           }}>
             {(() => {
               // Calculate note names based on current key
               const keyNotes = [
-                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I',   hint: '1 finger' },
-                { note: KEYS[(2 + synthState.keyOffset) % 12]?.name ?? 'D', roman: 'II',  hint: '2 fingers' },
-                { note: KEYS[(4 + synthState.keyOffset) % 12]?.name ?? 'E', roman: 'III', hint: '3 fingers' },
-                { note: KEYS[(5 + synthState.keyOffset) % 12]?.name ?? 'F', roman: 'IV',  hint: '4 fingers' },
-                { note: KEYS[(7 + synthState.keyOffset) % 12]?.name ?? 'G', roman: 'V',   hint: '5 fingers' },
-                { note: KEYS[(9 + synthState.keyOffset) % 12]?.name ?? 'A', roman: 'VI',  hint: 'index + pinky' },
-                { note: KEYS[(11 + synthState.keyOffset) % 12]?.name ?? 'B', roman: 'VII', hint: 'index + pinky + thumb' },
-                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I\'', hint: '1 finger (oct)' },
+                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I',   hint: '1 指' },
+                { note: KEYS[(2 + synthState.keyOffset) % 12]?.name ?? 'D', roman: 'II',  hint: '2 指' },
+                { note: KEYS[(4 + synthState.keyOffset) % 12]?.name ?? 'E', roman: 'III', hint: '3 指' },
+                { note: KEYS[(5 + synthState.keyOffset) % 12]?.name ?? 'F', roman: 'IV',  hint: '4 指' },
+                { note: KEYS[(7 + synthState.keyOffset) % 12]?.name ?? 'G', roman: 'V',   hint: '5 指' },
+                { note: KEYS[(9 + synthState.keyOffset) % 12]?.name ?? 'A', roman: 'VI',  hint: '食+小' },
+                { note: KEYS[(11 + synthState.keyOffset) % 12]?.name ?? 'B', roman: 'VII', hint: '食+小+拇' },
+                { note: KEYS[(0 + synthState.keyOffset) % 12]?.name ?? 'C', roman: 'I\'', hint: '1 指(8va)' },
               ];
               return keyNotes.map((block, i) => {
                 const isActive = synthState.chordIndex === i && synthState.isPlaying;
@@ -1106,22 +1106,22 @@ export default function App() {
                   <div
                     key={i}
                     style={{
-                      width: '70px',
-                      padding: '0.5rem 0.3rem',
-                      background: isActive ? 'rgba(0, 255, 204, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                      border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.7)' : 'rgba(255, 255, 255, 0.08)'}`,
-                      borderRadius: '8px',
+                      width: '56px',
+                      padding: '0.4rem 0.2rem',
+                      background: isActive ? 'rgba(0, 255, 204, 0.3)' : 'rgba(255, 255, 255, 0.04)',
+                      border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.8)' : 'rgba(255, 255, 255, 0.06)'}`,
+                      borderRadius: '6px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      transition: 'all 0.15s ease',
-                      boxShadow: isActive ? '0 0 16px rgba(0, 255, 204, 0.5)' : 'none',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.6)' : 'none',
                       textAlign: 'center',
                     }}
                   >
                     <span style={{
-                      fontSize: '1.4rem',
+                      fontSize: '1.3rem',
                       fontWeight: 700,
                       color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
                       fontFamily: 'var(--font-display)',
@@ -1130,20 +1130,18 @@ export default function App() {
                       {block.note}
                     </span>
                     <span style={{
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       fontWeight: 500,
                       color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
-                      marginTop: '0.2rem',
+                      marginTop: '0.15rem',
                     }}>
                       {block.roman}
                     </span>
                     <span style={{
-                      fontSize: '0.55rem',
+                      fontSize: '0.5rem',
                       color: isActive ? 'rgba(0, 255, 204, 0.7)' : 'var(--text-muted)',
-                      marginTop: '0.2rem',
-                      maxWidth: '60px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+                      marginTop: '0.1rem',
+                      whiteSpace: 'nowrap',
                     }}>
                       {block.hint}
                     </span>
@@ -1151,6 +1149,25 @@ export default function App() {
                 );
               });
             })()}
+          </div>
+        )}
+
+        {/* Now playing note - prominent but transparent, centered */}
+        {(isRunning || keyboardMode) && synthState.appMode === 'gesture' && synthState.isPlaying && (
+          <div style={{
+            position: 'absolute',
+            top: '40%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '5rem',
+            fontWeight: 900,
+            color: 'rgba(0, 255, 204, 0.15)',
+            fontFamily: 'var(--font-display)',
+            zIndex: 3,
+            pointerEvents: 'none',
+            letterSpacing: '0.1em',
+          }}>
+            {synthState.chordName}
           </div>
         )}
 

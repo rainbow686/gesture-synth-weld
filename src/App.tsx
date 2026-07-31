@@ -820,6 +820,8 @@ export default function App() {
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
+  const isCameraDenied = error?.toLowerCase().includes('denied');
+
   return (
     <div className="full-screen-app">
       {/* ─── Full-screen camera area ────────────────────────────────── */}
@@ -827,7 +829,164 @@ export default function App() {
         <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
         <canvas ref={canvasRef} className="camera-canvas" />
 
-        {/* Hand tags on sides */}
+        {/* ─── Top Toolbar — always visible ─────────────────────────── */}
+        <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', zIndex: 20 }}>
+          <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
+            <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
+            <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
+            <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
+            <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
+            <span className="divider" />
+            <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
+              {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
+            </select>
+            {isRunning && (
+              <>
+                <span className="divider" />
+                <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
+                <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
+                <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
+                <span className="divider" />
+                <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
+              </>
+            )}
+            <span className="divider" />
+            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
+            <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
+            {isRunning && (
+              <>
+                <span className="divider" />
+                <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
+              </>
+            )}
+          </div>
+
+          {/* Settings panel — only for Gesture mode */}
+          {showSettings && synthState.appMode === 'gesture' && (
+            <div className="frost-panel" style={{ flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+              {/* Left Hand */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
+                <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
+                <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}>
+                  <option value="scaleTilt">Scale notes + tilt major/minor</option>
+                  <option value="scaleLocked">Scale notes only (lock mode)</option>
+                </select>
+                {synthState.leftHandMode === 'scaleTilt' ? (
+                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
+                ) : (
+                  <>
+                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
+                      <option value="major">Major</option>
+                      <option value="minor">Minor</option>
+                    </select>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree only. Mode is locked above.</p>
+                  </>
+                )}
+              </div>
+
+              <span className="divider" style={{ height: 'auto', alignSelf: 'stretch' }} />
+
+              {/* Right Hand */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
+                <label style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand — Expression</label>
+                <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}>
+                  <option value="fingerLayout">Finger layout = chord style</option>
+                  <option value="fixedChordStyle">Fixed chord style</option>
+                </select>
+                {synthState.rightHandMode === 'fingerLayout' ? (
+                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
+                ) : (
+                  <>
+                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
+                      {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                    </select>
+                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
+                  </>
+                )}
+              </div>
+
+              {/* Arp / Bass extras */}
+              {(synthState.arpeggiate || synthState.autoBass) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px' }}>
+                  {synthState.arpeggiate && (
+                    <div>
+                      <label style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Arpeggiator</label>
+                      <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))} style={{ width: '100%' }}>
+                        <option value="slow">Slow (120ms)</option>
+                        <option value="normal">Normal (80ms)</option>
+                        <option value="fast">Fast (50ms)</option>
+                      </select>
+                    </div>
+                  )}
+                  {synthState.autoBass && (
+                    <div>
+                      <label style={{ color: 'var(--neon-amber)', fontWeight: 600 }}>Bass Volume</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
+                        <span style={{ fontSize: '0.6rem', width: '24px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ─── Help Modal ────────────────────────────────────────────── */}
+        {showHelp && (
+          <div style={{
+            position: 'absolute', top: '12px', left: '12px', width: '360px',
+            background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
+            padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,
+            fontSize: '0.68rem', color: '#d0d0e8', lineHeight: 1.45,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
+              <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+              <thead>
+                <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '60px' }}>Fingers</th>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '40px' }}>Chord</th>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Gesture</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['1', 'I', '1 finger raised'],
+                  ['2', 'II', '2 fingers raised'],
+                  ['3', 'III', '3 fingers raised'],
+                  ['4', 'IV', '4 fingers raised'],
+                  ['5', 'V', '5 fingers raised'],
+                  ['VI', 'VI', 'Index + Pinky'],
+                  ['VII', 'VII', 'Idx + Pky + Thumb'],
+                ].map(([fn, chord, gest]) => (
+                  <tr key={fn} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                    <td style={{ padding: '3px 0', fontFamily: 'var(--font-display)', color: '#fff', fontWeight: 700, fontSize: '0.72rem' }}>{fn}</td>
+                    <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: 600 }}>{chord}</td>
+                    <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{gest}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
+              <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor<br/>
+              <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
+              <span style={{ color: '#b0b0d0' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
+            </div>
+
+            <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
+              Full guide & tips below ↓
+            </a>
+          </div>
+        )}
+
+        {/* ─── Hand tags on sides (running only) ─────────────────────── */}
         {isRunning && (
           <>
             {hasLeftHand && (
@@ -843,28 +1002,32 @@ export default function App() {
           </>
         )}
 
-        {/* Start screen */}
+        {/* ─── Camera placeholder — "Enable Camera" instead of "Start" ─ */}
         {!isRunning && !isLoading && !error && !keyboardMode && (
-          <div className="start-screen">
-            <div className="start-graphic">
-              <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="60" cy="60" r="50" stroke="rgba(0,255,204,0.2)" strokeWidth="2" />
-                <path d="M40 70 L45 50 L50 70 M55 70 L60 45 L65 70 M70 70 L75 50 L80 70" stroke="rgba(0,255,204,0.6)" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="60" cy="85" r="8" fill="rgba(255,0,255,0.3)" />
+          <div className="camera-placeholder">
+            <div className="camera-placeholder-icon">
+              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" />
+                <path d="M48 30l16-9v32l-16-9" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="32" cy="40" r="8" stroke="rgba(0,255,204,0.35)" strokeWidth="2.5" />
+                <circle cx="32" cy="40" r="3" fill="rgba(0,255,204,0.2)" />
+                <rect x="26" y="52" width="12" height="3" rx="1.5" fill="rgba(255,0,255,0.25)" />
               </svg>
             </div>
-            <button className="start-btn" onClick={startCamera} disabled={isLoading}>
-              <span className="start-btn-icon">▶</span>
-              <span>Start</span>
+            <button className="enable-camera-btn" onClick={startCamera} disabled={isLoading}>
+              <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+              </svg>
+              <span>Enable Camera</span>
             </button>
-            <p className="start-hint">Allow camera to begin playing with hand gestures</p>
+            <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
             <button className="keyboard-mode-link" onClick={enterKeyboardMode}>
               No camera? Try keyboard mode →
             </button>
           </div>
         )}
 
-        {/* Keyboard mode */}
+        {/* ─── Keyboard mode ─────────────────────────────────────────── */}
         {keyboardMode && (
           <div className="keyboard-mode-screen">
             <div className="keyboard-chord-display">
@@ -876,7 +1039,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Loading */}
+        {/* ─── Loading ───────────────────────────────────────────────── */}
         {isLoading && (
           <div className="loading-screen">
             <div className="spinner" />
@@ -884,288 +1047,224 @@ export default function App() {
           </div>
         )}
 
-        {/* Error */}
+        {/* ─── Error (including camera denied) ───────────────────────── */}
         {error && (
-          <div className="error-screen">
-            <div className="error-message">{error}</div>
-            <button className="retry-btn" onClick={startCamera}>Retry</button>
+          <div className="camera-placeholder error-state">
+            <div className="camera-placeholder-icon error-icon">
+              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="10" y="22" width="52" height="36" rx="6" stroke="rgba(255,80,80,0.4)" strokeWidth="2.5" />
+                <path d="M48 30l16-9v32l-16-9" stroke="rgba(255,80,80,0.4)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="24" y1="50" x2="44" y2="30" stroke="rgba(255,80,80,0.5)" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="camera-error-message">{error}</div>
+            {isCameraDenied && (
+              <p className="camera-denied-hint">
+                Camera access is required to use the gesture synth. Please allow camera access in your browser settings.
+              </p>
+            )}
+            <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
             <button className="keyboard-mode-link" onClick={enterKeyboardMode}>
               No camera? Try keyboard mode →
             </button>
           </div>
         )}
 
-        {/* ─── Two-Row Toolbar ──────────────────────────────────────── */}
-        {(isRunning || keyboardMode) && (
-          <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px', zIndex: 20 }}>
-            {/* Row 1: compact controls */}
-            <div className="frost-toolbar" style={{ gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
-              <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
-              <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
-              <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
-              <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
-              <span className="divider" />
-              <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
-                {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
-              </select>
-              <span className="divider" />
-              <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
-              <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
-              <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
-              <span className="divider" />
-              <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
-              <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
-              <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
-              <span className="divider" />
-              <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
-            </div>
-
-            {/* Row 2: hand settings panel — only for Gesture mode (Theremin/Piano don't use hand division) */}
-            {showSettings && synthState.appMode === 'gesture' && (
-              <div className="frost-panel" style={{ flexDirection: 'row', gap: '16px', padding: '16px 18px', marginTop: '8px', maxWidth: '700px', fontSize: '0.65rem' }}>
-                {/* Left Hand */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
-                  <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
-                  <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}>
-                    <option value="scaleTilt">Scale notes + tilt major/minor</option>
-                    <option value="scaleLocked">Scale notes only (lock mode)</option>
-                  </select>
-                  {synthState.leftHandMode === 'scaleTilt' ? (
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
-                  ) : (
-                    <>
-                      <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
-                        <option value="major">Major</option>
-                        <option value="minor">Minor</option>
-                      </select>
-                      <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree only. Mode is locked above.</p>
-                    </>
-                  )}
-                </div>
-
-                <span className="divider" style={{ height: 'auto', alignSelf: 'stretch' }} />
-
-                {/* Right Hand */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
-                  <label style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand — Expression</label>
-                  <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}>
-                    <option value="fingerLayout">Finger layout = chord style</option>
-                    <option value="fixedChordStyle">Fixed chord style</option>
-                  </select>
-                  {synthState.rightHandMode === 'fingerLayout' ? (
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
-                  ) : (
-                    <>
-                      <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
-                        {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                      </select>
-                      <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
-                    </>
-                  )}
-                </div>
-
-                {/* Arp / Bass extras */}
-                {(synthState.arpeggiate || synthState.autoBass) && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px' }}>
-                    {synthState.arpeggiate && (
-                      <div>
-                        <label style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Arpeggiator</label>
-                        <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))} style={{ width: '100%' }}>
-                          <option value="slow">Slow (120ms)</option>
-                          <option value="normal">Normal (80ms)</option>
-                          <option value="fast">Fast (50ms)</option>
-                        </select>
-                      </div>
-                    )}
-                    {synthState.autoBass && (
-                      <div>
-                        <label style={{ color: 'var(--neon-amber)', fontWeight: 600 }}>Bass Volume</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
-                          <span style={{ fontSize: '0.6rem', width: '24px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-            {/* Help Modal */}
-            {showHelp && (
-              <div style={{
-                position: 'absolute', top: '12px', left: '12px', width: '360px',
-                background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
-                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
-                padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,
-                fontSize: '0.68rem', color: '#d0d0e8', lineHeight: 1.45,
+        {/* ─── Running-state overlays ────────────────────────────────── */}
+        {isRunning && (
+          <>
+            {/* Scale Guide - 8 blocks showing scale degrees */}
+            {synthState.appMode === 'gesture' && (
+              <div className="scale-guide" style={{
+                position: 'absolute',
+                bottom: '80px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                gap: '3px',
+                zIndex: 5,
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
-                  <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                </div>
-
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
-                  <thead>
-                    <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '60px' }}>Fingers</th>
-                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '40px' }}>Chord</th>
-                      <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Gesture</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ['1', 'I', '1 finger raised'],
-                      ['2', 'II', '2 fingers raised'],
-                      ['3', 'III', '3 fingers raised'],
-                      ['4', 'IV', '4 fingers raised'],
-                      ['5', 'V', '5 fingers raised'],
-                      ['VI', 'VI', 'Index + Pinky'],
-                      ['VII', 'VII', 'Idx + Pky + Thumb'],
-                    ].map(([fn, chord, gest]) => (
-                      <tr key={fn} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                        <td style={{ padding: '3px 0', fontFamily: 'var(--font-display)', color: '#fff', fontWeight: 700, fontSize: '0.72rem' }}>{fn}</td>
-                        <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: 600 }}>{chord}</td>
-                        <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{gest}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
-                  <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor<br/>
-                  <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
-                  <span style={{ color: '#b0b0d0' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
-                </div>
-
-                <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
-                  Full guide & tips below ↓
-                </a>
+                {(() => {
+                  const mkNote = (semis: number) => {
+                    const key = KEYS[(semis + synthState.keyOffset) % 12];
+                    return key?.name?.split('/')[0] ?? '?';
+                  };
+                  const keyNotes = [
+                    { note: mkNote(0),  roman: 'I',   hint: '1 finger' },
+                    { note: mkNote(2),  roman: 'II',  hint: '2 fingers' },
+                    { note: mkNote(4),  roman: 'III', hint: '3 fingers' },
+                    { note: mkNote(5),  roman: 'IV',  hint: '4 fingers' },
+                    { note: mkNote(7),  roman: 'V',   hint: '5 fingers' },
+                    { note: mkNote(9),  roman: 'VI',  hint: 'idx + pky' },
+                    { note: mkNote(11), roman: 'VII', hint: 'i + p + t' },
+                    { note: mkNote(0),  roman: 'I\'', hint: '1 fing (oct)' },
+                  ];
+                  return keyNotes.map((block, i) => {
+                    const isActive = synthState.chordIndex === i && synthState.isPlaying;
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          width: '70px',
+                          padding: '0.6rem 0.3rem',
+                          background: isActive ? 'rgba(0, 255, 204, 0.2)' : 'rgba(22, 22, 32, 0.35)',
+                          backdropFilter: 'var(--frost-blur)',
+                          WebkitBackdropFilter: 'var(--frost-blur)',
+                          border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.6)' : 'rgba(255, 255, 255, 0.04)'}`,
+                          borderRadius: '10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.6)' : 'none',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <span style={{
+                          fontSize: '1.6rem',
+                          fontWeight: 700,
+                          color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
+                          fontFamily: 'var(--font-display)',
+                          lineHeight: 1.2,
+                        }}>
+                          {block.note}
+                        </span>
+                        <span style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 500,
+                          color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                          marginTop: '0.2rem',
+                        }}>
+                          {block.roman}
+                        </span>
+                        <span style={{
+                          fontSize: '0.6rem',
+                          color: isActive ? 'rgba(0, 255, 204, 0.7)' : 'var(--text-muted)',
+                          marginTop: '0.15rem',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {block.hint}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
 
-        {/* Scale Guide - 8 blocks showing scale degrees (positioned at bottom) */}
-        {(isRunning || keyboardMode) && synthState.appMode === 'gesture' && (
-          <div className="scale-guide" style={{
-            position: 'absolute',
-            bottom: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: '3px',
-            zIndex: 5,
-          }}>
-            {(() => {
-              // Calculate note names based on current key (use sharp notation only)
-              const mkNote = (semis: number) => {
-                const key = KEYS[(semis + synthState.keyOffset) % 12];
-                return key?.name?.split('/')[0] ?? '?';
-              };
-              const keyNotes = [
-                { note: mkNote(0),  roman: 'I',   hint: '1 finger' },
-                { note: mkNote(2),  roman: 'II',  hint: '2 fingers' },
-                { note: mkNote(4),  roman: 'III', hint: '3 fingers' },
-                { note: mkNote(5),  roman: 'IV',  hint: '4 fingers' },
-                { note: mkNote(7),  roman: 'V',   hint: '5 fingers' },
-                { note: mkNote(9),  roman: 'VI',  hint: 'idx + pky' },
-                { note: mkNote(11), roman: 'VII', hint: 'i + p + t' },
-                { note: mkNote(0),  roman: 'I\'', hint: '1 fing (oct)' },
-              ];
-              return keyNotes.map((block, i) => {
-                const isActive = synthState.chordIndex === i && synthState.isPlaying;
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      width: '70px',
-                      padding: '0.6rem 0.3rem',
-                      background: isActive ? 'rgba(0, 255, 204, 0.2)' : 'rgba(22, 22, 32, 0.35)',
-                      backdropFilter: 'var(--frost-blur)',
-                      WebkitBackdropFilter: 'var(--frost-blur)',
-                      border: `2px solid ${isActive ? 'rgba(0, 255, 204, 0.6)' : 'rgba(255, 255, 255, 0.04)'}`,
-                      borderRadius: '10px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease',
-                      boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.6)' : 'none',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span style={{
-                      fontSize: '1.6rem',
-                      fontWeight: 700,
-                      color: isActive ? 'var(--neon-cyan)' : 'var(--text-primary)',
-                      fontFamily: 'var(--font-display)',
-                      lineHeight: 1.2,
-                    }}>
-                      {block.note}
-                    </span>
-                    <span style={{
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                      color: isActive ? 'var(--neon-cyan)' : 'var(--text-muted)',
-                      marginTop: '0.2rem',
-                    }}>
-                      {block.roman}
-                    </span>
-                    <span style={{
-                      fontSize: '0.6rem',
-                      color: isActive ? 'rgba(0, 255, 204, 0.7)' : 'var(--text-muted)',
-                      marginTop: '0.15rem',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {block.hint}
-                    </span>
-                  </div>
-                );
-              });
-            })()}
-          </div>
+            {/* Now playing note — prominent but transparent, centered */}
+            {synthState.appMode === 'gesture' && synthState.isPlaying && (
+              <div style={{
+                position: 'absolute',
+                top: '40%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: '5rem',
+                fontWeight: 900,
+                color: 'rgba(0, 255, 204, 0.15)',
+                fontFamily: 'var(--font-display)',
+                zIndex: 3,
+                pointerEvents: 'none',
+                letterSpacing: '0.1em',
+              }}>
+                {synthState.chordName}
+              </div>
+            )}
+
+            {/* Waveform visualization — full-width, transparent overlay at bottom */}
+            {synthState.isPlaying && (
+              <div style={{
+                position: 'absolute',
+                bottom: '45px',
+                left: 0,
+                right: 0,
+                height: '36px',
+                zIndex: 5,
+                pointerEvents: 'none',
+              }}>
+                <canvas
+                  ref={waveformCanvasRef}
+                  style={{ width: '100%', height: '100%', opacity: 0.5 }}
+                />
+              </div>
+            )}
+
+            {/* Bottom status bar */}
+            <div className="status-bar-bottom">
+              <div className="status-chord">
+                🎵 {synthState.chordName}
+              </div>
+              <div className="status-volume">
+                <span className="status-label">Vol</span>
+                <div className="status-volume-track">
+                  <div className="status-volume-fill" style={{ width: `${synthState.volume * 100}%` }} />
+                </div>
+              </div>
+              <div className="status-mode">
+                {synthState.appMode === 'gesture' ? 'Gesture' : synthState.appMode === 'theremin' ? 'Theremin' : 'Piano'}
+              </div>
+
+              {/* Metronome controls */}
+              <input
+                type="number"
+                value={metronomeBpm}
+                onChange={(e) => setMetronomeBpm(Number(e.target.value))}
+                style={{ width: '36px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', textAlign: 'center', padding: '1px' }}
+              />
+              <span style={{ fontSize: '0.6rem' }}>BPM</span>
+              <button
+                onClick={() => {
+                  const now = performance.now();
+                  const taps = tapTimesRef.current;
+                  taps.push(now);
+                  if (taps.length > 4) taps.shift();
+                  if (taps.length >= 2) {
+                    const intervals = taps.slice(1).map((t, i) => t - taps[i]);
+                    const avgMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                    setMetronomeBpm(Math.max(40, Math.min(240, Math.round(60000 / avgMs))));
+                  }
+                }}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-muted)', fontSize: '0.55rem', padding: '1px 4px', cursor: 'pointer' }}
+              >
+                TAP
+              </button>
+              <select value={metronomeTimeSig} onChange={(e) => setMetronomeTimeSig(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+                <option>3/4</option><option>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option>
+              </select>
+              <select value={metronomeBars} onChange={(e) => setMetronomeBars(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+                <option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option>
+              </select>
+              <select value={metronomeSound} onChange={(e) => setMetronomeSound(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+                <option value="click">Click</option><option value="wood">Wood</option><option value="beep">Beep</option><option value="hihat">Hi-hat</option>
+              </select>
+              <button
+                onClick={() => setMetronomeOn(!metronomeOn)}
+                style={{
+                  background: metronomeOn ? 'rgba(0,255,204,0.15)' : 'transparent',
+                  border: `1px solid ${metronomeOn ? 'rgba(0,255,204,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: '3px', color: metronomeOn ? 'var(--neon-cyan)' : 'var(--text-muted)',
+                  fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer',
+                }}
+              >
+                ♪
+              </button>
+              <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => setMetronomeVolume(Number(e.target.value))} style={{ width: '50px', accentColor: 'var(--neon-cyan)' }} />
+              <span style={{ fontSize: '0.6rem', width: '26px' }}>{Math.round(metronomeVolume * 100)}%</span>
+
+              <span style={{ flex: 1 }} />
+
+              <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" title="Open source on GitHub" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+              </a>
+            </div>
+          </>
         )}
 
-        {/* Now playing note - prominent but transparent, centered */}
-        {(isRunning || keyboardMode) && synthState.appMode === 'gesture' && synthState.isPlaying && (
-          <div style={{
-            position: 'absolute',
-            top: '40%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            fontSize: '5rem',
-            fontWeight: 900,
-            color: 'rgba(0, 255, 204, 0.15)',
-            fontFamily: 'var(--font-display)',
-            zIndex: 3,
-            pointerEvents: 'none',
-            letterSpacing: '0.1em',
-          }}>
-            {synthState.chordName}
-          </div>
-        )}
-
-        {/* Waveform visualization - full-width, transparent overlay at bottom */}
-        {(isRunning || keyboardMode) && synthState.isPlaying && (
-          <div style={{
-            position: 'absolute',
-            bottom: '45px',
-            left: 0,
-            right: 0,
-            height: '36px',
-            zIndex: 5,
-            pointerEvents: 'none',
-          }}>
-            <canvas
-              ref={waveformCanvasRef}
-              style={{ width: '100%', height: '100%', opacity: 0.5 }}
-            />
-          </div>
-        )}
-
-        {/* Bottom status bar */}
-        {(isRunning || keyboardMode) && (
+        {/* ─── Keyboard-mode status bar ──────────────────────────────── */}
+        {keyboardMode && (
           <div className="status-bar-bottom">
             <div className="status-chord">
               🎵 {synthState.chordName}
@@ -1177,63 +1276,10 @@ export default function App() {
               </div>
             </div>
             <div className="status-mode">
-              {synthState.appMode === 'gesture' ? 'Gesture' : synthState.appMode === 'theremin' ? 'Theremin' : 'Piano'}
+              Keyboard
             </div>
-
-            {/* Metronome controls integrated into status bar */}
-            <input
-              type="number"
-              value={metronomeBpm}
-              onChange={(e) => setMetronomeBpm(Number(e.target.value))}
-              style={{ width: '36px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', textAlign: 'center', padding: '1px' }}
-            />
-            <span style={{ fontSize: '0.6rem' }}>BPM</span>
-            <button
-              onClick={() => {
-                const now = performance.now();
-                const taps = tapTimesRef.current;
-                taps.push(now);
-                if (taps.length > 4) taps.shift();
-                if (taps.length >= 2) {
-                  const intervals = taps.slice(1).map((t, i) => t - taps[i]);
-                  const avgMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-                  setMetronomeBpm(Math.max(40, Math.min(240, Math.round(60000 / avgMs))));
-                }
-              }}
-              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-muted)', fontSize: '0.55rem', padding: '1px 4px', cursor: 'pointer' }}
-            >
-              TAP
-            </button>
-            <select value={metronomeTimeSig} onChange={(e) => setMetronomeTimeSig(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
-              <option>3/4</option><option>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option>
-            </select>
-            <select value={metronomeBars} onChange={(e) => setMetronomeBars(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
-              <option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option>
-            </select>
-            <select value={metronomeSound} onChange={(e) => setMetronomeSound(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
-              <option value="click">Click</option><option value="wood">Wood</option><option value="beep">Beep</option><option value="hihat">Hi-hat</option>
-            </select>
-            <button
-              onClick={() => setMetronomeOn(!metronomeOn)}
-              style={{
-                background: metronomeOn ? 'rgba(0,255,204,0.15)' : 'transparent',
-                border: `1px solid ${metronomeOn ? 'rgba(0,255,204,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: '3px', color: metronomeOn ? 'var(--neon-cyan)' : 'var(--text-muted)',
-                fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer',
-              }}
-            >
-              ♪
-            </button>
-            <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => setMetronomeVolume(Number(e.target.value))} style={{ width: '50px', accentColor: 'var(--neon-cyan)' }} />
-            <span style={{ fontSize: '0.6rem', width: '26px' }}>{Math.round(metronomeVolume * 100)}%</span>
-
             <span style={{ flex: 1 }} />
-
-            <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" title="Open source on GitHub" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', opacity: 0.6 }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path fillRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-              </svg>
-            </a>
+            <button className="icon-btn" onClick={stopCamera} data-tip="Exit keyboard mode" style={{ color: 'var(--neon-magenta)', background: 'none', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '4px 10px', cursor: 'pointer', fontSize: '0.65rem' }}>■ Exit</button>
           </div>
         )}
       </section>

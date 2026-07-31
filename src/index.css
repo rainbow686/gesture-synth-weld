@@ -74,22 +74,30 @@ body {
   object-fit: cover;
 }
 
-/* ─── Start Screen ───────────────────────────────────────────────────── */
+/* ─── Camera Placeholder (replaces Start Screen) ────────────────────── */
 
-.start-screen {
-  position: relative;
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
   z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 1.5rem;
   text-align: center;
+  background: radial-gradient(ellipse at center, rgba(0, 255, 204, 0.04) 0%, transparent 60%);
 }
 
-.start-graphic svg {
+.camera-placeholder-icon svg {
   width: 120px;
   height: 120px;
   animation: float 3s ease-in-out infinite;
+}
+
+.camera-placeholder-icon.error-icon svg {
+  animation: none;
+  opacity: 0.7;
 }
 
 @keyframes float {
@@ -97,7 +105,7 @@ body {
   50% { transform: translateY(-10px); }
 }
 
-.start-btn {
+.enable-camera-btn {
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
@@ -117,23 +125,29 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
-.start-btn:hover {
+.enable-camera-btn-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.enable-camera-btn:hover {
   transform: scale(1.05);
   box-shadow: 0 0 40px rgba(0, 255, 204, 0.6), 0 0 80px rgba(0, 255, 204, 0.3);
 }
 
-.start-btn:active {
+.enable-camera-btn:active {
   transform: scale(0.98);
 }
 
-.start-btn:disabled {
+.enable-camera-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   animation: none;
 }
 
-.start-btn-icon {
-  font-size: 1rem;
+.enable-camera-btn.retry {
+  background: linear-gradient(135deg, var(--neon-magenta), #cc0066);
+  box-shadow: 0 0 30px rgba(255, 0, 255, 0.3), 0 0 60px rgba(255, 0, 255, 0.15);
 }
 
 @keyframes pulse-glow {
@@ -141,10 +155,31 @@ body {
   50% { box-shadow: 0 0 50px rgba(0, 255, 204, 0.6), 0 0 100px rgba(0, 255, 204, 0.3); }
 }
 
-.start-hint {
+.camera-placeholder-hint {
   color: var(--text-secondary);
   font-size: 0.9rem;
-  max-width: 300px;
+  max-width: 360px;
+}
+
+.camera-error-message {
+  background: rgba(255, 50, 50, 0.1);
+  border: 1px solid rgba(255, 50, 50, 0.3);
+  border-radius: 12px;
+  padding: 0.8rem 1.5rem;
+  color: #ff6666;
+  font-size: 0.9rem;
+  max-width: 400px;
+}
+
+.camera-denied-hint {
+  color: #ff9999;
+  font-size: 0.85rem;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+.camera-placeholder.error-state {
+  background: radial-gradient(ellipse at center, rgba(255, 50, 50, 0.04) 0%, transparent 60%);
 }
 
 .keyboard-mode-link {
@@ -840,12 +875,12 @@ body {
     right: 0.75rem;
   }
 
-  .start-btn {
+  .enable-camera-btn {
     font-size: 1rem;
     padding: 0.8rem 2rem;
   }
 
-  .start-graphic svg {
+  .camera-placeholder-icon svg {
     width: 80px;
     height: 80px;
   }

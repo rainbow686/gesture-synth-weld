@@ -1078,8 +1078,12 @@ export default function App() {
                   Settings → Apps → Chrome → Permissions → Camera → <strong>Allow</strong>.
                 </div>
                 <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Desktop</span>
-                  Open browser Settings → Privacy &amp; Security → Site Settings → Camera → <strong>Allow</strong> for this site.
+                  <span className="camera-error-guide-label">Mac</span>
+                  Chrome: menu bar → <strong>Chrome</strong> → Settings → Privacy and Security → Site Settings → Camera → find gesturesynthweld.com → <strong>Allow</strong>
+                </div>
+                <div className="camera-error-guide-item">
+                  <span className="camera-error-guide-label">Windows</span>
+                  Chrome: ⋮ → Settings → Privacy and Security → Site Settings → Camera → find gesturesynthweld.com → <strong>Allow</strong>
                 </div>
               </div>
             )}

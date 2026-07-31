@@ -33,7 +33,6 @@ class SynthInstrument implements Instrument {
   }) {
     const { waveform, envelope, filterFreq, filter } = options;
 
-    // Use higher voiceCount and slight detune for a thicker chord tone
     this.synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: waveform },
       envelope: {
@@ -42,9 +41,7 @@ class SynthInstrument implements Instrument {
         sustain: envelope.sustain ?? 0.8,
         release: envelope.release ?? 0.5,
       },
-      maxPolyphony: 8,
     });
-    this.synth.set({ detune: 5 });
 
     // Warmth: gentle drive after synth for subtle harmonics
     const warmth = new Tone.Filter(4000, 'lowpass');

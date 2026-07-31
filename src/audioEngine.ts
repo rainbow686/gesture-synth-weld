@@ -172,7 +172,6 @@ export class AudioEngine {
    */
   updateFilterSweep(tilt: number): void {
     if (!this.filter || !this.ctx) return;
-    if (tilt === 0) return; // Hand steady in dead zone — skip
 
     let freq = 1200;
     let q = 0.7;
@@ -180,7 +179,7 @@ export class AudioEngine {
       const r = Math.abs(tilt);
       freq = 1200 - r * 950;
       q = 0.7 + r * 1.5;
-    } else {
+    } else if (tilt > 0) {
       freq = 1200 + tilt * 3800;
       q = 0.7 + tilt * 4.5;
     }

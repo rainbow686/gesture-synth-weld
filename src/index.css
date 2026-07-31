@@ -899,40 +899,51 @@ body {
 
   /* Status bar: 2 rows — chord+volume top, controls bottom */
   .status-bar-bottom {
-    padding: 0.4rem 0.5rem !important;
-    font-size: 0.6rem !important;
-    gap: 0.3rem !important;
+    padding: 0.3rem 0.4rem !important;
+    font-size: 0.5rem !important;
+    gap: 0.2rem !important;
     flex-wrap: wrap !important;
     row-gap: 3px !important;
     justify-content: center !important;
     align-items: center !important;
   }
   .status-bar-bottom .status-chord {
-    font-size: 0.7rem !important;
+    font-size: 0.65rem !important;
   }
   .status-bar-bottom .status-volume {
-    flex: 0 1 auto !important;
+    max-width: 80px !important;
   }
-  /* Force mode label to new row, rest follows */
-  .status-bar-bottom .status-mode {
+  .status-bar-bottom .status-volume .status-label {
+    display: none;
+  }
+  /* Row 2 wrapper: forces break, all controls on one line */
+  .status-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 0.2rem !important;
     width: 100% !important;
-    text-align: center !important;
-    font-size: 0.5rem !important;
+    justify-content: center !important;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+  .status-row::-webkit-scrollbar { display: none; }
   .status-bar-bottom input[type="number"] {
-    width: 28px !important;
-    font-size: 0.5rem !important;
+    width: 24px !important;
+    font-size: 0.45rem !important;
+    padding: 0 !important;
+    text-align: center !important;
   }
   .status-bar-bottom input[type="range"] {
-    width: 32px !important;
+    width: 26px !important;
   }
   .status-bar-bottom select {
-    font-size: 0.5rem !important;
-    padding: 0 2px !important;
+    font-size: 0.45rem !important;
+    padding: 0 !important;
   }
   .status-bar-bottom button {
-    font-size: 0.5rem !important;
-    padding: 0 3px !important;
+    font-size: 0.45rem !important;
+    padding: 0 2px !important;
   }
 
   /* Camera placeholder */

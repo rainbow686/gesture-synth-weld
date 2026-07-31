@@ -105,6 +105,9 @@ export class AudioEngine {
   // Chord deduplication
   private currentChordKey: string | null = null;
 
+  // Analyser for waveform visualization
+  private analyser: Tone.Analyser | null = null;
+
   async init(): Promise<void> {
     if (this.initCalled) return;
     this.initCalled = true;
@@ -114,6 +117,10 @@ export class AudioEngine {
 
     // Create master gain for volume control
     this.masterGain = new Tone.Gain(1).toDestination();
+
+    // Create analyser for waveform visualization
+    this.analyser = new Tone.Analyser('waveform', 256);
+    this.masterGain.connect(this.analyser);
 
     // Create filter for tone control
     this.filter = new Tone.Filter(1200, 'lowpass');
@@ -181,6 +188,13 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     this.filter.frequency.setTargetAtTime(freq, now, 0.04);
     this.filter.Q.setTargetAtTime(q, now, 0.04);
+  }
+
+  /**
+   * Get the analyser for waveform visualization.
+   */
+  getAnalyser(): Tone.Analyser | null {
+    return this.analyser;
   }
 
   private get ctx(): AudioContext | null {

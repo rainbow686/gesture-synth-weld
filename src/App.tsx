@@ -55,6 +55,7 @@ export default function App() {
   const lastDetectRef = useRef<number>(0);
   const isDetectingRef = useRef(false);
   const runningRef = useRef(false);
+  const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
 
   /* ─── State ─────────────────────────────────────────────────────────── */
 
@@ -365,6 +366,7 @@ export default function App() {
     // Left Hand → Harmony (scale degree + mode)
     let chordIndex = s.chordIndex;
     let mode: 'major' | 'minor' | 'neutral' = s.mode;
+    let hasValidChord = false;
 
     if (leftHand) {
       // Apply time-based stabilizer (similar to competitor's approach)
@@ -391,6 +393,7 @@ export default function App() {
 
       // Use smoothed finger count mapping (VI/VII special gestures disabled for stability)
       chordIndex = FINGER_TO_CHORD_INDEX[stableFingerCount] ?? 0;
+      hasValidChord = stableFingerCount > 0; // 0 fingers (fist) = no valid chord
 
       if (s.leftHandMode === 'scaleTilt') {
         // Wrist tilt → major/minor
@@ -406,9 +409,10 @@ export default function App() {
     }
 
     // Right Hand → Expression (volume + chord style)
-    // CRITICAL: Right hand is required to trigger sound
+    // CRITICAL: Right hand must have at least 1 finger raised to trigger sound
     let volume = 0; // Default to 0 (no sound)
     let chordStyle: ChordStyle | undefined;
+    let qualityIndex = 0; // 0 = no sound, 1+ = sound
     let hasRightHand = !!rightHand;
 
     if (rightHand) {
@@ -435,6 +439,11 @@ export default function App() {
 
       const stableFingerCount = majorityCount !== -1 ? majorityCount : rawFingerCount;
 
+      // CRITICAL: Right hand finger count determines if sound plays
+      // 0 fingers (fist) = no sound
+      // 1+ fingers = sound
+      qualityIndex = stableFingerCount;
+
       // Y position → volume
       volume = Math.max(0.02, Math.min(1.0, 1.1 - rightHand.positionY));
 
@@ -450,8 +459,10 @@ export default function App() {
       }
     }
 
-    // CRITICAL: Only play sound if BOTH hands are present
-    const isPlaying = !!(leftHand && rightHand);
+    // CRITICAL: Sound only plays if:
+    // 1. Left hand has a valid chord (not a fist)
+    // 2. Right hand has at least 1 finger raised (not a fist)
+    const isPlaying = !!(leftHand && rightHand && hasValidChord && qualityIndex >= 1);
     const chordName = getChordName(
       chordIndex,
       mode === 'neutral' ? undefined : mode,
@@ -523,6 +534,50 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
   };
 
+  // Draw waveform visualization
+  const drawWaveformRef = useRef<() => void>();
+  drawWaveformRef.current = () => {
+    const canvas = waveformCanvasRef.current;
+    const analyser = audioEngine.getAnalyser();
+    if (!canvas || !analyser) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (canvas.width !== canvas.clientWidth * 2 || canvas.height !== canvas.clientHeight * 2) {
+      canvas.width = canvas.clientWidth * 2;
+      canvas.height = canvas.clientHeight * 2;
+    }
+
+    // Get waveform data from Tone.js analyser
+    const waveform = analyser.getValue() as Float32Array;
+    const bufferLength = waveform.length;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#00ffcc';
+    ctx.shadowColor = '#00ffcc';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+
+    const sliceWidth = canvas.width / bufferLength;
+    let x = 0;
+
+    for (let i = 0; i < bufferLength; i++) {
+      // waveform values are in range [-1, 1]
+      const v = (waveform[i] + 1) / 2; // normalize to [0, 1]
+      const y = v * canvas.height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      x += sliceWidth;
+    }
+
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  };
+
   /* ─── Animation loop ───────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -570,6 +625,7 @@ export default function App() {
       }
 
       drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
+      drawWaveformRef.current?.();
     };
 
     rafIdRef.current = requestAnimationFrame(loop);
@@ -1022,13 +1078,13 @@ export default function App() {
           <span>Gesture Synth Weld</span>
         </div>
 
-        {/* Scale Guide - 8 blocks showing scale degrees */}
+        {/* Scale Guide - 8 blocks showing scale degrees (positioned at bottom) */}
         {(isRunning || keyboardMode) && synthState.appMode === 'gesture' && (
           <div className="scale-guide" style={{
             position: 'absolute',
-            top: '50%',
+            bottom: '80px',
             left: '50%',
-            transform: 'translate(-50%, -50%)',
+            transform: 'translateX(-50%)',
             display: 'flex',
             gap: '0.5rem',
             zIndex: 5,
@@ -1050,7 +1106,7 @@ export default function App() {
                   style={{
                     width: '60px',
                     height: '80px',
-                    background: isActive ? 'rgba(0, 255, 204, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    background: isActive ? 'rgba(0, 255, 204, 0.3)' : 'rgba(255, 255, 255, 0.05)',
                     border: `2px solid ${isActive ? 'var(--neon-cyan)' : 'rgba(255, 255, 255, 0.1)'}`,
                     borderRadius: '8px',
                     display: 'flex',
@@ -1058,7 +1114,7 @@ export default function App() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     transition: 'all 0.15s ease',
-                    boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.4)' : 'none',
+                    boxShadow: isActive ? '0 0 20px rgba(0, 255, 204, 0.6)' : 'none',
                   }}
                 >
                   <div style={{
@@ -1083,20 +1139,24 @@ export default function App() {
           </div>
         )}
 
-        {/* Central note symbol */}
-        {(isRunning || keyboardMode) && synthState.isPlaying && (
+        {/* Waveform visualization - positioned at top right (doesn't block hand view) */}
+        {(isRunning || keyboardMode) && (
           <div style={{
             position: 'absolute',
-            top: '35%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            fontSize: '4rem',
-            color: 'rgba(0, 255, 204, 0.3)',
-            fontFamily: 'var(--font-display)',
-            zIndex: 4,
-            pointerEvents: 'none',
+            top: '1rem',
+            right: '1rem',
+            width: '120px',
+            height: '60px',
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            zIndex: 5,
+            overflow: 'hidden',
           }}>
-            ♪
+            <canvas
+              ref={waveformCanvasRef}
+              style={{ width: '100%', height: '100%' }}
+            />
           </div>
         )}
 

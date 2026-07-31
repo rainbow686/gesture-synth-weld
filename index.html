@@ -291,6 +291,41 @@
       font-size: 0.75rem;
     }
 
+    /* Gesture guide tables */
+    .gesture-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 0.5rem 0 1rem;
+    }
+    .gesture-table th {
+      text-align: left;
+      padding: 0.5rem 0.7rem;
+      color: #00ffcc;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+      background: rgba(0, 255, 204, 0.04);
+    }
+    .gesture-table td {
+      padding: 0.45rem 0.7rem;
+      color: #d0d0e8;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      vertical-align: top;
+    }
+    .gesture-table tr:hover td {
+      background: rgba(0, 255, 204, 0.03);
+    }
+    .gesture-table td.special {
+      color: #ff00ff;
+      font-weight: 600;
+    }
+    .gesture-table td em {
+      color: #9090b8;
+      font-style: italic;
+    }
+
     /* Footer */
     .site-footer {
       max-width: 800px;
@@ -390,6 +425,112 @@
       <!-- Ad Slot 1 -->
       <!-- Ad Slot 1: 728×90 -->
       <div class="ad-slot" aria-hidden="true">Advertisement</div>
+
+      <!-- Gesture Guide -->
+      <div class="seo-section" id="gesture-guide">
+        <h2>🖐 Gesture Guide — Complete Hand Gesture Playbook</h2>
+        <p style="margin-bottom:1.2rem;font-size:0.9rem;color:#a0a0d0">All gesture combinations for Gesture mode. Both hands required — left hand sets harmony, right hand controls expression. <a href="#how-it-works" style="color:#00ffcc">Quick start ↑</a></p>
+
+        <!-- Left Hand: Harmony -->
+        <h3 style="color:#00ffcc">👈 Left Hand — Harmony (Scale Degree + Mode)</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Fingers</th><th>Chord</th><th>Gesture</th><th>Example (A Major)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td><strong>I</strong></td><td>Any 1 finger raised</td><td>A</td></tr>
+            <tr><td>2</td><td><strong>ii</strong></td><td>Any 2 fingers (not VI combo)</td><td>Bm</td></tr>
+            <tr><td>3</td><td><strong>iii</strong></td><td>Any 3 fingers (not VII combo)</td><td>C#m</td></tr>
+            <tr><td>4</td><td><strong>IV</strong></td><td>Any 4 fingers raised</td><td>D</td></tr>
+            <tr><td>5</td><td><strong>V</strong></td><td>All 5 fingers raised</td><td>E</td></tr>
+            <tr><td class="special">VI</td><td><strong>vi</strong></td><td><strong>Index + Pinky ONLY</strong> (middle/ring/thumb must be down)</td><td>F#m</td></tr>
+            <tr><td class="special">VII</td><td><strong>vii°</strong></td><td><strong>Index + Pinky + Thumb ONLY</strong> (middle/ring must be down)</td><td>G#dim</td></tr>
+            <tr><td>0 (Fist)</td><td>—</td><td>All fingers curled in</td><td><em>Mute</em> (notes held, resume when fingers return)</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Left Wrist: Major/Minor -->
+        <h3 style="color:#00ffcc;margin-top:1.5rem">🤚 Left Wrist Tilt — Major / Minor Toggle</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Wrist Action</th><th>Result</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Tilt Left (tilt &lt; 0)</td><td><strong>Minor</strong></td><td>All chords become minor (I→i, IV→iv, V→v, etc.)</td></tr>
+            <tr><td>Tilt Right (tilt ≥ 0)</td><td><strong>Major</strong></td><td>All chords become major (I, IV, V, etc.)</td></tr>
+            <tr><td>Locked Mode</td><td><strong>Fixed</strong></td><td>Select "Scale notes only (lock mode)" in settings — ignores wrist tilt</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Right Hand: Expression -->
+        <h3 style="color:#ff00ff;margin-top:1.5rem">👉 Right Hand — Expression (Chord Type, Volume, Tone)</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Fingers</th><th>Major Chord Type</th><th>Minor Chord Type</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Major Triad</td><td>Minor Triad</td></tr>
+            <tr><td>2</td><td>Major 1st Inversion</td><td>Minor 1st Inversion</td></tr>
+            <tr><td>3</td><td>Major 7th</td><td>Minor 7th</td></tr>
+            <tr><td>4</td><td>Dominant 7th</td><td>Diminished 7th</td></tr>
+            <tr><td>0 (Fist)</td><td colspan="2"><em>Mute</em> — notes are held silently, resume when fingers return</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Or lock to a fixed chord style in settings — choose from 8 types: Major Triad, Major 1st Inv, Minor Triad, Diminished, Sus2, Sus4, Major 7th, Dominant 7th.</p>
+
+        <!-- Right Hand Position -->
+        <h3 style="color:#ff00ff;margin-top:1.5rem">✋ Right Hand Position — Volume &amp; Tone</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Movement</th><th>Controls</th><th>How It Works</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Hand Height</strong> (Y-axis)</td><td>Volume</td><td>Hand higher = louder. Hand lower = quieter.</td></tr>
+            <tr><td><strong>Wrist Tilt</strong> (left/right)</td><td>Filter Sweep / Tone</td><td>Tilt right = brighter (filter opens). Tilt left = darker (filter closes).</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Right Thumb: Octave -->
+        <h3 style="color:#ff00ff;margin-top:1.5rem">👍 Right Thumb — Octave Shift</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Thumb Position</th><th>Result</th><th>Status Display</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Thumb curled in (default)</td><td>Normal octave</td><td>e.g. <strong>A</strong></td></tr>
+            <tr><td><strong>Thumb extended out</strong></td><td><strong>Down one octave (-8ve)</strong></td><td>e.g. <strong>A (-8ve)</strong></td></tr>
+          </tbody>
+        </table>
+
+        <!-- Stop / Mute -->
+        <h3 style="color:#7850ff;margin-top:1.5rem">⏹ Stop &amp; Mute Conditions</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Condition</th><th>Behavior</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Left fist</strong> (0 fingers)</td><td>Music mutes — notes held, resume when fingers return</td></tr>
+            <tr><td><strong>Right fist</strong> (0 fingers)</td><td>Music mutes — notes held, resume when fingers return</td></tr>
+            <tr><td><strong>One hand leaves frame</strong></td><td>Music stops after 80ms grace period</td></tr>
+            <tr><td><strong>Both hands leave frame</strong></td><td>Music stops after 80ms grace period</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Default Settings -->
+        <h3 style="color:#ffaa00;margin-top:1.5rem">⚙ Default Settings</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Key</td><td><strong>A</strong></td><td>All chords transposed to A major scale (can change via toolbar dropdown)</td></tr>
+            <tr><td>Left Hand Mode</td><td><strong>Scale Only (Major locked)</strong></td><td>Fingers pick scale degree, mode locked to Major</td></tr>
+            <tr><td>Right Hand Mode</td><td><strong>Fixed Chord Style (Major Triad)</strong></td><td>Chord type locked, right hand controls volume + tone</td></tr>
+            <tr><td>Arpeggiator</td><td><strong>Off</strong></td><td>Toggle ⟿ to sweep chord notes sequentially</td></tr>
+            <tr><td>Auto Bass</td><td><strong>Off</strong></td><td>Toggle ∿ for automatic low-end root note</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Tips & Tricks -->
       <div class="seo-section">

@@ -980,7 +980,7 @@ export default function App() {
               <span style={{ color: '#b0b0d0' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
             </div>
 
-            <a href="#how-it-works" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
+            <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
               Full guide & tips below ↓
             </a>
           </div>

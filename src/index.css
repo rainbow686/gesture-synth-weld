@@ -222,122 +222,6 @@ body {
   background: radial-gradient(ellipse at center, rgba(255, 50, 50, 0.08) 0%, transparent 65%);
 }
 
-.keyboard-mode-link {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  transition: color 0.2s;
-}
-
-.keyboard-mode-link:hover {
-  color: var(--neon-cyan);
-}
-
-/* ─── Keyboard Mode Screen ───────────────────────────────────────────── */
-
-.keyboard-mode-screen {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-  padding: 2rem;
-}
-
-.keyboard-chord-display {
-  text-align: center;
-}
-
-.keyboard-chord-name {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 4rem;
-  font-weight: 900;
-  color: var(--neon-cyan);
-  text-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
-  line-height: 1;
-}
-
-.keyboard-chord-roman {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 1.2rem;
-  color: var(--neon-magenta);
-  margin-top: 0.5rem;
-}
-
-.keyboard-volume-bar {
-  width: 200px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.keyboard-volume-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
-  border-radius: 4px;
-  transition: width 0.15s ease;
-}
-
-.keyboard-shortcuts-card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  backdrop-filter: blur(10px);
-  max-width: 400px;
-  width: 100%;
-}
-
-.keyboard-shortcuts-card h3 {
-  font-family: var(--font-display);
-  font-size: 0.9rem;
-  color: var(--neon-cyan);
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-.shortcut-grid {
-  display: grid;
-  gap: 0.6rem;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.shortcut-grid kbd {
-  display: inline-block;
-  padding: 0.1rem 0.4rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  margin: 0 0.1rem;
-}
-
-.back-to-camera-btn {
-  background: none;
-  border: 1px solid var(--glass-border);
-  color: var(--text-secondary);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-}
-
-.back-to-camera-btn:hover {
-  border-color: var(--neon-cyan);
-  color: var(--neon-cyan);
-}
-
 /* ─── Loading / Error Screens ────────────────────────────────────────── */
 
 .loading-screen {
@@ -924,9 +808,6 @@ body {
     font-size: 1.4rem;
   }
 
-  .keyboard-chord-name {
-    font-size: 3rem;
-  }
 
   .status-bar-bottom {
     padding: 0.5rem 1rem;

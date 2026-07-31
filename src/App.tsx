@@ -160,7 +160,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metronomeOn, metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound]);
 
-  /* ─── Keyboard Shortcuts ─────────────────────────────────────────── */
+  /* ─── Keyboard Controls ──────────────────────────────────────────── */
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

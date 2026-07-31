@@ -59,7 +59,7 @@
       "Auto Bass line generator with independent volume control",
       "Performance recording with WebM video export (up to 15 seconds)",
       "Theremin mode: single-hand continuous pitch and volume control",
-      "Keyboard fallback mode for camera-free access"
+      "Built-in WebM performance recording (up to 15 seconds)"
     ],
     "screenshot": "https://gesturesynthweld.com/og-image.svg",
     "softwareVersion": "2.0.0",
@@ -261,34 +261,6 @@
       font-size: 0.9rem;
     }
 
-    /* Keyboard shortcuts table */
-    .shortcuts-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-    }
-    .shortcuts-table th {
-      text-align: left;
-      padding: 0.5rem;
-      color: #00ffcc;
-      font-family: 'Orbitron', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      border-bottom: 1px solid rgba(0, 255, 204, 0.15);
-    }
-    .shortcuts-table td {
-      padding: 0.5rem;
-      color: #b0b0d0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    }
-    .shortcuts-table kbd {
-      display: inline-block;
-      padding: 0.1rem 0.4rem;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
     }
 
     /* Gesture guide tables */
@@ -417,7 +389,7 @@
           <div class="step-card">
             <div class="step-num">3</div>
             <h3>Right Hand → Expression</h3>
-            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — either fist stops it. Or lock chord style. <a href="#shortcuts" style="color:#00ffcc">No camera? Use keyboard shortcuts →</a></p>
+            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — either fist stops it. Or lock chord style</p>
           </div>
         </div>
       </div>
@@ -640,31 +612,6 @@
       <!-- Ad Slot 3 -->
       <!-- Ad Slot 3: 728×90 -->
       <div class="ad-slot" aria-hidden="true">Advertisement</div>
-
-      <!-- Keyboard Shortcuts Reference -->
-      <div class="seo-section" id="shortcuts">
-        <h2>📋 Keyboard Shortcuts</h2>
-        <p style="margin-bottom:1rem;font-size:0.9rem;color:#a0a0d0">These shortcuts work when camera mode is unavailable. <a href="#how-it-works" style="color:#00ffcc">Prefer hand gestures? See How It Works →</a></p>
-        <table class="shortcuts-table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td><kbd>1</kbd> – <kbd>7</kbd></td><td>Select chord (I through vii°)</td></tr>
-            <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Increase / decrease volume</td></tr>
-            <tr><td><kbd>T</kbd></td><td>Force major mode</td></tr>
-            <tr><td><kbd>Y</kbd></td><td>Force minor mode</td></tr>
-            <tr><td><kbd>A</kbd></td><td>Toggle Arpeggiator</td></tr>
-            <tr><td><kbd>B</kbd></td><td>Toggle Auto Bass</td></tr>
-            <tr><td><kbd>B</kbd></td><td>Toggle Auto Bass</td></tr>
-            <tr><td><kbd>Space</kbd></td><td>Stop all notes</td></tr>
-            <tr><td><kbd>Esc</kbd></td><td>Reset state</td></tr>
-          </tbody>
-        </table>
-      </div>
 
       <!-- FAQ -->
       <div class="seo-section" id="faq">

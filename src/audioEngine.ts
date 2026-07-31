@@ -183,15 +183,15 @@ export class AudioEngine {
     if (tilt < 0) {
       const r = Math.abs(tilt);
       freq = 1200 - r * 950;
-      q = 0.7 + r * 1.5;
+      q = 0.7 + r * 0.5;
     } else if (tilt > 0) {
       freq = 1200 + tilt * 3800;
-      q = 0.7 + tilt * 4.5;
+      q = 0.7 + tilt * 1.0;
     }
 
     const now = this.ctx.currentTime;
-    this.filter.frequency.setTargetAtTime(freq, now, 0.04);
-    this.filter.Q.setTargetAtTime(q, now, 0.04);
+    this.filter.frequency.setTargetAtTime(freq, now, 0.06);
+    this.filter.Q.setTargetAtTime(q, now, 0.06);
   }
 
   /**

@@ -81,7 +81,7 @@ export class AudioEngine {
   // the speakers (feedback). Connected on setMicStream, gated by setMicEnabled.
   private micSource: MediaStreamAudioSourceNode | null = null;
   private micGain: GainNode | null = null;
-  private micConnected = false;
+  private micAnalyser: AnalyserNode | null = null;
   private initCalled = false;
 
   // Volume control
@@ -132,13 +132,16 @@ export class AudioEngine {
     if (rawCtx) {
       this.mediaStreamDest = rawCtx.createMediaStreamDestination();
       if (this.mediaStreamDest) this.masterGain.connect(this.mediaStreamDest);
-      // Mic gain: mic → micGain → recording tap. Starts disconnected
-      // (setMicEnabled gates it); never routed to the speakers (feedback).
+      // Mic path: mic → analyser → micGain → recording tap. Always
+      // connected (so the graph renders and the analyser level meter
+      // works); setMicEnabled gates by gain 0/0.9 instead. Never routed
+      // to the speakers (feedback).
+      this.micAnalyser = rawCtx.createAnalyser();
+      this.micAnalyser.fftSize = 512;
       this.micGain = rawCtx.createGain();
-      this.micGain.gain.value = 0.9;
+      this.micGain.gain.value = 0; // off until setMicEnabled(true)
+      this.micAnalyser.connect(this.micGain);
       this.micGain.connect(this.mediaStreamDest);
-      this.micGain.disconnect();
-      this.micConnected = false;
     }
 
     // Create bass synth for auto bass
@@ -427,18 +430,13 @@ export class AudioEngine {
   }
 
   /**
-   * Connect/disconnect the microphone from the recording tap.
+   * Enable/disable the microphone in the recording tap (gain gate —
+   * the path stays connected so the level analyser keeps rendering).
    * The mic is never routed to the speakers (would cause feedback).
    */
   setMicEnabled(enabled: boolean): void {
-    if (!this.micGain || !this.mediaStreamDest) return;
-    if (enabled && !this.micConnected) {
-      this.micGain.connect(this.mediaStreamDest);
-      this.micConnected = true;
-    } else if (!enabled && this.micConnected) {
-      this.micGain.disconnect();
-      this.micConnected = false;
-    }
+    if (!this.micGain) return;
+    this.micGain.gain.setTargetAtTime(enabled ? 0.9 : 0, this.ctx?.currentTime ?? 0, 0.02);
   }
 
   /**
@@ -456,12 +454,22 @@ export class AudioEngine {
     const track = stream?.getAudioTracks()[0];
     if (track) {
       this.micSource = rawCtx.createMediaStreamSource(stream);
-      this.micSource.connect(this.micGain);
-      if (this.micConnected) {
-        this.micGain.disconnect();
-        this.micConnected = false;
-      }
+      if (this.micAnalyser) this.micSource.connect(this.micAnalyser);
+      else this.micSource.connect(this.micGain);
     }
+  }
+
+  /**
+   * Live microphone input level (0..1) — powers the chooser's mic meter
+   * and diagnoses "app didn't record" vs "system mic is silent".
+   */
+  getMicLevel(): number {
+    if (!this.micAnalyser) return 0;
+    const data = new Float32Array(this.micAnalyser.fftSize);
+    this.micAnalyser.getFloatTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    return Math.min(1, Math.sqrt(sum / data.length) * 3);
   }
 
   getChordName(

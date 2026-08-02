@@ -167,6 +167,7 @@ export default function App() {
   const [recCount, setRecCount] = useState(3);
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const [micOn, setMicOn] = useState(true);
+  const [micLevel, setMicLevel] = useState(0);
   const micOnRef = useRef(true);
   const micStreamRef = useRef<MediaStream | null>(null);
   const recModeRef = useRef<RecMode>('audio');
@@ -181,6 +182,7 @@ export default function App() {
   const blurBufRef = useRef<HTMLCanvasElement | null>(null);
   const recChordRef = useRef('');
   const recChordTimeRef = useRef(0);
+  const recBlurAtRef = useRef(0); // last blur-bg redraw (throttled to ~5fps)
 
   // Hand detection smoothing to prevent flickering
   const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
@@ -201,6 +203,14 @@ export default function App() {
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
   useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
+
+  // Live mic level while the chooser is open (diagnostic: is the mic
+  // actually receiving sound?)
+  useEffect(() => {
+    if (recPhase !== 'choosing' || !micStreamRef.current) return;
+    const t = window.setInterval(() => setMicLevel(audioEngine.getMicLevel()), 250);
+    return () => window.clearInterval(t);
+  }, [recPhase]);
   useEffect(() => {
     recordingActiveRef.current = isRecording;
   }, [isRecording]);
@@ -713,30 +723,36 @@ export default function App() {
     const t = recordingStartRef.current ? (now - recordingStartRef.current) / 1000 : 0;
 
     // ── Blur-fill background (cheap: draw via a tiny copy, then upscale) ──
-    rctx.fillStyle = '#050510';
-    rctx.fillRect(0, 0, W, H);
-    const bw = Math.max(32, Math.round(W / 10));
-    const bh = Math.max(56, Math.round(H / 10));
-    if (!blurBufRef.current) blurBufRef.current = document.createElement('canvas');
-    const bb = blurBufRef.current;
-    if (bb.width !== bw || bb.height !== bh) {
-      bb.width = bw;
-      bb.height = bh;
+    // Redrawn at ~5fps — it's visually stable, and this is the heaviest
+    // draw (a full-frame upscale), so throttling it removes most of the
+    // recording-compositor load that can cause jank.
+    if (now - recBlurAtRef.current > 200) {
+      recBlurAtRef.current = now;
+      rctx.fillStyle = '#050510';
+      rctx.fillRect(0, 0, W, H);
+      const bw = Math.max(32, Math.round(W / 10));
+      const bh = Math.max(56, Math.round(H / 10));
+      if (!blurBufRef.current) blurBufRef.current = document.createElement('canvas');
+      const bb = blurBufRef.current;
+      if (bb.width !== bw || bb.height !== bh) {
+        bb.width = bw;
+        bb.height = bh;
+      }
+      const bctx = bb.getContext('2d');
+      if (bctx) {
+        const scale = Math.max(bw / sw, bh / sh);
+        const dw = sw * scale;
+        const dh = sh * scale;
+        bctx.imageSmoothingEnabled = true;
+        bctx.imageSmoothingQuality = 'medium';
+        bctx.drawImage(src, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
+      }
+      rctx.imageSmoothingEnabled = true;
+      rctx.imageSmoothingQuality = 'medium';
+      rctx.drawImage(bb, 0, 0, W, H);
+      rctx.fillStyle = 'rgba(5, 5, 15, 0.55)';
+      rctx.fillRect(0, 0, W, H);
     }
-    const bctx = bb.getContext('2d');
-    if (bctx) {
-      const scale = Math.max(bw / sw, bh / sh);
-      const dw = sw * scale;
-      const dh = sh * scale;
-      bctx.imageSmoothingEnabled = true;
-      bctx.imageSmoothingQuality = 'medium';
-      bctx.drawImage(src, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
-    }
-    rctx.imageSmoothingEnabled = true;
-    rctx.imageSmoothingQuality = 'medium';
-    rctx.drawImage(bb, 0, 0, W, H);
-    rctx.fillStyle = 'rgba(5, 5, 15, 0.55)';
-    rctx.fillRect(0, 0, W, H);
 
     if (ratio === '9:16') {
       const topZone = Math.round(H * 0.19);    // brand + chord + mode
@@ -966,27 +982,21 @@ export default function App() {
       const trackingPromise = initHandTracking();
       trackingPromise.catch(() => {}); // errors surface via the await below
 
-      // Request the mic together with the camera (sing-along use case).
-      // If the user denies it or has no mic, fall back to video-only so
-      // the camera still works.
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-          audio: true,
-        });
-      } catch (micErr) {
-        if (isDomError(micErr, 'NotAllowedError') || isDomError(micErr, 'NotFoundError')) {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-            audio: false,
-          });
-        } else {
-          throw micErr;
-        }
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false,
+      });
       streamRef.current = stream;
-      micStreamRef.current = stream.getAudioTracks().length > 0 ? stream : null;
+
+      // Request the microphone SEPARATELY (its own permission prompt —
+      // sing-along use case). Optional: if denied or unavailable, the
+      // camera keeps working and recordings are synth-only.
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = micStream;
+      } catch {
+        micStreamRef.current = null;
+      }
 
       const video = videoRef.current;
       if (!video) throw new Error('Video element not found');
@@ -1072,7 +1082,10 @@ export default function App() {
     // Release the mic from the recording tap
     audioEngine.setMicEnabled(false);
     audioEngine.setMicStream(null);
-    micStreamRef.current = null;
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+    }
     setRecPhase('idle');
     runningRef.current = false;
     if (rafIdRef.current) {
@@ -1178,6 +1191,7 @@ export default function App() {
       }
       rec.width = rw;
       rec.height = rh;
+      recBlurAtRef.current = 0; // force the first blur-bg paint
       drawRecFrame(); // first paint before captureStream
     }
 
@@ -1188,7 +1202,8 @@ export default function App() {
     if (aTrack) stream.addTrack(aTrack);
     if (rec) {
       try {
-        rec.captureStream(30).getVideoTracks().forEach((t) => stream.addTrack(t));
+        // 24fps instead of 30 — nearly invisible, ~20% less encoder load
+        rec.captureStream(24).getVideoTracks().forEach((t) => stream.addTrack(t));
       } catch {
         setRecPhase('idle');
         return;
@@ -1525,12 +1540,17 @@ export default function App() {
               <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
             )}
             {micStreamRef.current ? (
-              <label className="rec-mic-toggle">
-                <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} />
-                <span>🎤 Include my voice — sing along with the chords</span>
-              </label>
+              <>
+                <label className="rec-mic-toggle">
+                  <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} />
+                  <span>🎤 Include my voice — sing along with the chords</span>
+                </label>
+                <div className="rec-ratio-hint" style={{ marginTop: 4 }}>
+                  Mic level: <span style={{ color: micLevel > 0.02 ? 'var(--neon-cyan)' : '#ffb86c' }}>{micLevel > 0.02 ? `● ${Math.round(micLevel * 100)}%` : '○ silent — check system mic input'}</span>
+                </div>
+              </>
             ) : (
-              <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 Microphone unavailable — recording the synth only</div>
+              <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 Microphone unavailable — recording the synth only. Allow microphone access in the browser prompt to sing along.</div>
             )}
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>

@@ -1022,6 +1022,104 @@ body {
   color: var(--text-primary);
 }
 
+/* ─── Onboarding: first-visit card + hands-ready badge ──────────────── */
+
+.onboard-card {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  background: rgba(8, 8, 20, 0.88);
+  backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.25);
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: var(--frost-shadow);
+  z-index: 90;
+  text-align: center;
+  animation: onboard-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes onboard-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.onboard-title {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--neon-cyan);
+  letter-spacing: 0.02em;
+  margin-bottom: 6px;
+}
+.onboard-text {
+  font-size: 0.66rem;
+  color: #b8b8d8;
+  line-height: 1.55;
+}
+.onboard-cta {
+  flex: 1;
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.18), rgba(0, 255, 204, 0.08));
+  border: 1px solid rgba(0, 255, 204, 0.4);
+  border-radius: 999px;
+  padding: 8px 0;
+  color: var(--neon-cyan);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.onboard-cta:hover {
+  background: rgba(0, 255, 204, 0.22);
+  box-shadow: 0 0 16px rgba(0, 255, 204, 0.25);
+}
+.onboard-later {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 8px 18px;
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  cursor: pointer;
+}
+.onboard-later:hover { color: #d0d0e8; border-color: rgba(255, 255, 255, 0.3); }
+
+.hands-ready-badge {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(8, 8, 20, 0.88);
+  backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.35);
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-size: 0.68rem;
+  color: #e0e0f4;
+  box-shadow: 0 0 24px rgba(0, 255, 204, 0.12), var(--frost-shadow);
+  z-index: 90;
+  animation: badge-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+@keyframes badge-pop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.92); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+/* Help-panel hand demo: wrist-tilt rock on the last step + caption crossfade */
+@keyframes hand-tilt-anim {
+  0%, 100% { transform: rotate(-9deg); }
+  50%      { transform: rotate(9deg); }
+}
+.hand-tilt { animation: hand-tilt-anim 1.4s ease-in-out infinite; }
+.demo-step-text {
+  color: #d0d0e8;
+  animation: demo-step-in 0.4s ease;
+}
+@keyframes demo-step-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── B2: Recording UI ──────────────────────────────────────────────── */
 
 /* Countdown overlay — full screen, dimmed, big neon numbers */

@@ -456,6 +456,59 @@ export default function App() {
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  // ─── Onboarding (first visit) ─────────────────────────────────────────
+  // First-visit card: shown until the user opens the camera or dismisses
+  // it (localStorage, once). Hands-ready badge: once per session, the
+  // first time both hands are stably detected.
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try { return !localStorage.getItem('gswOnboarded'); } catch { return true; }
+  });
+  const [showHandsReady, setShowHandsReady] = useState(false);
+  const handsReadyTimerRef = useRef<number | null>(null);
+  // Once per session: whether the hands-ready badge was already shown
+  // (sessionStorage survives reloads within the same tab)
+  const [handsReadyShown, setHandsReadyShown] = useState(() => {
+    try { return sessionStorage.getItem('gswHandsReady') === '1'; } catch { return false; }
+  });
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    try { localStorage.setItem('gswOnboarded', '1'); } catch { /* private mode */ }
+  }, []);
+
+  // Help-panel hand demo: loops "1 finger → I chord … 5 fingers → V chord"
+  const CHORD_DEMO = [
+    '1 finger → I chord',
+    '2 fingers → II chord',
+    '3 fingers → III chord',
+    '4 fingers → IV chord',
+    '5 fingers → V chord',
+    'wrist tilt → major / minor',
+  ];
+  const [demoStep, setDemoStep] = useState(0);
+  useEffect(() => {
+    if (!showHelp) return;
+    const t = window.setInterval(() => setDemoStep((s) => (s + 1) % CHORD_DEMO.length), 1400);
+    return () => window.clearInterval(t);
+  }, [showHelp]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Full hand silhouette (outline style) for the Help demo — each finger
+  // has a raised (straight, bold) and a relaxed (short, dim) path, so the
+  // viewer can clearly see which fingers are up.
+  const HAND_PALM = 'M28 66 L28 94 Q28 110 42 110 L60 110 Q74 110 74 94 L74 64 Q74 60 70 60 L32 60 Q28 60 28 66 Z';
+  const HAND_FINGERS = {
+    thumb: { up: 'M31 64 L21 52 L18 42 L19 32', down: 'M31 64 Q25 60 24 54' },
+    index: { up: 'M43 60 L40 42 L42 28 L41 16', down: 'M43 60 Q41 53 43 47' },
+    middle: { up: 'M50 60 L50 40 L50 25 L50 13', down: 'M50 60 Q49 53 50 46' },
+    ring: { up: 'M57 60 L60 42 L58 28 L59 16', down: 'M57 60 Q59 53 57 47' },
+    pinky: { up: 'M64 62 L67 48 L65 38 L66 29', down: 'M64 62 Q66 55 64 48' },
+  } as const;
+  const FINGER_ORDER = ['thumb', 'index', 'middle', 'ring', 'pinky'] as const;
+  // 1-4 fingers = index onward; 5 fingers (and the tilt step) = all
+  const raisedSet = demoStep >= CHORD_DEMO.length - 2
+    ? new Set(FINGER_ORDER)
+    : new Set(FINGER_ORDER.slice(1, 1 + demoStep + 1));
+
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const [showSettings, setShowSettings] = useState(!isMobile);
   const [showSkeleton, setShowSkeleton] = useState(true);
@@ -662,6 +715,16 @@ export default function App() {
     setGesture({ left: leftHand, right: rightHand });
     setHasLeftHand(!!leftHand);
     setHasRightHand(!!rightHand);
+
+    // Onboarding: once per session, celebrate the first stable two-hand
+    // detection — a 3s badge, never shown again in this session.
+    if (leftDetected && rightDetected && !handsReadyShown) {
+      setHandsReadyShown(true);
+      try { sessionStorage.setItem('gswHandsReady', '1'); } catch { /* private mode */ }
+      setShowHandsReady(true);
+      if (handsReadyTimerRef.current) window.clearTimeout(handsReadyTimerRef.current);
+      handsReadyTimerRef.current = window.setTimeout(() => setShowHandsReady(false), 3000);
+    }
 
     const s = synthRef.current;
 
@@ -1444,6 +1507,8 @@ export default function App() {
 
       setIsRunning(true);
       setIsLoading(false);
+      // Camera is up — the first-visit card has done its job
+      dismissOnboarding();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       setIsLoading(false);
@@ -1469,7 +1534,7 @@ export default function App() {
         }
       }
     }
-  }, [handleVisibility, restartCameraStream]);
+  }, [handleVisibility, restartCameraStream, dismissOnboarding]);
 
   /* ─── Warm up hand tracking on button intent ───────────────────────── */
 
@@ -1998,6 +2063,26 @@ export default function App() {
           )}
         </div>
 
+        {/* ─── Onboarding: first-visit card + hands-ready badge ──────── */}
+        {showOnboarding && !isRunning && (
+          <div className="onboard-card">
+            <div className="onboard-title">Play music with your hands</div>
+            <div className="onboard-text">
+              Left hand picks the chord — right hand shapes the sound. No instrument needed, just your hands.
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button className="onboard-cta" onClick={() => { dismissOnboarding(); void startCamera(); }}>Open camera</button>
+              <button className="onboard-later" onClick={dismissOnboarding}>Not now</button>
+            </div>
+          </div>
+        )}
+
+        {showHandsReady && (
+          <div className="hands-ready-badge">
+            <span style={{ color: 'var(--neon-cyan)' }}>✓</span> Both hands detected — play!
+          </div>
+        )}
+
         {/* ─── Help Modal ────────────────────────────────────────────── */}
         {showHelp && (
           <div style={{
@@ -2010,6 +2095,43 @@ export default function App() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
               <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+
+            {/* How it works — hand demo (left = chord scale, right =
+                expression). Full hand silhouettes so finger count and
+                which fingers are raised are clear. The left hand raises
+                1 → 5 fingers in a loop; on the tilt step it rocks side
+                to side. */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px' }}>
+                <svg width="42" height="50" viewBox="0 0 100 120" fill="none" style={{ flexShrink: 0, transform: 'scaleX(-1)' }}>
+                  <g className={demoStep === CHORD_DEMO.length - 1 ? 'hand-tilt' : undefined}>
+                    <path d={HAND_PALM} stroke="var(--neon-cyan)" strokeWidth="2.4" strokeLinejoin="round" />
+                    {FINGER_ORDER.map((f) => (
+                      <g key={f}>
+                        <path d={HAND_FINGERS[f].down} stroke="var(--neon-cyan)" strokeWidth="2" strokeLinecap="round" opacity="0.32" />
+                        <path d={HAND_FINGERS[f].up} stroke="var(--neon-cyan)" strokeWidth="3" strokeLinecap="round" opacity={raisedSet.has(f) ? 1 : 0} style={{ transition: 'opacity 0.25s ease' }} />
+                      </g>
+                    ))}
+                  </g>
+                </svg>
+                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
+                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chords</div>
+                  <div key={demoStep} className="demo-step-text">{CHORD_DEMO[demoStep]}</div>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px' }}>
+                <svg width="42" height="50" viewBox="0 0 100 120" fill="none" style={{ flexShrink: 0 }}>
+                  <path d={HAND_PALM} stroke="var(--neon-magenta)" strokeWidth="2.4" strokeLinejoin="round" />
+                  {FINGER_ORDER.map((f) => (
+                    <path key={f} d={HAND_FINGERS[f].up} stroke="var(--neon-magenta)" strokeWidth="3" strokeLinecap="round" />
+                  ))}
+                </svg>
+                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
+                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
+                  <div style={{ color: '#d0d0e8' }}>height → volume · tilt → sweep</div>
+                </div>
+              </div>
             </div>
 
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>

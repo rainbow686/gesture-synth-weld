@@ -1782,10 +1782,14 @@ export default function App() {
             <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
-              {/* ✋ hand silhouette as line art (Apple-style pictogram) */}
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-                <path d="M7.2 10.5 L7.2 5.3 A0.9 0.9 0 0 1 9 5.3 L9 10.5 L9.8 10.5 L9.8 4.4 A0.9 0.9 0 0 1 11.6 4.4 L11.6 10.5 L12.4 10.5 L12.4 5.3 A0.9 0.9 0 0 1 14.2 5.3 L14.2 10.5 L15 10.5 L15 6.7 A0.9 0.9 0 0 1 16.8 6.7 L16.8 11.3 L17.6 12 L17.9 16.3 A2.4 2.4 0 0 1 15.5 18.7 L8.8 18.7 A2.4 2.4 0 0 1 6.4 16.3 L6.3 14.9 C5.3 14.6 4.5 13.4 4.3 12.1 C4.2 11.2 4.7 10.5 5.4 10.7 C5.9 10.9 6.2 11.4 6.4 12.1 L7.2 10.5 Z"
-                  stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+              {/* Hand-tracking skeleton: the MediaPipe 21-landmark graph
+                  (this IS what the toggle shows over the hands) */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M11 21.2 L9.4 17.6 L7.1 15.6 L5.4 13.1 L4.7 11.3 M11 21.2 L9.7 14.9 L9.5 10.6 L9.5 7.6 L9.6 5.3 M9.7 14.9 L11.3 14.9 L11.5 9.9 L11.6 6.5 L11.7 3.9 M11.3 14.9 L12.9 14.9 L13.3 10.6 L13.6 7.6 L13.9 5.3 M12.9 14.9 L14.5 15.5 L15.5 12.1 L16.2 9.6 L16.9 7.5 M11 21.2 L14.5 15.5"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <g fill="currentColor">
+                  {[[11,21.2],[9.4,17.6],[7.1,15.6],[5.4,13.1],[4.7,11.3],[9.7,14.9],[9.5,10.6],[9.5,7.6],[9.6,5.3],[11.3,14.9],[11.5,9.9],[11.6,6.5],[11.7,3.9],[12.9,14.9],[13.3,10.6],[13.6,7.6],[13.9,5.3],[14.5,15.5],[15.5,12.1],[16.2,9.6],[16.9,7.5]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="0.85" />)}
+                </g>
               </svg>
             </button>
             <span className="divider" />
@@ -1799,9 +1803,18 @@ export default function App() {
               </svg>
             </button>
             <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
-              {/* Pictogram gear with center hole (Apple Settings style), plain color */}
-              <svg width="20" height="20" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2zm7.14 2.67a7.6 7.6 0 0 0-.14-1.5l2.1-1.63-2.08-3.6-2.47 1a7.7 7.7 0 0 0-1.3-.75L14.9 2h-4.2l-.36 2.6a7.7 7.7 0 0 0-1.3.75l-2.47-1-2.08 3.6L6.6 9.57a7.6 7.6 0 0 0-.14 1.5c0 .5.05 1 .14 1.5l-2.1 1.63 2.08 3.6 2.47-1c.4.3.84.55 1.3.75l.36 2.6h4.2l.36-2.6c.46-.2.9-.44 1.3-.75l2.47 1 2.08-3.6-2.1-1.63c.09-.5.14-1 .14-1.5z" />
+              {/* Gear as line frame: teeth + ring, center hole (abstract) */}
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="6.3" stroke="currentColor" strokeWidth="1.6" />
+                {[0, 45, 90, 135, 180, 225, 270, 315].map(a => {
+                  const r = (a * Math.PI) / 180;
+                  return (
+                    <line key={a}
+                      x1={12 + 5.3 * Math.cos(r)} y1={12 + 5.3 * Math.sin(r)}
+                      x2={12 + 8.8 * Math.cos(r)} y2={12 + 8.8 * Math.sin(r)}
+                      stroke="currentColor" strokeWidth="1.9" />
+                  );
+                })}
               </svg>
             </button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>

@@ -82,19 +82,26 @@ const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
   ),
 };
 
-/** Pick the best MediaRecorder mime type (mp4 preferred, webm fallback). */
-function pickRecMimeType(): { mime: string; ext: string } {
-  const candidates: [string, string][] = [
-    ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
-    ['video/mp4', 'mp4'],
-    ['video/webm;codecs=vp9,opus', 'webm'],
-    ['video/webm;codecs=vp8,opus', 'webm'],
-    ['video/webm', 'webm'],
-  ];
+/** Pick the best MediaRecorder mime type (mp4/m4a preferred, webm fallback). */
+function pickRecMimeType(audioOnly: boolean = false): { mime: string; ext: string } {
+  const candidates: [string, string][] = audioOnly
+    ? [
+        ['audio/mp4;codecs=mp4a.40.2', 'm4a'],
+        ['audio/mp4', 'm4a'],
+        ['audio/webm;codecs=opus', 'webm'],
+        ['audio/webm', 'webm'],
+      ]
+    : [
+        ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
+        ['video/mp4', 'mp4'],
+        ['video/webm;codecs=vp9,opus', 'webm'],
+        ['video/webm;codecs=vp8,opus', 'webm'],
+        ['video/webm', 'webm'],
+      ];
   for (const [mime, ext] of candidates) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) return { mime, ext };
   }
-  return { mime: '', ext: 'webm' };
+  return { mime: '', ext: audioOnly ? 'webm' : 'webm' };
 }
 
 
@@ -159,6 +166,9 @@ export default function App() {
   const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
   const [recCount, setRecCount] = useState(3);
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+  const [micOn, setMicOn] = useState(true);
+  const micOnRef = useRef(true);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const recModeRef = useRef<RecMode>('audio');
   const recRatioRef = useRef<RecRatio>('9:16');
   const recCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -190,6 +200,7 @@ export default function App() {
 
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
   useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
+  useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => {
     recordingActiveRef.current = isRecording;
   }, [isRecording]);
@@ -955,11 +966,27 @@ export default function App() {
       const trackingPromise = initHandTracking();
       trackingPromise.catch(() => {}); // errors surface via the await below
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-        audio: false,
-      });
+      // Request the mic together with the camera (sing-along use case).
+      // If the user denies it or has no mic, fall back to video-only so
+      // the camera still works.
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+          audio: true,
+        });
+      } catch (micErr) {
+        if (isDomError(micErr, 'NotAllowedError') || isDomError(micErr, 'NotFoundError')) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+            audio: false,
+          });
+        } else {
+          throw micErr;
+        }
+      }
       streamRef.current = stream;
+      micStreamRef.current = stream.getAudioTracks().length > 0 ? stream : null;
 
       const video = videoRef.current;
       if (!video) throw new Error('Video element not found');
@@ -988,6 +1015,9 @@ export default function App() {
       // Wait for hand tracking before starting the detection loop
       await trackingPromise;
       await audioEngine.init();
+      // Attach the mic AFTER init — the engine's mic gain node only exists
+      // once initialized
+      audioEngine.setMicStream(micStreamRef.current);
 
       setIsRunning(true);
       setIsLoading(false);
@@ -1039,9 +1069,10 @@ export default function App() {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
-    // Discard any in-flight audio recording (Tone.Recorder) so a later
-    // recording starts fresh
-    audioEngine.stopRecording();
+    // Release the mic from the recording tap
+    audioEngine.setMicEnabled(false);
+    audioEngine.setMicStream(null);
+    micStreamRef.current = null;
     setRecPhase('idle');
     runningRef.current = false;
     if (rafIdRef.current) {
@@ -1113,15 +1144,15 @@ export default function App() {
   // MediaRecorder on the composited recording canvas + audio tap).
   const beginRecording = useCallback(() => {
     const mode = recModeRef.current;
-    if (mode === 'audio') {
-      if (!audioEngine.startRecording()) {
-        setRecPhase('idle');
-        return;
-      }
-    } else {
-      // Skeleton mode composites an offscreen canvas: dark bg + skeleton +
-      // waveform (no camera feed). Create/size it here so beginRecording
-      // sees a valid source before the draw loop starts painting it.
+    // Sing-along: mix the mic into the recording tap while recording
+    audioEngine.setMicEnabled(micOnRef.current && !!micStreamRef.current);
+
+    // Video/skeleton modes need the composited recording canvas as source.
+    // (Skeleton mode composites an offscreen canvas: dark bg + skeleton +
+    // waveform, no camera feed — created here so beginRecording sees a
+    // valid source before the draw loop starts painting it.)
+    let rec: HTMLCanvasElement | null = null;
+    if (mode !== 'audio') {
       if (mode === 'skeleton') {
         const live = canvasRef.current;
         if (!live || !live.width) {
@@ -1140,7 +1171,7 @@ export default function App() {
         return;
       }
       const [rw, rh] = REC_RATIO_DIMS[recRatioRef.current];
-      let rec = recCanvasRef.current;
+      rec = recCanvasRef.current;
       if (!rec) {
         rec = document.createElement('canvas');
         recCanvasRef.current = rec;
@@ -1148,23 +1179,31 @@ export default function App() {
       rec.width = rw;
       rec.height = rh;
       drawRecFrame(); // first paint before captureStream
+    }
 
-      let stream: MediaStream;
+    // Unified recording stream: the audio tap (synth + mic when enabled),
+    // plus canvas video tracks for video/skeleton modes.
+    const stream = new MediaStream();
+    const aTrack = audioEngine.getRecordingAudioTrack();
+    if (aTrack) stream.addTrack(aTrack);
+    if (rec) {
       try {
-        stream = new MediaStream(rec.captureStream(30).getVideoTracks());
-        const aTrack = audioEngine.getRecordingAudioTrack();
-        if (aTrack) stream.addTrack(aTrack);
+        rec.captureStream(30).getVideoTracks().forEach((t) => stream.addTrack(t));
       } catch {
         setRecPhase('idle');
         return;
       }
-      const { mime } = pickRecMimeType();
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mime || undefined,
-        videoBitsPerSecond: 3_000_000,
-      });
-      const finalMime = recorder.mimeType || mime || 'video/webm';
-      const ext = finalMime.includes('mp4') ? 'mp4' : 'webm';
+    }
+
+    const { mime } = pickRecMimeType(mode === 'audio');
+    const recorder = new MediaRecorder(stream, {
+      mimeType: mime || undefined,
+      videoBitsPerSecond: 3_000_000,
+    });
+    const finalMime = recorder.mimeType || mime || (mode === 'audio' ? 'audio/webm' : 'video/webm');
+    const ext = finalMime.includes('mp4') || finalMime.includes('m4a')
+      ? (finalMime.includes('audio') ? 'm4a' : 'mp4')
+      : 'webm';
       recChunksRef.current = [];
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
@@ -1182,7 +1221,7 @@ export default function App() {
       };
       recorder.start(500);
       mediaRecorderRef.current = recorder;
-    }
+
     setIsRecording(true);
     recordingStartRef.current = Date.now();
     setRecPhase('recording');
@@ -1211,28 +1250,19 @@ export default function App() {
     }, 1000);
   }, [beginRecording]);
 
-  // Stop recording and produce the result panel
+  // Stop recording and produce the result panel (unified MediaRecorder
+  // path for audio, video and skeleton modes)
   const finishRecording = useCallback(() => {
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = null;
     }
-    if (recModeRef.current === 'audio') {
-      audioEngine.stopRecording().then((blob) => {
-        if (blob) {
-          setRecBlob({ blob, filename: makeRecordingFilename('webm') });
-          setRecPhase('result');
-        } else {
-          setRecPhase('idle');
-        }
-      });
+    audioEngine.setMicEnabled(false);
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state === 'recording') {
+      rec.stop();
     } else {
-      const rec = mediaRecorderRef.current;
-      if (rec && rec.state === 'recording') {
-        rec.stop();
-      } else {
-        setRecPhase('idle');
-      }
+      setRecPhase('idle');
     }
     setIsRecording(false);
     setRecordingTime(0);
@@ -1493,6 +1523,14 @@ export default function App() {
             )}
             {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
               <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
+            )}
+            {micStreamRef.current ? (
+              <label className="rec-mic-toggle">
+                <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} />
+                <span>🎤 Include my voice — sing along with the chords</span>
+              </label>
+            ) : (
+              <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 Microphone unavailable — recording the synth only</div>
             )}
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>

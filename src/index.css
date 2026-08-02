@@ -1230,3 +1230,22 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
+
+/* Mic toggle in the recording chooser */
+.rec-mic-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.68rem;
+  color: #d0d0e8;
+  cursor: pointer;
+  user-select: none;
+}
+.rec-mic-toggle input {
+  accent-color: var(--neon-cyan);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}

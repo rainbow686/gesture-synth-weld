@@ -76,9 +76,12 @@ export class AudioEngine {
   private currentTimbre: TimbreType = 'gesture';
   private instruments: Map<TimbreType, Instrument> = new Map();
   private activeNotes: Set<number> = new Set();
-  private recordingDestination: Tone.Recorder | null = null;
   private mediaStreamDest: MediaStreamAudioDestinationNode | null = null;
-  private isRecordingActive = false;
+  // Mic input (sing-along): mixed into the recording tap only — never to
+  // the speakers (feedback). Connected on setMicStream, gated by setMicEnabled.
+  private micSource: MediaStreamAudioSourceNode | null = null;
+  private micGain: GainNode | null = null;
+  private micConnected = false;
   private initCalled = false;
 
   // Volume control
@@ -123,15 +126,19 @@ export class AudioEngine {
     this.filter.Q.value = 0.7;
     this.filter.connect(this.masterGain);
 
-    this.recordingDestination = new Tone.Recorder();
-    Tone.Destination.connect(this.recordingDestination);
-
-    // Audio tap for video recording (MediaRecorder): same post-masterGain
+    // Audio tap for recordings (MediaRecorder): same post-masterGain
     // signal, exposed as a track that can be muxed with the canvas stream.
     const rawCtx = this.ctx;
     if (rawCtx) {
       this.mediaStreamDest = rawCtx.createMediaStreamDestination();
       if (this.mediaStreamDest) this.masterGain.connect(this.mediaStreamDest);
+      // Mic gain: mic → micGain → recording tap. Starts disconnected
+      // (setMicEnabled gates it); never routed to the speakers (feedback).
+      this.micGain = rawCtx.createGain();
+      this.micGain.gain.value = 0.9;
+      this.micGain.connect(this.mediaStreamDest);
+      this.micGain.disconnect();
+      this.micConnected = false;
     }
 
     // Create bass synth for auto bass
@@ -411,30 +418,50 @@ export class AudioEngine {
     this.currentChordKey = null;
   }
 
-  startRecording(): boolean {
-    if (!this.recordingDestination || this.isRecordingActive) return false;
-    this.recordingDestination.start();
-    this.isRecordingActive = true;
-    return true;
-  }
-
-  async stopRecording(): Promise<Blob | null> {
-    if (!this.recordingDestination || !this.isRecordingActive) return null;
-    const recording = await this.recordingDestination.stop();
-    this.isRecordingActive = false;
-    return recording;
-  }
-
-  isRecording(): boolean {
-    return this.isRecordingActive;
-  }
-
   /**
-   * Audio track for video recording — the same post-masterGain signal that
-   * goes to the speakers, tapped for MediaRecorder muxing.
+   * Audio track for recordings — the post-masterGain signal (synth) plus
+   * the microphone if enabled, mixed in the MediaStreamAudioDestinationNode.
    */
   getRecordingAudioTrack(): MediaStreamTrack | null {
     return this.mediaStreamDest?.stream.getAudioTracks()[0] ?? null;
+  }
+
+  /**
+   * Connect/disconnect the microphone from the recording tap.
+   * The mic is never routed to the speakers (would cause feedback).
+   */
+  setMicEnabled(enabled: boolean): void {
+    if (!this.micGain || !this.mediaStreamDest) return;
+    if (enabled && !this.micConnected) {
+      this.micGain.connect(this.mediaStreamDest);
+      this.micConnected = true;
+    } else if (!enabled && this.micConnected) {
+      this.micGain.disconnect();
+      this.micConnected = false;
+    }
+  }
+
+  /**
+   * Attach (or detach) the microphone input stream.
+   * Call with null to release. The mic stays disconnected from the
+   * recording tap until setMicEnabled(true) is called.
+   */
+  setMicStream(stream: MediaStream | null): void {
+    const rawCtx = this.ctx;
+    if (!rawCtx || !this.micGain) return;
+    if (this.micSource) {
+      try { this.micSource.disconnect(); } catch { /* already disconnected */ }
+      this.micSource = null;
+    }
+    const track = stream?.getAudioTracks()[0];
+    if (track) {
+      this.micSource = rawCtx.createMediaStreamSource(stream);
+      this.micSource.connect(this.micGain);
+      if (this.micConnected) {
+        this.micGain.disconnect();
+        this.micConnected = false;
+      }
+    }
   }
 
   getChordName(

@@ -1249,3 +1249,27 @@ body {
   cursor: pointer;
   flex-shrink: 0;
 }
+
+/* Mic device picker + recording mix slider */
+.rec-device-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #e0e0f0;
+  font-size: 0.66rem;
+}
+.rec-device-select option { background: #12122a; }
+.rec-mix-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.64rem;
+  color: #d0d0e8;
+}
+.rec-mix-slider {
+  flex: 1;
+  accent-color: var(--neon-cyan);
+  cursor: pointer;
+}

@@ -169,6 +169,10 @@ export default function App() {
   const [micOn, setMicOn] = useState(true);
   const [micLevel, setMicLevel] = useState(0);
   const [micRawMode, setMicRawMode] = useState(false);
+  const [recVoice, setRecVoice] = useState(() => Number(localStorage.getItem('gsw-rec-voice')) || 1.3);
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+  const [micDeviceId, setMicDeviceId] = useState('');
+  const recVoiceRef = useRef(1.3);
   const micOnRef = useRef(true);
   const micStreamRef = useRef<MediaStream | null>(null);
   const micRetriedRef = useRef(false);
@@ -224,6 +228,32 @@ export default function App() {
   useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
   useEffect(() => { audioEngine.setMicEnabled(micOn); }, [micOn]);
+  useEffect(() => { recVoiceRef.current = recVoice; }, [recVoice]);
+  useEffect(() => {
+    audioEngine.setRecordingMix(recVoice);
+    localStorage.setItem('gsw-rec-voice', String(recVoice));
+  }, [recVoice]);
+
+  // Re-select the mic device (Chrome's permission prompt defaults to a
+  // virtual/loopback device on some Macs — e.g. BlackHole — which records
+  // silence). Enumerated after mic permission is granted.
+  const switchMicDevice = useCallback(async (deviceId: string) => {
+    if (!deviceId) return;
+    try {
+      const s2 = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = s2;
+      audioEngine.setMicStream(s2);
+      audioEngine.setMicEnabled(micOnRef.current);
+      setMicDeviceId(deviceId);
+      setMicRawMode(true);
+      micRetriedRef.current = true;
+    } catch {
+      // device unavailable — keep the current stream
+    }
+  }, []);
 
   // Live mic level while the chooser is open (diagnostic: is the mic
   // actually receiving sound?). Also triggers the Chrome raw-mic retry:
@@ -1032,6 +1062,13 @@ export default function App() {
           audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
         });
         micStreamRef.current = micStream;
+        // List mic devices so the user can pick the real one — Chrome's
+        // permission prompt defaults to a virtual/loopback device on some
+        // Macs (e.g. BlackHole), which records silence.
+        const devs = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+        setMicDevices(devs.filter((d) => d.kind === 'audioinput'));
+        const cur = micStream.getAudioTracks()[0]?.getSettings().deviceId;
+        if (cur) setMicDeviceId(cur);
       } catch {
         micStreamRef.current = null;
       }
@@ -1196,6 +1233,7 @@ export default function App() {
   const beginRecording = useCallback(() => {
     const mode = recModeRef.current;
     // Sing-along: mix the mic into the recording tap while recording
+    audioEngine.setRecordingMix(recVoiceRef.current);
     audioEngine.setMicEnabled(micOnRef.current && !!micStreamRef.current);
 
     // Video/skeleton modes need the composited recording canvas as source.
@@ -1589,6 +1627,22 @@ export default function App() {
                 {micRawMode && (
                   <div className="rec-ratio-hint" style={{ marginTop: 2, color: '#ffb86c' }}>Mic reconnected without audio processing (Chrome workaround)</div>
                 )}
+                {micDevices.length > 1 && (
+                  <>
+                    <div className="rec-sheet-sub">Microphone</div>
+                    <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
+                      {micDevices.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                <div className="rec-sheet-sub">Recording mix</div>
+                <div className="rec-mix-row">
+                  <span>Voice</span>
+                  <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
+                  <span>{Math.round(recVoice * 100)}%</span>
+                </div>
                 <div className="rec-ratio-hint" style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: '0.52rem', color: '#606090' }}>
                   {audioEngine.getMicDebugInfo()}
                 </div>

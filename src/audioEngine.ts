@@ -77,6 +77,7 @@ export class AudioEngine {
   private instruments: Map<TimbreType, Instrument> = new Map();
   private activeNotes: Set<number> = new Set();
   private mediaStreamDest: MediaStreamAudioDestinationNode | null = null;
+  private recMixGain: GainNode | null = null;
   // Mic input (sing-along): mixed into the recording tap only — never to
   // the speakers (feedback). Connected on setMicStream, gated by setMicEnabled.
   private micSource: MediaStreamAudioSourceNode | null = null;
@@ -132,7 +133,15 @@ export class AudioEngine {
     const rawCtx = this.ctx;
     if (rawCtx) {
       this.mediaStreamDest = rawCtx.createMediaStreamDestination();
-      if (this.mediaStreamDest) this.masterGain.connect(this.mediaStreamDest);
+      // Synth level inside recordings has its own gain so singers can
+      // balance voice vs chords (chords are "clean direct" in the mix and
+      // easily mask a voice captured through the room).
+      this.recMixGain = rawCtx.createGain();
+      this.recMixGain.gain.value = 1.0;
+      if (this.mediaStreamDest) {
+        this.masterGain.connect(this.recMixGain);
+        this.recMixGain.connect(this.mediaStreamDest);
+      }
       // Mic path: mic → analyser → micGain(0.9) → recording tap. Always
       // connected and active — Chrome does not render the graph when the
       // gain is 0, which would starve the level analyser (the earlier
@@ -440,6 +449,19 @@ export class AudioEngine {
    */
   setMicEnabled(enabled: boolean): void {
     if (this.micTrack) this.micTrack.enabled = enabled;
+  }
+
+  /**
+   * Set the voice↔chords balance inside recordings.
+   * voice 0.5..2: mic gain follows it; the synth's recording gain falls
+   * as voice rises (voice 1.0 = equal, 1.3 default = voice-favoring).
+   */
+  setRecordingMix(voice: number): void {
+    if (this.micGain) this.micGain.gain.setTargetAtTime(voice, this.ctx?.currentTime ?? 0, 0.02);
+    if (this.recMixGain) {
+      const chords = Math.max(0.2, 2 - voice);
+      this.recMixGain.gain.setTargetAtTime(chords, this.ctx?.currentTime ?? 0, 0.02);
+    }
   }
 
   /**

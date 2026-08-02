@@ -168,8 +168,28 @@ export default function App() {
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [micLevel, setMicLevel] = useState(0);
+  const [micRawMode, setMicRawMode] = useState(false);
   const micOnRef = useRef(true);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const micRetriedRef = useRef(false);
+
+  // Chrome workaround: some Chrome/macOS builds deliver silence from the
+  // mic when echo cancellation is active (Safari is unaffected). Re-request
+  // the mic WITHOUT audio processing and rewire, once.
+  const retryMicRaw = useCallback(async () => {
+    try {
+      const s2 = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = s2;
+      audioEngine.setMicStream(s2);
+      audioEngine.setMicEnabled(micOnRef.current);
+      setMicRawMode(true);
+    } catch {
+      // keep the original stream
+    }
+  }, []);
   const recModeRef = useRef<RecMode>('audio');
   const recRatioRef = useRef<RecRatio>('9:16');
   const recCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -206,12 +226,27 @@ export default function App() {
   useEffect(() => { audioEngine.setMicEnabled(micOn); }, [micOn]);
 
   // Live mic level while the chooser is open (diagnostic: is the mic
-  // actually receiving sound?)
+  // actually receiving sound?). Also triggers the Chrome raw-mic retry:
+  // ~2.5s of silence with the toggle on means the OS granted the mic but
+  // Chrome isn't delivering audio (echo-cancellation bug class).
   useEffect(() => {
     if (recPhase !== 'choosing' || !micStreamRef.current) return;
-    const t = window.setInterval(() => setMicLevel(audioEngine.getMicLevel()), 250);
+    let silentFor = 0;
+    const t = window.setInterval(() => {
+      const lvl = audioEngine.getMicLevel();
+      setMicLevel(lvl);
+      if (lvl < 0.005 && micOnRef.current && !micRetriedRef.current) {
+        silentFor += 250;
+        if (silentFor >= 2500) {
+          micRetriedRef.current = true;
+          retryMicRaw();
+        }
+      } else {
+        silentFor = 0;
+      }
+    }, 250);
     return () => window.clearInterval(t);
-  }, [recPhase]);
+  }, [recPhase, retryMicRaw]);
   useEffect(() => {
     recordingActiveRef.current = isRecording;
   }, [isRecording]);
@@ -1551,6 +1586,9 @@ export default function App() {
                 <div className="rec-ratio-hint" style={{ marginTop: 4 }}>
                   Mic level: <span style={{ color: micLevel > 0.02 ? 'var(--neon-cyan)' : '#ffb86c' }}>{micLevel > 0.02 ? `● ${Math.round(micLevel * 100)}%` : `○ ${Math.round(micLevel * 100)}% — speak to test, or check System Settings → Sound → Input`}</span>
                 </div>
+                {micRawMode && (
+                  <div className="rec-ratio-hint" style={{ marginTop: 2, color: '#ffb86c' }}>Mic reconnected without audio processing (Chrome workaround)</div>
+                )}
                 <div className="rec-ratio-hint" style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: '0.52rem', color: '#606090' }}>
                   {audioEngine.getMicDebugInfo()}
                 </div>

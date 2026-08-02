@@ -22,7 +22,7 @@
   <meta name="theme-color" content="#0a0a1a" />
 
   <title>Hand Gesture Music Synthesizer — Gesture Synth Weld | Play With Your Webcam</title>
-  <meta name="description" content="Free hand gesture music synthesizer. Left hand controls harmony, right hand plays chords. 3 modes, arpeggiator, auto bass, WebM recording. Just your webcam." />
+  <meta name="description" content="Free hand gesture music synthesizer. Left hand controls harmony, right hand plays chords. 3 modes, arpeggiator, auto bass, video recording. Just your webcam." />
   <meta name="keywords" content="hand gesture music synthesizer, gesture synth weld, web audio, mediapipe hands, browser synth, theremin, chord player" />
   <meta name="author" content="Gesture Synth Weld" />
   <link rel="canonical" href="https://gesturesynthweld.com/" />
@@ -33,7 +33,7 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Hand Gesture Music Synthesizer — Gesture Synth Weld | Play With Your Webcam" />
-  <meta property="og:description" content="Free hand gesture music synthesizer. Left hand controls harmony, right hand plays chords. 3 modes, arpeggiator, auto bass, WebM recording. Just your webcam." />
+  <meta property="og:description" content="Free hand gesture music synthesizer. Left hand controls harmony, right hand plays chords. 3 modes, arpeggiator, auto bass, video recording. Just your webcam." />
   <meta property="og:url" content="https://gesturesynthweld.com/" />
   <meta property="og:site_name" content="Gesture Synth Weld" />
   <meta property="og:image" content="https://gesturesynthweld.com/og-image.png" />
@@ -42,7 +42,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Hand Gesture Music Synthesizer — Gesture Synth Weld | Play With Your Webcam" />
-  <meta name="twitter:description" content="Free hand gesture music synthesizer. Left hand controls harmony, right hand plays chords. 3 modes, arpeggiator, auto bass, WebM recording. Just your webcam." />
+  <meta name="twitter:description" content="Free hand gesture music synthesizer. Left hand controls harmony, right hand plays chords. 3 modes, arpeggiator, auto bass, video recording. Just your webcam." />
   <meta name="twitter:image" content="https://gesturesynthweld.com/og-image.png" />
 
   <!-- Fonts -->
@@ -57,7 +57,7 @@
     "@type": "WebApplication",
     "name": "Gesture Synth Weld",
     "url": "https://gesturesynthweld.com",
-    "description": "A browser-based hand gesture music synthesizer with two-hand control. Left hand sets harmony (key, scale, major/minor), right hand controls expression (chord type, volume, tone). Includes 3 modes, arpeggiator, auto bass, and WebM recording.",
+    "description": "A browser-based hand gesture music synthesizer with two-hand control. Left hand sets harmony (key, scale, major/minor), right hand controls expression (chord type, volume, tone). Includes 3 modes, arpeggiator, auto bass, and audio/video recording.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Any",
     "offers": {
@@ -73,7 +73,7 @@
       "Synthesized sawtooth wave engine with real-time filter control",
       "Arpeggiator with 3 speed settings (Slow/Normal/Fast)",
       "Auto Bass line generator with independent volume control",
-      "WebM audio recording (up to 15 seconds) — capture and download your performances",
+      "Audio & video recording (MP4/M4A, up to 15 seconds) — capture and download your performances",
       "Theremin mode: continuous pitch and volume control with both hands",
       "Mono Piano mode: single-note melody with finger-count intervals"
     ],
@@ -110,7 +110,7 @@
         "name": "Can I record my performance?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes! Click the Record button to start capturing your performance (up to 15 seconds). Choose from three modes: audio only, full video (camera with neon hand skeleton), or skeleton animation without the camera feed — plus an aspect ratio for social platforms (9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for Instagram). After recording, download the file or share it straight to your apps from the mobile share sheet. Your camera feed is never uploaded to any server."
+          "text": "Yes! Click the Record button to start capturing your performance (up to 15 seconds). A 3-2-1 countdown gets you ready, and a 3-2-1 wrap-up warns you before the recording ends. Choose from three modes: audio only, full video (camera with neon hand skeleton), or skeleton animation without the camera feed — plus an aspect ratio for social platforms (9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for Instagram). After recording, download the file or share it straight to your apps from the mobile share sheet (the share message carries our brand and gesturesynthweld.com). Your camera feed is never uploaded to any server."
         }
       },
       {
@@ -126,7 +126,7 @@
         "name": "What makes Gesture Synth Weld different from other gesture synthesizers?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Gesture Synth Weld features a unique two-hand division system: your left hand controls harmony (key selection, scale degree, major/minor toggle) while your right hand controls expression (chord complexity, volume, tone). Unlike basic gesture synths, it includes an arpeggiator for harp-like sweeps, an auto bass generator for low-end foundation, support for 7 diatonic chords with VI/VII special gestures, 8 fixed chord styles, and built-in WebM recording. It's also open source under the MIT license."
+          "text": "Gesture Synth Weld features a unique two-hand division system: your left hand controls harmony (key selection, scale degree, major/minor toggle) while your right hand controls expression (chord complexity, volume, tone). Unlike basic gesture synths, it includes an arpeggiator for harp-like sweeps, an auto bass generator for low-end foundation, support for 7 diatonic chords with VI/VII special gestures, 8 fixed chord styles, and built-in MP4/M4A recording. It's also open source under the MIT license."
         }
       },
       {
@@ -614,14 +614,17 @@
 
         <h3>Recording and sharing</h3>
         <p>
-          Click the red Record button to capture up to 15 seconds of your performance. Pick a
-          mode: audio only, full video (camera with neon skeleton), or skeleton animation that
-          never shows your camera feed — and choose an aspect ratio for your sharing platform
-          (9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for Instagram). Singing along?
-          Your voice is captured on the microphone and mixed into the recording, so you can
-          accompany your own singing with live chords. On mobile you can share the result
-          straight from the share sheet; on desktop it downloads as an MP4/M4A or WebM file.
-          Your camera feed is never uploaded to any server.
+          Click the red Record button to capture up to 15 seconds of your performance. A
+          3-2-1 countdown gets you ready, and a magenta 3-2-1 wrap-up warns you before the
+          recording stops. Pick a mode: audio only, full video (camera with neon skeleton),
+          or skeleton animation that never shows your camera feed — and choose an aspect ratio
+          for your sharing platform (9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for
+          Instagram). Singing along? Your voice is captured on the microphone and mixed into
+          the recording, so you can accompany your own singing with live chords. On mobile you
+          can share the result straight from the share sheet; on desktop it downloads as an
+          MP4/M4A or WebM file. Audio downloads carry a branded cover with our name and
+          website, so every file promotes Gesture Synth Weld. Your camera feed is never
+          uploaded to any server.
           <a href="#faq" style="color:#00ffcc">More questions? Check the FAQ →</a>
         </p>
       </div>
@@ -700,6 +703,7 @@
           <summary>Can I record my performance?</summary>
           <p>
             Yes! Click the <strong>Record</strong> button to start capturing your performance (up to 15 seconds).
+            A 3-2-1 countdown gets you ready, and a 3-2-1 wrap-up warns you before the recording stops.
             Choose what to capture: <strong>audio only</strong>, <strong>full video</strong> (camera with neon skeleton),
             or <strong>skeleton animation</strong> (no camera feed — privacy-friendly). Pick an aspect ratio for
             your sharing platform: 9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for Instagram.
@@ -707,8 +711,8 @@
             singing over your own chords. Pick your microphone in the chooser if needed (some Macs
             default to a virtual device that records silence), and balance <strong>voice vs chords</strong> with
             the recording-mix slider — headphones give the cleanest mix. After recording, download the
-            file — or on mobile, share it straight to your apps from the share sheet. Your camera feed
-            is never uploaded to any server.
+            file — or on mobile, share it straight to your apps from the share sheet (the share message
+            carries our brand and gesturesynthweld.com). Your camera feed is never uploaded to any server.
           </p>
         </details>
 
@@ -733,7 +737,7 @@
             gesture synths, it includes an <strong>arpeggiator</strong> for harp-like sweeps, an
             <strong>auto bass generator</strong> for low-end foundation, a <strong>sawtooth synth engine</strong>
             with real-time filter sweep, support for <strong>9th chords</strong>
-            (4-finger), <strong>8 fixed chord styles</strong>, and built-in <strong>WebM recording</strong>.
+            (4-finger), <strong>8 fixed chord styles</strong>, and built-in <strong>MP4/M4A recording</strong>.
             It's also open source under the MIT license.
           </p>
         </details>

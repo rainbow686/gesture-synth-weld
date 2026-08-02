@@ -1447,7 +1447,8 @@ export default function App() {
     try {
       await navigator.share({
         files: [new File([recBlob.blob], recBlob.filename)],
-        title: 'Gesture Synth Weld',
+        title: 'Gesture Synth Weld — hand gesture music synthesizer',
+        text: 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com',
       });
       setShareFailed(false);
     } catch (e) {
@@ -2001,6 +2002,12 @@ export default function App() {
               <button className="rec-btn primary" onClick={downloadRec}>💾 Download</button>
               {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
             </div>
+            {canFileShare && (
+              <div className="rec-sheet-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
+                Share directly: WhatsApp · WeChat · Telegram<br />
+                TikTok · Instagram · 抖音: Save to Photos, then upload in-app
+              </div>
+            )}
             {shareFailed && (
               <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
             )}

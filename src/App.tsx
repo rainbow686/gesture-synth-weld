@@ -1550,6 +1550,9 @@ export default function App() {
                 <div className="rec-ratio-hint" style={{ marginTop: 4 }}>
                   Mic level: <span style={{ color: micLevel > 0.02 ? 'var(--neon-cyan)' : '#ffb86c' }}>{micLevel > 0.02 ? `● ${Math.round(micLevel * 100)}%` : `○ ${Math.round(micLevel * 100)}% — speak to test, or check System Settings → Sound → Input`}</span>
                 </div>
+                <div className="rec-ratio-hint" style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: '0.52rem', color: '#606090' }}>
+                  {audioEngine.getMicDebugInfo()}
+                </div>
               </>
             ) : (
               <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 Microphone unavailable — recording the synth only. Allow microphone access in the browser prompt to sing along.</div>

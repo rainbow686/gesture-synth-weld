@@ -80,6 +80,7 @@ export class AudioEngine {
   // Mic input (sing-along): mixed into the recording tap only — never to
   // the speakers (feedback). Connected on setMicStream, gated by setMicEnabled.
   private micSource: MediaStreamAudioSourceNode | null = null;
+  private micTrack: MediaStreamTrack | null = null;
   private micGain: GainNode | null = null;
   private micAnalyser: AnalyserNode | null = null;
   private initCalled = false;
@@ -450,8 +451,10 @@ export class AudioEngine {
     if (this.micSource) {
       try { this.micSource.disconnect(); } catch { /* already disconnected */ }
       this.micSource = null;
+      this.micTrack = null;
     }
-    const track = stream?.getAudioTracks()[0];
+    const track = stream?.getAudioTracks()[0] ?? null;
+    this.micTrack = track;
     if (track) {
       this.micSource = rawCtx.createMediaStreamSource(stream);
       if (this.micAnalyser) this.micSource.connect(this.micAnalyser);
@@ -470,6 +473,17 @@ export class AudioEngine {
     let sum = 0;
     for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
     return Math.min(1, Math.sqrt(sum / data.length) * 3);
+  }
+
+  /**
+   * Mic-path diagnostic (shown in the chooser while debugging):
+   * track state + context state + analyser/gain wiring.
+   */
+  getMicDebugInfo(): string {
+    const trackState = this.micTrack
+      ? `${this.micTrack.readyState}/${this.micTrack.enabled ? 'on' : 'off'}${this.micTrack.muted ? '/muted' : ''}`
+      : 'no-source';
+    return `ctx=${this.ctx?.state ?? '?'} track=${trackState} an=${this.micAnalyser ? 'y' : 'n'} g=${this.micGain ? this.micGain.gain.value.toFixed(2) : '?'} dest=${this.mediaStreamDest ? 'y' : 'n'}`;
   }
 
   getChordName(

@@ -1079,6 +1079,12 @@ export default function App() {
     const isPoster = ratio === '9:16';
 
     // ── Content window ──
+    // The window area is FIXED per ratio (9:16 = the mid zone between the
+    // design bands; 1:1 = the full frame). A landscape source fits by width
+    // inside it; a PORTRAIT source (phone camera) would overflow the area —
+    // the fit-width height exceeds the area, eating the bands (brand/URL
+    // land inside the video, waveform vanishes). So portrait sources are
+    // cover-cropped into the window area instead (same rule as 16:9).
     let wy = 0;
     let winH = H;
     if (ratio === '16:9') {
@@ -1086,14 +1092,25 @@ export default function App() {
       const dy = Math.round((H - ch) / 2);
       rctx.drawImage(src, 0, dy, W, ch);
     } else {
-      winH = Math.round((W * sh) / sw);
       const topZone = isPoster ? Math.round(H * 0.19) : 0;
       const bottomZone = isPoster ? Math.round(H * 0.165) : 0;
       const midH = H - topZone - bottomZone;
-      wy = isPoster
-        ? topZone + Math.max(0, Math.round((midH - winH) / 2))
-        : Math.round((H - winH) / 2);
-      rctx.drawImage(src, 0, wy, W, winH);
+      const winAreaH = isPoster ? midH : H;
+      const fitH = Math.round((W * sh) / sw);
+      if (fitH > winAreaH) {
+        // Portrait source: cover-crop into the window area (centered).
+        const scale = Math.max(W / sw, winAreaH / sh);
+        const dw = Math.round(sw * scale);
+        const dh = Math.round(sh * scale);
+        rctx.drawImage(src, Math.round((W - dw) / 2), topZone + Math.round((winAreaH - dh) / 2), dw, dh);
+        wy = topZone;
+        winH = winAreaH;
+      } else {
+        // Landscape/square source: fit-width, centered (unchanged).
+        wy = isPoster ? topZone + Math.max(0, Math.round((midH - fitH) / 2)) : Math.round((H - fitH) / 2);
+        winH = fitH;
+        rctx.drawImage(src, 0, wy, W, winH);
+      }
       rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
       rctx.lineWidth = 2;
       rctx.strokeRect(0, wy, W, winH);
@@ -1444,24 +1461,42 @@ export default function App() {
 
   const shareRec = useCallback(async () => {
     if (!recBlob) return;
+    // The File MUST carry an explicit MIME type — Android Chrome rejects
+    // typeless File objects during share() validation (canShare passes but
+    // share throws NotSupportedError).
+    const file = new File([recBlob.blob], recBlob.filename, {
+      type: recBlob.blob.type || 'application/octet-stream',
+    });
+    const brandText = 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com';
     try {
       await navigator.share({
-        files: [new File([recBlob.blob], recBlob.filename)],
+        files: [file],
         title: 'Gesture Synth Weld — hand gesture music synthesizer',
-        text: 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com',
+        text: brandText,
       });
       setShareFailed(false);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return; // user cancelled
-      // e.g. NotSupportedError — the browser claims support but can't share
-      setShareFailed(true);
+      // Files share rejected (NotSupportedError etc.) — retry text-only so
+      // the brand message still reaches the share sheet.
+      try {
+        await navigator.share({
+          title: 'Gesture Synth Weld — hand gesture music synthesizer',
+          text: brandText,
+          url: 'https://gesturesynthweld.com',
+        });
+        setShareFailed(false);
+      } catch (e2) {
+        if (e2 instanceof DOMException && e2.name === 'AbortError') return;
+        setShareFailed(true);
+      }
     }
   }, [recBlob]);
 
   const canFileShare = !!recBlob &&
     typeof navigator.share === 'function' &&
     (typeof navigator.canShare !== 'function' ||
-      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename)] }));
+      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename, { type: recBlob.blob.type || 'application/octet-stream' })] }));
 
   // Start the actual recording (audio via Tone.Recorder; video/skeleton via
   // MediaRecorder on the composited recording canvas + audio tap).
@@ -1746,13 +1781,67 @@ export default function App() {
             <span className="divider" />
             <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
-            <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
+            <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+              {/* Hand-skeleton mark: bones + joint dots (matches the app's skeleton language) */}
+              <svg width="17" height="19" viewBox="0 0 24 24" fill="none">
+                <g stroke="#00ffcc" strokeWidth="1.5" strokeLinecap="round">
+                  <path d="M11.5 21 L11.5 16 M11.5 16 L8.5 14.5 M8.5 14.5 L6 12 M6 12 L5 9.5" />
+                  <path d="M10.8 15.5 L10.3 11 M10.3 11 L9.8 7 M9.8 7 L9.8 4.5" />
+                  <path d="M11.5 15.5 L11.5 10.5 M11.5 10.5 L11.8 6.5 M11.8 6.5 L11.8 3" />
+                  <path d="M12.2 15.5 L13.2 11 M13.2 11 L13.9 7 M13.9 7 L14.2 4.5" />
+                  <path d="M12.8 16 L14.8 12.5 M14.8 12.5 L16.2 9.5 M16.2 9.5 L17.2 8" />
+                </g>
+                <g fill="#00ffcc">
+                  {[[11.5,21],[11.5,16],[8.5,14.5],[6,12],[5,9.5],[10.8,15.5],[10.3,11],[9.8,7],[9.8,4.5],[11.5,15.5],[11.5,10.5],[11.8,6.5],[11.8,3],[12.2,15.5],[13.2,11],[13.9,7],[14.2,4.5],[12.8,16],[14.8,12.5],[16.2,9.5],[17.2,8]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1" />)}
+                </g>
+              </svg>
+            </button>
             <span className="divider" />
-            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>{isRecording ? `${recordingTime}s` : '●'}</button>
-            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
+            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>
+              {/* Camera + cross — unmistakably "no camera" (vs the record capsule) */}
+              <svg width="18" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="2.5" y="7" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M7.5 7 L8.7 4.6 L13.3 4.6 L14.5 7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                <circle cx="9.5" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+                <line x1="20" y1="4" x2="4.5" y2="20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+              {/* Full-circle gear — one big toothed wheel (Apple-style), chrome gradient */}
+              <svg width="19" height="19" viewBox="0 0 24 24">
+                <defs>
+                  <linearGradient id="gearMetal" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#ffffff" />
+                    <stop offset="0.35" stopColor="#d8ecff" />
+                    <stop offset="0.6" stopColor="#7fb8e8" />
+                    <stop offset="0.85" stopColor="#eef8ff" />
+                    <stop offset="1" stopColor="#a8cde8" />
+                  </linearGradient>
+                </defs>
+                <path fill="url(#gearMetal)" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2zm7.14 2.67a7.6 7.6 0 0 0-.14-1.5l2.1-1.63-2.08-3.6-2.47 1a7.7 7.7 0 0 0-1.3-.75L14.9 2h-4.2l-.36 2.6a7.7 7.7 0 0 0-1.3.75l-2.47-1-2.08 3.6L6.6 9.57a7.6 7.6 0 0 0-.14 1.5c0 .5.05 1 .14 1.5l-2.1 1.63 2.08 3.6 2.47-1c.4.3.84.55 1.3.75l.36 2.6h4.2l.36-2.6c.46-.2.9-.44 1.3-.75l2.47 1 2.08-3.6-2.1-1.63c.09-.5.14-1 .14-1.5z" />
+              </svg>
+            </button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
-            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
+            {/* Record capsule — a horizontal bar with a red dot (REC), the most
+                prominent button at the end of the toolbar. Shows countdown
+                seconds while recording. */}
+            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
+              {isRecording ? `${recordingTime}s` : (
+                <svg width="19" height="13" viewBox="0 0 18 13">
+                  <defs>
+                    <linearGradient id="recMetal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor="#ffffff" />
+                      <stop offset="0.4" stopColor="#d8ecff" />
+                      <stop offset="0.65" stopColor="#7fb8e8" />
+                      <stop offset="1" stopColor="#a8cde8" />
+                    </linearGradient>
+                  </defs>
+                  <rect x="1" y="1" width="16" height="11" rx="5.5" fill="url(#recMetal)" />
+                  <circle cx="9" cy="6.5" r="2.6" fill="#ff3b5c" />
+                </svg>
+              )}
+            </button>
           </div>
 
           {/* Settings panel — only for Gesture mode */}

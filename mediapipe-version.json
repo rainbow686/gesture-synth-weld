@@ -1,9 +1,9 @@
 {
-  "tasksVision": "0.10.35",
-  "servedAt": "v0.10.35",
+  "tasksVision": "1.0.1",
+  "servedAt": "v1.0.1",
   "lastUpdated": "2026-08-02",
   "sources": {
-    "wasm": "node_modules/@mediapipe/tasks-vision/wasm/ (npm @mediapipe/tasks-vision@0.10.35)",
+    "wasm": "node_modules/@mediapipe/tasks-vision/wasm/ (npm @mediapipe/tasks-vision@1.0.1)",
     "model": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
   },
   "model": {
@@ -11,11 +11,11 @@
     "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
   },
   "wasm": {
-    "vision_wasm_internal.js": "e7fd9858e8e8f221d9b96eddc11f8e077f263e0b7bbd79d3cbe882b134274f8c",
-    "vision_wasm_internal.wasm": "6a5c64584c2ab61c763b6e204afbdbc7ce1caf7f5216187322bca8df94f646bc",
-    "vision_wasm_nosimd_internal.js": "438d1fe8ff7f4d946025bc211c291543c037d8a3785ed4eee60f1f521b236296",
-    "vision_wasm_nosimd_internal.wasm": "8a3092d34c79d3f57e6ba8592105e8a90f6b07c27891ffecd14cca428bfd3e31",
-    "vision_wasm_module_internal.js": "1f1d6215324a1fe62f6742d49a3db911170987ca18ad8c1b75f1a1c82acf2b44",
-    "vision_wasm_module_internal.wasm": "617b8e0248dbd27e9d7ece4218004eae4cefb499196d1bb4fa0e3fef21708756"
+    "vision_wasm_internal.js": "e170ee67dd4e16c1a6fcd8840a206687e5a59b22c20e4a902bc445b095454d73",
+    "vision_wasm_internal.wasm": "8da277a733926eacd0474b8704b36742d6ec3231c57a860c5b889dff8f1df886",
+    "vision_wasm_nosimd_internal.js": "e81d715a3d42cc3373602eb2f7aff795d164934db680e32496b65dab537f9658",
+    "vision_wasm_nosimd_internal.wasm": "a28483cd42e74e855bf5ebdb6b40d9b66a5b49e35e95020bc97669e6822a3192",
+    "vision_wasm_module_internal.js": "da8934057f147b622e82cfb4c0dbd85461c598e268588b5a8ba9ca963a8ff82d",
+    "vision_wasm_module_internal.wasm": "2dabd8e23c60984628beb7bb338764c81a08e6837145273f59578684b5d53c1b"
   }
 }

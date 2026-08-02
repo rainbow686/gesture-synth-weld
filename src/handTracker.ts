@@ -10,8 +10,8 @@ import type { HandData, LandmarkPoint } from './types';
 // Self-hosted, no third-party CDNs. The versioned directory is part of the
 // URL: browsers cache these files for 1 year (immutable, see vercel.json),
 // so a version bump MUST change this path — see CLAUDE.md update procedure.
-const MODEL_PATH = '/v0.10.35/wasm';
-const MODEL_ASSET_PATH = '/v0.10.35/hand_landmarker.task';
+const MODEL_PATH = '/v1.0.1/wasm';
+const MODEL_ASSET_PATH = '/v1.0.1/hand_landmarker.task';
 
 let handLandmarker: HandLandmarker | null = null;
 let initPromise: Promise<HandLandmarker> | null = null;

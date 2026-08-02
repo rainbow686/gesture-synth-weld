@@ -1803,16 +1803,17 @@ export default function App() {
               </svg>
             </button>
             <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
-              {/* Gear as line frame: teeth + ring, center hole (abstract) */}
+              {/* Gear like the iOS Settings / clockwork cog: a thick ring
+                  with many short fat teeth and an open center */}
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="6.3" stroke="currentColor" strokeWidth="1.6" />
-                {[0, 45, 90, 135, 180, 225, 270, 315].map(a => {
-                  const r = (a * Math.PI) / 180;
+                <circle cx="12" cy="12" r="5.7" stroke="currentColor" strokeWidth="2.7" />
+                {Array.from({ length: 12 }, (_, i) => {
+                  const a = (i * 30 * Math.PI) / 180;
                   return (
-                    <line key={a}
-                      x1={12 + 5.3 * Math.cos(r)} y1={12 + 5.3 * Math.sin(r)}
-                      x2={12 + 8.8 * Math.cos(r)} y2={12 + 8.8 * Math.sin(r)}
-                      stroke="currentColor" strokeWidth="1.9" />
+                    <line key={i}
+                      x1={12 + 5.7 * Math.cos(a)} y1={12 + 5.7 * Math.sin(a)}
+                      x2={12 + 8.4 * Math.cos(a)} y2={12 + 8.4 * Math.sin(a)}
+                      stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" />
                   );
                 })}
               </svg>

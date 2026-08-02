@@ -10,11 +10,6 @@ import { ARP_SPEED_MS } from './types';
 
 export type TimbreType = 'gesture' | 'theremin';
 
-export const TIMBRE_OPTIONS: { id: TimbreType; label: string; icon: string }[] = [
-  { id: 'gesture', label: 'Gesture', icon: '' },
-  { id: 'theremin', label: 'Theremin', icon: '' },
-];
-
 interface Instrument {
   triggerAttack: (freq: number, time?: number, velocity?: number) => void;
   triggerRelease: (freq: number, time?: number) => void;
@@ -143,7 +138,7 @@ export class AudioEngine {
   }
 
   async setTimbre(timbre: TimbreType): Promise<void> {
-    if (this.currentTimbre === timbre) return;
+    if (!this.initCalled || this.currentTimbre === timbre) return;
 
     this.releaseAllNotes();
     this.currentTimbre = timbre;
@@ -375,6 +370,7 @@ export class AudioEngine {
   }
 
   stopAll(): void {
+    if (!this.initCalled) return;
     this.stopArpeggiator();
     this.releaseAllNotes();
     this.stopBassImmediately();
@@ -462,7 +458,12 @@ export class AudioEngine {
         this.arpIndex = 0; // loop
       }
       const t = Tone.now();
-      // Attack next note without releasing previous — PolySynth handles voice naturally
+      const prevNote = this.arpNotes[(this.arpIndex - 1 + this.arpNotes.length) % this.arpNotes.length];
+      // Release the previous note before attacking the next — the synth
+      // envelope sustains at 1.0, so without this each cycle would stack
+      // another voice and the arpeggio turns into a wall of sound.
+      instrument.triggerRelease(prevNote, t);
+      this.activeNotes.delete(prevNote);
       instrument.triggerAttack(this.arpNotes[this.arpIndex], t, 0.7);
       this.activeNotes.add(this.arpNotes[this.arpIndex]);
       this.arpIndex++;

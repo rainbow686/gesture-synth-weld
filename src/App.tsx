@@ -147,6 +147,11 @@ export default function App() {
     rightHandHistoryRef.current = [];
     pinkyMemoryRef.current = 0;
     lastChordRef.current = '';
+    // Full audio reset on mode switch: clears the engine chord dedup key
+    // (otherwise a Gesture→Piano→Gesture round-trip with the same chord
+    // goes silent) and stops the auto bass (otherwise it drones on after
+    // leaving Gesture mode).
+    audioEngine.stopAll();
   }, [synthState.appMode]);
 
   /* ─── Metronome effect ──────────────────────────────────────────────── */
@@ -161,84 +166,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metronomeOn, metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound]);
 
-  /* ─── Keyboard Controls ──────────────────────────────────────────── */
+  /* ─── Keyboard Controls (Space: stop, Esc: reset) ──────────────────── */
+  // Playing shortcuts (1-7, ↑/↓, T/Y, A, B) were removed: both hands must
+  // stay in front of the camera while playing, so the keyboard is
+  // unreachable mid-performance, and no competitor offers keyboard playing
+  // (see CLAUDE.md "Competitors"). Only control keys that work anytime
+  // (browser focus) remain.
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent default behavior for certain keys
-      if (['ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-        e.preventDefault();
-      }
-
-      const s = synthRef.current;
-
-      // 1-7: Select chord (I through vii°)
-      if (e.key >= '1' && e.key <= '7') {
-        const idx = parseInt(e.key) - 1;
-        const modeArg = s.mode === 'neutral' ? undefined : s.mode as 'major' | 'minor';
-        const chordName = getChordName(idx, modeArg, s.keyOffset);
-
-        setSynthState(prev => ({ ...prev, chordIndex: idx, chordName, isPlaying: true }));
-        audioEngine.init().then(() => {
-          audioEngine.playChord(idx, 'sine', modeArg, 0, s.keyOffset, s.lockedChordStyle, s.arpeggiate, s.arpSpeed);
-        });
-        return;
-      }
-
-      // Arrow Up/Down: Volume control
-      if (e.key === 'ArrowUp') {
-        const v = Math.min(1, s.volume + 0.1);
-        setSynthState(prev => ({ ...prev, volume: v }));
-        audioEngine.setVolume(v);
-        return;
-      }
-      if (e.key === 'ArrowDown') {
-        const v = Math.max(0, s.volume - 0.1);
-        setSynthState(prev => ({ ...prev, volume: v }));
-        audioEngine.setVolume(v);
-        return;
-      }
-
-      // T/Y: Major/Minor mode
-      if (e.key === 't' || e.key === 'T') {
-        setSynthState(prev => {
-          const next = { ...prev, mode: 'major' as const };
-          next.chordName = getChordName(prev.chordIndex, 'major', prev.keyOffset);
-          if (prev.isPlaying) {
-            audioEngine.playChord(prev.chordIndex, 'sine', 'major', 0, prev.keyOffset, prev.lockedChordStyle, prev.arpeggiate, prev.arpSpeed);
-          }
-          return next;
-        });
-        return;
-      }
-      if (e.key === 'y' || e.key === 'Y') {
-        setSynthState(prev => {
-          const next = { ...prev, mode: 'minor' as const };
-          next.chordName = getChordName(prev.chordIndex, 'minor', prev.keyOffset);
-          if (prev.isPlaying) {
-            audioEngine.playChord(prev.chordIndex, 'sine', 'minor', 0, prev.keyOffset, prev.lockedChordStyle, prev.arpeggiate, prev.arpSpeed);
-          }
-          return next;
-        });
-        return;
-      }
-
-      // Q/W/E/R/V: No longer used (timbre selection removed)
-
-      // A: Toggle arpeggiator
-      if (e.key === 'a' || e.key === 'A') {
-        setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }));
-        return;
-      }
-
-      // B: Toggle auto bass
-      if (e.key === 'b' || e.key === 'B') {
-        setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }));
-        return;
-      }
-
       // Space: Stop all notes
       if (e.key === ' ') {
+        e.preventDefault();
         audioEngine.stopAll();
         setSynthState(prev => ({ ...prev, isPlaying: false }));
         return;
@@ -301,6 +240,10 @@ export default function App() {
 
     const s = synthRef.current;
 
+    // Theremin mode uses the sine instrument; every other mode the sawtooth.
+    // Idempotent, so calling it per frame is free.
+    audioEngine.setTimbre(s.appMode === 'theremin' ? 'theremin' : 'gesture');
+
     // ─── Theremin Mode (single hand) ───────────────────────────────
     if (s.appMode === 'theremin') {
       // Dual-hand control: right hand = pitch, left hand = volume
@@ -353,6 +296,14 @@ export default function App() {
         // Use committed finger count for note selection
         const stableFingerCount = stabilizer.committed ?? rawFingerCount;
 
+        // Left fist (0 fingers) = silence, consistent with the other modes
+        if (stableFingerCount === 0) {
+          audioEngine.stopAll();
+          lastChordRef.current = '';
+          setSynthState(prev => ({ ...prev, isPlaying: false }));
+          return;
+        }
+
         // Each finger count maps to a different note interval
         const interval = FINGER_TO_NOTE_INTERVAL[stableFingerCount] ?? 0;
         const midiNote = 60 + interval + s.keyOffset; // Middle C + interval + key offset
@@ -385,13 +336,10 @@ export default function App() {
     // Left Hand → Harmony (scale degree + mode)
     let chordIndex = s.chordIndex;
     let mode: 'major' | 'minor' | 'neutral' = s.mode;
-    let hasValidChord = false;
-
     if (leftHand) {
       // Apply time-based stabilizer on chordIndex (catches VI/VII changes too)
       const now = performance.now();
       const stabilizer = stabilizerRef.current;
-      stabilizer.lastSeen = now;
 
       // Compute raw chord index including VI/VII special gestures
       const extended = leftHand.extendedFingers;
@@ -431,7 +379,6 @@ export default function App() {
       }
 
       chordIndex = stabilizer.committed ?? rawChordIndex;
-      hasValidChord = leftHand.fingerCount > 0; // 0 fingers (fist) = no valid chord
 
       if (s.leftHandMode === 'scaleTilt') {
         // Wrist tilt → major/minor (>=0 = major, <0 = minor like competitor)
@@ -489,12 +436,10 @@ export default function App() {
     // Right thumb extended → octave down (matching competitor)
     const thumbDown = !!(rightHand?.extendedFingers.includes('thumb'));
 
-    // CRITICAL: Sound only plays if BOTH hands have at least 1 finger raised
-    // Left fist or right fist = immediate stop (use raw count for instant response)
+    // CRITICAL: Sound only plays if both hands are present and left has fingers.
+    // Left fist mutes; right fist does NOT stop sound — only left fist or
+    // hand loss stops (grace period below).
     const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
-    const rightFist = rightHand ? rightHand.fingerCount === 0 : true;
-    // isPlaying: both hands present + left has fingers.
-    // Right fist does NOT stop sound — only left fist or hand loss stops.
     const isPlaying = !!(leftHand && rightHand && !leftFist);
     const chordName = getChordName(
       chordIndex,
@@ -516,12 +461,13 @@ export default function App() {
     // Create chord fingerprint to detect actual changes
     const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
 
-    // Right fist: hand IS present but non-thumb fingers = 0
-    // (rightHand check prevents matching when right hand is completely missing)
-    // Play chord - only if chord actually changed
-    // isPlaying ignores right fist — sound continues, right hand just
-    // changes octave (thumb) and chord type. Only left fist stops sound.
+    // Play chord only if the fingerprint actually changed (volume is
+    // intentionally excluded so height changes don't re-trigger).
     if (isPlaying) {
+      // Refresh the grace-period clock — sound continues while this holds.
+      // (Updating it only here means a missing right hand stops the music
+      // after GRACE_MS instead of sustaining forever on a left hand alone.)
+      stabilizerRef.current.lastSeen = performance.now();
       if (chordFingerprint !== lastChordRef.current) {
         lastChordRef.current = chordFingerprint;
         audioEngine.playChord(
@@ -701,7 +647,10 @@ export default function App() {
         throw new Error('Your browser does not support camera access.');
       }
 
-      await initHandTracking();
+      // Download the model in parallel with the camera permission prompt
+      // (prefetch may have already started it on button hover/touch)
+      const trackingPromise = initHandTracking();
+      trackingPromise.catch(() => {}); // errors surface via the await below
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
@@ -733,6 +682,8 @@ export default function App() {
         throw new Error(`Video playback failed: ${getErrorMessage(playErr)}`);
       }
 
+      // Wait for hand tracking before starting the detection loop
+      await trackingPromise;
       await audioEngine.init();
 
       setIsRunning(true);
@@ -762,6 +713,16 @@ export default function App() {
         }
       }
     }
+  }, []);
+
+  /* ─── Warm up hand tracking on button intent ───────────────────────── */
+
+  // Starts the ~19 MB model + WASM download the moment the user shows
+  // intent (hover / touch / focus on the Enable Camera button) so the
+  // actual click has nothing left to wait for. Users who never approach
+  // the button download nothing. Errors surface at startCamera.
+  const prefetchTracking = useCallback(() => {
+    initHandTracking().catch(() => {});
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -1010,9 +971,9 @@ export default function App() {
             </table>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
-              <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor<br/>
+              <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor (Scale+Tilt mode)<br/>
               <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
-              <span style={{ color: '#b0b0d0' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
+              <span style={{ color: '#b0b0d0' }}>Both hands required · Left fist mutes · Right fist continues · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
             </div>
 
             <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
@@ -1043,7 +1004,14 @@ export default function App() {
             <div className="camera-placeholder-brand">
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
-            <button className="enable-camera-btn" onClick={startCamera} disabled={isLoading}>
+            <button
+              className="enable-camera-btn"
+              onClick={startCamera}
+              disabled={isLoading}
+              onMouseEnter={prefetchTracking}
+              onFocus={prefetchTracking}
+              onTouchStart={prefetchTracking}
+            >
               <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
                 <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
               </svg>

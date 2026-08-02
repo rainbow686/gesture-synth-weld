@@ -417,6 +417,29 @@ body {
   font-size: 0.8rem;
 }
 
+/* Flat icon buttons (gear / stop-camera): the icon IS the shape — no
+   circle frame around it (the circle read as "dot in a circle" on small
+   screens and clashed with the record button). Active = soft glow, no ring. */
+.frost-toolbar button.icon-btn.flat-icon {
+  background: transparent;
+  border-color: transparent;
+}
+.frost-toolbar button.icon-btn.flat-icon.active {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(0, 255, 204, 0.35);
+}
+
+/* Record button: a capsule (pill) so it stands out from every round
+   button — unambiguous "this records" */
+.frost-toolbar button.icon-btn.rec-capsule {
+  width: 50px;
+  height: 27px;
+  border-radius: 14px;
+  padding: 0 2px;
+  font-size: 0.72rem;
+}
+
 .frost-toolbar button.icon-btn.recording {
   background: rgba(255, 60, 60, 0.15);
   border-color: rgba(255, 60, 60, 0.4);
@@ -848,6 +871,12 @@ body {
     width: 26px;
     height: 26px;
     font-size: 0.65rem;
+  }
+  .frost-toolbar button.icon-btn.rec-capsule {
+    width: 44px;
+    height: 23px;
+    border-radius: 12px;
+    font-size: 0.62rem;
   }
   .frost-toolbar .divider {
     height: 12px;

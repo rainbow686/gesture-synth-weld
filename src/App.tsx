@@ -1782,33 +1782,54 @@ export default function App() {
             <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
-              {/* Hand-skeleton mark: bones + joint dots (matches the app's skeleton language) */}
-              <svg width="17" height="19" viewBox="0 0 24 24" fill="none">
-                <g stroke="#00ffcc" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M11.5 21 L11.5 16 M11.5 16 L8.5 14.5 M8.5 14.5 L6 12 M6 12 L5 9.5" />
-                  <path d="M10.8 15.5 L10.3 11 M10.3 11 L9.8 7 M9.8 7 L9.8 4.5" />
-                  <path d="M11.5 15.5 L11.5 10.5 M11.5 10.5 L11.8 6.5 M11.8 6.5 L11.8 3" />
-                  <path d="M12.2 15.5 L13.2 11 M13.2 11 L13.9 7 M13.9 7 L14.2 4.5" />
-                  <path d="M12.8 16 L14.8 12.5 M14.8 12.5 L16.2 9.5 M16.2 9.5 L17.2 8" />
+              {/* Hand-skeleton mark — chrome (liquid metal) like the rest of the icons */}
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+                <defs>
+                  <linearGradient id="skelMetal" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#ffffff" />
+                    <stop offset="0.35" stopColor="#d8ecff" />
+                    <stop offset="0.6" stopColor="#7fb8e8" />
+                    <stop offset="0.85" stopColor="#eef8ff" />
+                    <stop offset="1" stopColor="#a8cde8" />
+                  </linearGradient>
+                </defs>
+                <path d="M7.2 20.8 L5.9 16.9 C5.3 15 6.3 13.4 8.6 13.1 L14.4 13 C17.3 13 18.9 14.6 19.3 17.1 L19.6 19.4 C19.8 20.6 18.4 21.2 16.8 21.1 L9.4 21.2 Z"
+                  stroke="url(#skelMetal)" strokeWidth="1.4" strokeLinejoin="round" />
+                <g stroke="url(#skelMetal)" strokeWidth="1.5" strokeLinecap="round">
+                  <path d="M9.6 14.3 L7.3 12.6 L5.2 10.7 L4.2 8.9" />
+                  <path d="M10.7 13.3 L10.5 9.9 L10.4 7.2 L10.4 4.9" />
+                  <path d="M12.2 13.1 L12.3 9.2 L12.4 6.1 L12.4 3.6" />
+                  <path d="M13.7 13.3 L13.9 9.9 L14.1 7.2 L14.3 4.9" />
+                  <path d="M15.1 13.7 L16.2 10.9 L17.1 8.5 L17.9 6.7" />
                 </g>
-                <g fill="#00ffcc">
-                  {[[11.5,21],[11.5,16],[8.5,14.5],[6,12],[5,9.5],[10.8,15.5],[10.3,11],[9.8,7],[9.8,4.5],[11.5,15.5],[11.5,10.5],[11.8,6.5],[11.8,3],[12.2,15.5],[13.2,11],[13.9,7],[14.2,4.5],[12.8,16],[14.8,12.5],[16.2,9.5],[17.2,8]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1" />)}
+                <g fill="url(#skelMetal)">
+                  {[[9.6,14.3],[10.7,13.3],[12.2,13.1],[13.7,13.3],[15.1,13.7],[7.3,12.6],[5.2,10.7],[4.2,8.9],[10.5,9.9],[10.4,7.2],[10.4,4.9],[12.3,9.2],[12.4,6.1],[12.4,3.6],[13.9,9.9],[14.1,7.2],[14.3,4.9],[16.2,10.9],[17.1,8.5],[17.9,6.7],[11,21.2]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1" />)}
                 </g>
               </svg>
             </button>
             <span className="divider" />
-            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>
-              {/* Camera + cross — unmistakably "no camera" (vs the record capsule) */}
-              <svg width="18" height="15" viewBox="0 0 24 24" fill="none">
-                <rect x="2.5" y="7" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.6" />
-                <path d="M7.5 7 L8.7 4.6 L13.3 4.6 L14.5 7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                <circle cx="9.5" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-                <line x1="20" y1="4" x2="4.5" y2="20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <button className="icon-btn flat-icon" onClick={stopCamera} data-tip="Stop camera and audio">
+              {/* Camera + cross — chrome body, magenta slash (no circle frame:
+                  the icon itself is the shape) */}
+              <svg width="23" height="19" viewBox="0 0 24 24" fill="none">
+                <defs>
+                  <linearGradient id="camMetal" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#ffffff" />
+                    <stop offset="0.35" stopColor="#d8ecff" />
+                    <stop offset="0.6" stopColor="#7fb8e8" />
+                    <stop offset="0.85" stopColor="#eef8ff" />
+                    <stop offset="1" stopColor="#a8cde8" />
+                  </linearGradient>
+                </defs>
+                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="url(#camMetal)" strokeWidth="1.7" />
+                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="url(#camMetal)" strokeWidth="1.7" strokeLinejoin="round" />
+                <circle cx="9.3" cy="11.6" r="2.4" stroke="url(#camMetal)" strokeWidth="1.7" />
+                <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2.1" strokeLinecap="round" />
               </svg>
             </button>
-            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
-              {/* Full-circle gear — one big toothed wheel (Apple-style), chrome gradient */}
-              <svg width="19" height="19" viewBox="0 0 24 24">
+            <button className="icon-btn flat-icon" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? { color: 'var(--neon-cyan)' } : {}}>
+              {/* One big toothed gear (Apple-style) — chrome gradient, no circle frame */}
+              <svg width="27" height="27" viewBox="0 0 24 24">
                 <defs>
                   <linearGradient id="gearMetal" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0" stopColor="#ffffff" />
@@ -1826,9 +1847,10 @@ export default function App() {
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
                 seconds while recording. */}
-            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
+            <button className={`icon-btn rec-capsule ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
               {isRecording ? `${recordingTime}s` : (
-                <svg width="19" height="13" viewBox="0 0 18 13">
+                // Pill (capsule) — reads as "REC" at a glance, unlike any round button
+                <svg width="46" height="21" viewBox="0 0 46 21">
                   <defs>
                     <linearGradient id="recMetal" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0" stopColor="#ffffff" />
@@ -1837,8 +1859,9 @@ export default function App() {
                       <stop offset="1" stopColor="#a8cde8" />
                     </linearGradient>
                   </defs>
-                  <rect x="1" y="1" width="16" height="11" rx="5.5" fill="url(#recMetal)" />
-                  <circle cx="9" cy="6.5" r="2.6" fill="#ff3b5c" />
+                  <rect x="1" y="1" width="44" height="19" rx="9.5" fill="url(#recMetal)" />
+                  <circle cx="12" cy="10.5" r="3.3" fill="#ff3b5c" />
+                  <text x="25.5" y="13.8" textAnchor="middle" fontSize="8" fontWeight="700" fill="#0d1524" fontFamily="'JetBrains Mono', monospace" letterSpacing="0.6">REC</text>
                 </svg>
               )}
             </button>

@@ -458,12 +458,18 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
 
   // ─── Onboarding (first visit) ─────────────────────────────────────────
-  // First-visit card: shown until the user opens the camera or dismisses
-  // it (localStorage, once). Hands-ready badge: once per session, the
-  // first time both hands are stably detected.
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    try { return !localStorage.getItem('gswOnboarded'); } catch { return true; }
+  // No popups on first visit — a newcomer's intent is to try, not to
+  // learn, and a popup just gets dismissed. The only nudge is a one-time
+  // breathing glow on the ? help button so it's noticed. The hands-ready
+  // badge appears once per session when both hands are first detected.
+  const [showHelpPulse, setShowHelpPulse] = useState(() => {
+    try { return !localStorage.getItem('gswHelpPulse'); } catch { return false; }
   });
+  useEffect(() => {
+    if (showHelpPulse) {
+      try { localStorage.setItem('gswHelpPulse', '1'); } catch { /* private mode */ }
+    }
+  }, [showHelpPulse]);
   const [showHandsReady, setShowHandsReady] = useState(false);
   const handsReadyTimerRef = useRef<number | null>(null);
   // Once per session: whether the hands-ready badge was already shown
@@ -471,43 +477,41 @@ export default function App() {
   const [handsReadyShown, setHandsReadyShown] = useState(() => {
     try { return sessionStorage.getItem('gswHandsReady') === '1'; } catch { return false; }
   });
-  const dismissOnboarding = useCallback(() => {
-    setShowOnboarding(false);
-    try { localStorage.setItem('gswOnboarded', '1'); } catch { /* private mode */ }
-  }, []);
 
-  // Help-panel hand demo: loops "1 finger → I chord … 5 fingers → V chord"
-  const CHORD_DEMO = [
-    '1 finger → I chord',
-    '2 fingers → II chord',
-    '3 fingers → III chord',
-    '4 fingers → IV chord',
-    '5 fingers → V chord',
-    'wrist tilt → major / minor',
-  ];
+  // Help-panel hand demo: 8 steps — left hand picks the chord degree,
+  // right hand picks the chord type (1=triad, 2=1st inversion, 3=7th,
+  // 4=9th); both hands move together as in real play, and the matching
+  // table row highlights.
+  const HELP_DEMO_STEPS = [
+    { left: ['index'], right: ['index'], row: 0, label: 'I · triad' },
+    { left: ['index', 'middle'], right: ['index', 'middle'], row: 1, label: 'II · 1st inversion' },
+    { left: ['index', 'middle', 'ring'], right: ['index', 'middle', 'ring'], row: 2, label: 'III · 7th' },
+    { left: ['index', 'middle', 'ring', 'pinky'], right: ['index', 'middle', 'ring', 'pinky'], row: 3, label: 'IV · 9th' },
+    { left: ['index', 'middle', 'ring', 'pinky', 'thumb'], right: ['index', 'middle', 'ring', 'pinky'], row: 4, label: 'V · 9th' },
+    { left: ['index', 'pinky'], right: ['index'], row: 5, label: 'VI · triad' },
+    { left: ['index', 'pinky', 'thumb'], right: ['index', 'middle', 'ring'], row: 6, label: 'VII · 7th' },
+    { left: [], right: [], row: 7, label: 'Left fist = mute' },
+  ] as const;
   const [demoStep, setDemoStep] = useState(0);
   useEffect(() => {
     if (!showHelp) return;
-    const t = window.setInterval(() => setDemoStep((s) => (s + 1) % CHORD_DEMO.length), 1400);
+    const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
     return () => window.clearInterval(t);
   }, [showHelp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Full hand silhouette (outline style) for the Help demo — each finger
-  // has a raised (straight, bold) and a relaxed (short, dim) path, so the
-  // viewer can clearly see which fingers are up.
-  const HAND_PALM = 'M28 66 L28 94 Q28 110 42 110 L60 110 Q74 110 74 94 L74 64 Q74 60 70 60 L32 60 Q28 60 28 66 Z';
+  // Hand silhouette (outline style) for the Help demo — drawn as a real
+  // hand back: narrow wrist, widest mid-palm, webbed finger roots, and
+  // the thumb leaving the side of the palm (not the finger line). Each
+  // finger has a raised (straight, bold) and a relaxed (short, dim) path.
+  const HAND_PALM = 'M44 135 L44 120 Q40 100 40 88 L38 80 Q26 72 22 60 Q21 56 25 54 Q28 52 30 56 Q33 48 39 50 Q42 52 42 58 L45 62 Q48 58 52 61 Q55 58 59 61 Q62 58 66 61 Q71 63 73 70 L76 88 Q77 104 73 118 Q71 130 68 135 Z';
   const HAND_FINGERS = {
-    thumb: { up: 'M31 64 L21 52 L18 42 L19 32', down: 'M31 64 Q25 60 24 54' },
-    index: { up: 'M43 60 L40 42 L42 28 L41 16', down: 'M43 60 Q41 53 43 47' },
-    middle: { up: 'M50 60 L50 40 L50 25 L50 13', down: 'M50 60 Q49 53 50 46' },
-    ring: { up: 'M57 60 L60 42 L58 28 L59 16', down: 'M57 60 Q59 53 57 47' },
-    pinky: { up: 'M64 62 L67 48 L65 38 L66 29', down: 'M64 62 Q66 55 64 48' },
+    thumb: { up: 'M39 74 L27 62 L24 49', down: 'M39 74 Q34 71 33 65' },
+    index: { up: 'M48 61 L46 46 L48 32 L47 20', down: 'M48 61 Q45 55 47 49' },
+    middle: { up: 'M55 61 L55 44 L55 28 L55 15', down: 'M55 61 Q53 55 55 48' },
+    ring: { up: 'M62 61 L64 45 L62 31 L63 21', down: 'M62 61 Q64 55 62 49' },
+    pinky: { up: 'M68 63 L71 49 L69 39 L70 30', down: 'M68 63 Q70 56 68 50' },
   } as const;
   const FINGER_ORDER = ['thumb', 'index', 'middle', 'ring', 'pinky'] as const;
-  // 1-4 fingers = index onward; 5 fingers (and the tilt step) = all
-  const raisedSet = demoStep >= CHORD_DEMO.length - 2
-    ? new Set(FINGER_ORDER)
-    : new Set(FINGER_ORDER.slice(1, 1 + demoStep + 1));
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const [showSettings, setShowSettings] = useState(!isMobile);
@@ -1507,8 +1511,8 @@ export default function App() {
 
       setIsRunning(true);
       setIsLoading(false);
-      // Camera is up — the first-visit card has done its job
-      dismissOnboarding();
+      // Playing now — the help-button pulse has served its purpose
+      setShowHelpPulse(false);
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       setIsLoading(false);
@@ -1534,7 +1538,7 @@ export default function App() {
         }
       }
     }
-  }, [handleVisibility, restartCameraStream, dismissOnboarding]);
+  }, [handleVisibility, restartCameraStream]);
 
   /* ─── Warm up hand tracking on button intent ───────────────────────── */
 
@@ -1976,7 +1980,7 @@ export default function App() {
                 })}
               </svg>
             </button>
-            <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
+            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { setShowHelpPulse(false); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
@@ -2063,20 +2067,8 @@ export default function App() {
           )}
         </div>
 
-        {/* ─── Onboarding: first-visit card + hands-ready badge ──────── */}
-        {showOnboarding && !isRunning && (
-          <div className="onboard-card">
-            <div className="onboard-title">Play music with your hands</div>
-            <div className="onboard-text">
-              Left hand picks the chord — right hand shapes the sound. No instrument needed, just your hands.
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-              <button className="onboard-cta" onClick={() => { dismissOnboarding(); void startCamera(); }}>Open camera</button>
-              <button className="onboard-later" onClick={dismissOnboarding}>Not now</button>
-            </div>
-          </div>
-        )}
-
+        {/* ─── Onboarding: hands-ready badge (first stable two-hand
+                detection, once per session, 3s) ───────────────────── */}
         {showHandsReady && (
           <div className="hands-ready-badge">
             <span style={{ color: 'var(--neon-cyan)' }}>✓</span> Both hands detected — play!
@@ -2097,39 +2089,38 @@ export default function App() {
               <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
 
-            {/* How it works — hand demo (left = chord scale, right =
-                expression). Full hand silhouettes so finger count and
-                which fingers are raised are clear. The left hand raises
-                1 → 5 fingers in a loop; on the tilt step it rocks side
-                to side. */}
+            {/* How it works — two-hand demo: the left hand raises the
+                chord degree, the right hand the chord type, together as
+                in real play. The matching table row highlights. */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px' }}>
-                <svg width="42" height="50" viewBox="0 0 100 120" fill="none" style={{ flexShrink: 0, transform: 'scaleX(-1)' }}>
-                  <g className={demoStep === CHORD_DEMO.length - 1 ? 'hand-tilt' : undefined}>
-                    <path d={HAND_PALM} stroke="var(--neon-cyan)" strokeWidth="2.4" strokeLinejoin="round" />
-                    {FINGER_ORDER.map((f) => (
-                      <g key={f}>
-                        <path d={HAND_FINGERS[f].down} stroke="var(--neon-cyan)" strokeWidth="2" strokeLinecap="round" opacity="0.32" />
-                        <path d={HAND_FINGERS[f].up} stroke="var(--neon-cyan)" strokeWidth="3" strokeLinecap="round" opacity={raisedSet.has(f) ? 1 : 0} style={{ transition: 'opacity 0.25s ease' }} />
-                      </g>
-                    ))}
-                  </g>
-                </svg>
-                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chords</div>
-                  <div key={demoStep} className="demo-step-text">{CHORD_DEMO[demoStep]}</div>
-                </div>
-              </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px' }}>
-                <svg width="42" height="50" viewBox="0 0 100 120" fill="none" style={{ flexShrink: 0 }}>
-                  <path d={HAND_PALM} stroke="var(--neon-magenta)" strokeWidth="2.4" strokeLinejoin="round" />
+                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0, transform: 'scaleX(-1)' }}>
+                  <path d={HAND_PALM} stroke="var(--neon-cyan)" strokeWidth="2.4" strokeLinejoin="round" />
                   {FINGER_ORDER.map((f) => (
-                    <path key={f} d={HAND_FINGERS[f].up} stroke="var(--neon-magenta)" strokeWidth="3" strokeLinecap="round" />
+                    <g key={f}>
+                      <path d={HAND_FINGERS[f].down} stroke="var(--neon-cyan)" strokeWidth="2" strokeLinecap="round" opacity="0.32" />
+                      <path d={HAND_FINGERS[f].up} stroke="var(--neon-cyan)" strokeWidth="3" strokeLinecap="round" opacity={(HELP_DEMO_STEPS[demoStep].left as readonly string[]).includes(f) ? 1 : 0} style={{ transition: 'opacity 0.25s ease' }} />
+                    </g>
                   ))}
                 </svg>
                 <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
-                  <div style={{ color: '#d0d0e8' }}>height → volume · tilt → sweep</div>
+                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chord</div>
+                  <div key={demoStep} className="demo-step-text">{HELP_DEMO_STEPS[demoStep].label}</div>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px' }}>
+                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0 }}>
+                  <path d={HAND_PALM} stroke="var(--neon-magenta)" strokeWidth="2.4" strokeLinejoin="round" />
+                  {FINGER_ORDER.map((f) => (
+                    <g key={f}>
+                      <path d={HAND_FINGERS[f].down} stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" opacity="0.32" />
+                      <path d={HAND_FINGERS[f].up} stroke="var(--neon-magenta)" strokeWidth="3" strokeLinecap="round" opacity={(HELP_DEMO_STEPS[demoStep].right as readonly string[]).includes(f) ? 1 : 0} style={{ transition: 'opacity 0.25s ease' }} />
+                    </g>
+                  ))}
+                </svg>
+                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
+                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — type</div>
+                  <div style={{ color: '#d0d0e8' }}>height → volume</div>
                 </div>
               </div>
             </div>
@@ -2151,13 +2142,22 @@ export default function App() {
                   ['5', 'V', '5 fingers raised'],
                   ['VI', 'VI', 'Index + Pinky'],
                   ['VII', 'VII', 'Idx + Pky + Thumb'],
-                ].map(([fn, chord, gest]) => (
-                  <tr key={fn} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '3px 0', fontFamily: 'var(--font-display)', color: '#fff', fontWeight: 700, fontSize: '0.72rem' }}>{fn}</td>
-                    <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: 600 }}>{chord}</td>
-                    <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{gest}</td>
-                  </tr>
-                ))}
+                  ['0', '—', 'Fist (left) = mute'],
+                ].map(([fn, chord, gest], row) => {
+                  const active = row === HELP_DEMO_STEPS[demoStep].row;
+                  return (
+                    <tr key={fn} style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.03)',
+                      background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
+                      boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
+                      transition: 'background 0.25s ease',
+                    }}>
+                      <td style={{ padding: '3px 0', fontFamily: 'var(--font-display)', color: active ? 'var(--neon-cyan)' : '#fff', fontWeight: 700, fontSize: active ? '0.78rem' : '0.72rem' }}>{fn}</td>
+                      <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.78rem' : '0.68rem' }}>{chord}</td>
+                      <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{gest}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 

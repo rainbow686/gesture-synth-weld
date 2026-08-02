@@ -992,7 +992,9 @@ export default function App() {
       // sing-along use case). Optional: if denied or unavailable, the
       // camera keeps working and recordings are synth-only.
       try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
+        });
         micStreamRef.current = micStream;
       } catch {
         micStreamRef.current = null;
@@ -1546,7 +1548,7 @@ export default function App() {
                   <span>🎤 Include my voice — sing along with the chords</span>
                 </label>
                 <div className="rec-ratio-hint" style={{ marginTop: 4 }}>
-                  Mic level: <span style={{ color: micLevel > 0.02 ? 'var(--neon-cyan)' : '#ffb86c' }}>{micLevel > 0.02 ? `● ${Math.round(micLevel * 100)}%` : '○ silent — check system mic input'}</span>
+                  Mic level: <span style={{ color: micLevel > 0.02 ? 'var(--neon-cyan)' : '#ffb86c' }}>{micLevel > 0.02 ? `● ${Math.round(micLevel * 100)}%` : `○ ${Math.round(micLevel * 100)}% — speak to test, or check System Settings → Sound → Input`}</span>
                 </div>
               </>
             ) : (

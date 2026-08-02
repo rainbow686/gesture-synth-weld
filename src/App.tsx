@@ -97,7 +97,7 @@ function drawUrlPill(
   const pillH = fontSize + 14;
   const textMid = baseY - fontSize * 0.35; // visual center of the glyphs
   const pillTop = textMid - pillH / 2; // pill centered on the text
-  const left = centered ? anchorX - w / 2 - 14 : anchorX - w - 26;
+  const left = centered ? anchorX - w / 2 - 14 : anchorX - w - 14;
   roundRectPath(ctx, left, pillTop, w + 28, pillH, pillH / 2);
   ctx.fillStyle = 'rgba(5, 5, 15, 0.72)';
   ctx.fill();
@@ -130,15 +130,11 @@ function drawMetalBrand(
   g.addColorStop(0.7, '#eef8ff');
   g.addColorStop(1, '#a8cde8');
   ctx.fillStyle = g;
-  // fixed faint cyan glow (not animated)
-  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-  ctx.shadowBlur = 8;
   ctx.fillText(text, x, y);
-  ctx.shadowBlur = 0;
 }
 
-/** Soft static chord pill — like the on-site display. */
-function drawChordPill(
+/** Soft chord text — floats directly, like the on-site display. */
+function drawChordText(
   ctx: CanvasRenderingContext2D,
   cx: number,
   baseY: number,
@@ -146,15 +142,10 @@ function drawChordPill(
   text: string,
 ): void {
   ctx.font = `700 ${size}px Orbitron, monospace`;
-  const w = ctx.measureText(text).width;
-  const pw = w + 52;
-  roundRectPath(ctx, cx - pw / 2, baseY - size - 8, pw, size + 16, (size + 16) / 2);
-  ctx.fillStyle = 'rgba(5, 5, 15, 0.5)';
-  ctx.fill();
   ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(0, 255, 204, 0.92)';
+  ctx.fillStyle = 'rgba(0, 255, 204, 0.88)';
   ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = 6;
   ctx.fillText(text, cx, baseY);
   ctx.shadowBlur = 0;
 }
@@ -966,8 +957,7 @@ export default function App() {
     // Redrawn at ~5fps — it's visually stable, and this is the heaviest
     // draw (a full-frame upscale), so throttling it removes most of the
     // recording-compositor load that can cause jank.
-    if (now - recBlurAtRef.current > 200) {
-      recBlurAtRef.current = now;
+    {
       rctx.fillStyle = '#050510';
       rctx.fillRect(0, 0, W, H);
       const bw = Math.max(32, Math.round(W / 10));
@@ -1032,48 +1022,34 @@ export default function App() {
       // ── Poster top band: metal brand + soft chord + mode ──
       drawMetalBrand(rctx, 24, 52, 28);
       const topZone = Math.round(H * 0.19);
-      drawChordPill(rctx, W / 2, topZone - 42, 76, s.chordName || '—');
+      drawChordText(rctx, W / 2, topZone - 42, 76, s.chordName || '—');
       rctx.font = '500 17px Inter, system-ui, sans-serif';
       rctx.textAlign = 'center';
       rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
       rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 22);
 
-      // ── Poster bottom band: waveform + bars + URL ──
+      // ── Poster bottom band: big waveform (mirrors the chord zone) + URL ──
       if (mode !== 'skeleton') {
         const analyser = audioEngine.getAnalyser();
         if (analyser) {
           const wf = analyser.getValue() as Float32Array;
           const n = wf.length;
-          const bottomZone = Math.round(H * 0.165);
-          const waveBase = H - bottomZone / 2 - 6;
+          // amplitude ~48 so the waveform fills the band like the chord
+          // fills the top zone (visual symmetry)
+          const waveBase = H - 150;
           rctx.beginPath();
           for (let i = 0; i < n; i++) {
             const x = W * 0.08 + (i / (n - 1)) * W * 0.84;
-            const wy2 = waveBase - wf[i] * 28;
+            const wy2 = waveBase - wf[i] * 48;
             if (i === 0) rctx.moveTo(x, wy2);
             else rctx.lineTo(x, wy2);
           }
           rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-          rctx.lineWidth = 2;
+          rctx.lineWidth = 2.5;
           rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
           rctx.shadowBlur = 6;
           rctx.stroke();
           rctx.shadowBlur = 0;
-
-          // Level bars: centered directly under the waveform (position A)
-          let sumSq = 0;
-          for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
-          const rms = Math.sqrt(sumSq / n);
-          const barCount = 10;
-          const barW = Math.max(5, Math.round(W * 0.014));
-          const gap = 3;
-          const totalW = barCount * barW + (barCount - 1) * gap;
-          const barY = waveBase - 32;
-          for (let i = 0; i < barCount; i++) {
-            const hgt = Math.max(2, rms * 24 * (0.4 + 0.6 * (i / barCount)));
-            rctx.fillStyle = 'rgba(0, 255, 204, 0.55)';
-            rctx.fillRect((W - totalW) / 2 + i * (barW + gap), barY - hgt, barW, hgt);
-          }
         }
       }
       drawUrlPill(rctx, W - 26, H - 24, 22, false);
@@ -1083,7 +1059,7 @@ export default function App() {
     // ── Inside the window (1:1 + 16:9): chord, mode, waveform, bars ──
     const chordSize = ratio === '16:9' ? 46 : 48;
     const chordY = ratio === '16:9' ? 84 : wy + 64;
-    drawChordPill(rctx, W / 2, chordY, chordSize, s.chordName || '—');
+    drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
 
     if (ratio !== '16:9') {
       rctx.font = '500 16px Inter, system-ui, sans-serif';
@@ -1112,21 +1088,6 @@ export default function App() {
         rctx.stroke();
         rctx.shadowBlur = 0;
 
-        if (ratio !== '16:9') {
-          let sumSq = 0;
-          for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
-          const rms = Math.sqrt(sumSq / n);
-          const barCount = 10;
-          const barW = Math.max(4, Math.round(W * 0.012));
-          const gap = 3;
-          const totalW = barCount * barW + (barCount - 1) * gap;
-          const barY = wy + winH - 14;
-          for (let i = 0; i < barCount; i++) {
-            const hgt = Math.max(2, rms * 20 * (0.4 + 0.6 * (i / barCount)));
-            rctx.fillStyle = 'rgba(0, 255, 204, 0.55)';
-            rctx.fillRect((W - totalW) / 2 + i * (barW + gap), barY - hgt, barW, hgt);
-          }
-        }
       }
     }
 
@@ -1466,6 +1427,8 @@ export default function App() {
             if (mode === 'skeleton') {
               drawStageBackground(sctx, sc.width, sc.height);
               drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+              const wf0 = waveformCanvasRef.current;
+              if (wf0) sctx.drawImage(wf0, 0, 0, sc.width, sc.height);
             } else {
               sctx.fillStyle = '#050510';
               sctx.fillRect(0, 0, sc.width, sc.height);
@@ -1478,8 +1441,6 @@ export default function App() {
               sctx.fillRect(0, 0, sc.width, sc.height);
               drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
             }
-            const wf0 = waveformCanvasRef.current;
-            if (wf0) sctx.drawImage(wf0, 0, 0, sc.width, sc.height);
           }
         }
       }

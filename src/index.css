@@ -1018,7 +1018,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  z-index: 90;
+  z-index: 96;
   pointer-events: none;
 }
 .countdown-hint {
@@ -1043,7 +1043,9 @@ body {
   100% { transform: scale(0.72); opacity: 0; }
 }
 
-/* Mode/ratio chooser + result sheet: bottom sheet on mobile, centered card on desktop */
+/* Mode/ratio chooser + result sheet: bottom sheet on mobile, centered card on desktop.
+   Dark frosted glass (keeps text readable over the busy camera view) with the
+   app's liquid-glass border/shadow language. Floats above everything (z 95). */
 .rec-sheet {
   position: fixed;
   left: 50%;
@@ -1052,13 +1054,15 @@ body {
   width: min(480px, calc(100vw - 24px));
   max-height: min(78vh, 620px);
   overflow-y: auto;
-  background: rgba(8, 8, 22, 0.92);
+  background: rgba(10, 10, 24, 0.88);
   backdrop-filter: var(--frost-blur);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.15);
   border-radius: 18px;
-  box-shadow: var(--frost-shadow);
+  box-shadow: var(--frost-shadow), 0 0 24px rgba(0, 255, 204, 0.08);
   padding: 16px 18px;
   animation: rec-sheet-up 0.25s ease;
+  z-index: 95;
 }
 @keyframes rec-sheet-up {
   from { opacity: 0; transform: translateX(-50%) translateY(24px); }

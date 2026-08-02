@@ -97,27 +97,6 @@ function pickRecMimeType(): { mime: string; ext: string } {
   return { mime: '', ext: 'webm' };
 }
 
-/** HUD overlay drawn into the recording frame. */
-function drawRecHud(
-  ctx: CanvasRenderingContext2D,
-  W: number,
-  ratio: RecRatio,
-  chordName: string,
-  modeLabel: string,
-): void {
-  const yTop = ratio === '9:16' ? 56 : 40;
-  ctx.font = '700 26px system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#00ffcc';
-  ctx.fillText(chordName || '—', 24, yTop);
-  ctx.font = '500 20px system-ui, sans-serif';
-  ctx.fillStyle = '#a0a0d0';
-  ctx.fillText(modeLabel, 24, ratio === '9:16' ? 92 : 68);
-  ctx.font = '600 18px system-ui, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillStyle = 'rgba(160,160,208,0.7)';
-  ctx.fillText('Gesture Synth Weld', W - 24, yTop);
-}
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Unknown error';
@@ -188,6 +167,10 @@ export default function App() {
   const recChunksRef = useRef<Blob[]>([]);
   const countdownTimerRef = useRef<number | null>(null);
   const recordingAbortedRef = useRef(false);
+  // B2: recording compositor helpers (cheap blur buffer + chord-pop timing)
+  const blurBufRef = useRef<HTMLCanvasElement | null>(null);
+  const recChordRef = useRef('');
+  const recChordTimeRef = useRef(0);
 
   // Hand detection smoothing to prevent flickering
   const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
@@ -692,8 +675,14 @@ export default function App() {
   /* ─── B2: recording compositor ──────────────────────────────────────── */
 
   // Composites the current performance (live canvas, or skeleton canvas in
-  // skeleton mode) into the recording canvas at the chosen aspect ratio,
-  // with brand gradient bands (9:16) and a live HUD (chord + mode).
+  // skeleton mode) into the recording canvas at the chosen aspect ratio.
+  //
+  // 9:16 — vertical share frame: blur-fill background (the performance
+  // itself, enlarged + blurred + darkened — the industry standard for
+  // landscape→vertical), sharp content window, brand name (gradient,
+  // breathing glow), huge live chord name (pops on change), mode · key,
+  // live waveform + level bars, and the domain URL (the traffic driver).
+  // 16:9 — cover-fill with a small HUD. 1:1 — blur-fill + simple HUD.
   const drawRecFrame = useCallback(() => {
     const rec = recCanvasRef.current;
     const mode = recModeRef.current;
@@ -709,35 +698,162 @@ export default function App() {
     const ratio = recRatioRef.current;
     const s = synthRef.current;
     const modeLabel = s.appMode === 'gesture' ? 'Gesture' : s.appMode === 'theremin' ? 'Theremin' : 'Piano';
+    const now = performance.now();
+    const t = recordingStartRef.current ? (now - recordingStartRef.current) / 1000 : 0;
 
-    rctx.fillStyle = '#0a0a1a';
+    // ── Blur-fill background (cheap: draw via a tiny copy, then upscale) ──
+    rctx.fillStyle = '#050510';
+    rctx.fillRect(0, 0, W, H);
+    const bw = Math.max(32, Math.round(W / 10));
+    const bh = Math.max(56, Math.round(H / 10));
+    if (!blurBufRef.current) blurBufRef.current = document.createElement('canvas');
+    const bb = blurBufRef.current;
+    if (bb.width !== bw || bb.height !== bh) {
+      bb.width = bw;
+      bb.height = bh;
+    }
+    const bctx = bb.getContext('2d');
+    if (bctx) {
+      const scale = Math.max(bw / sw, bh / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      bctx.imageSmoothingEnabled = true;
+      bctx.imageSmoothingQuality = 'medium';
+      bctx.drawImage(src, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
+    }
+    rctx.imageSmoothingEnabled = true;
+    rctx.imageSmoothingQuality = 'medium';
+    rctx.drawImage(bb, 0, 0, W, H);
+    rctx.fillStyle = 'rgba(5, 5, 15, 0.55)';
     rctx.fillRect(0, 0, W, H);
 
     if (ratio === '9:16') {
-      const bandH = Math.round(H * 0.24);
-      const g1 = rctx.createLinearGradient(0, 0, 0, bandH);
-      g1.addColorStop(0, '#0a0a1a');
-      g1.addColorStop(1, '#10103a');
-      rctx.fillStyle = g1;
-      rctx.fillRect(0, 0, W, bandH);
-      const g2 = rctx.createLinearGradient(0, H - bandH, 0, H);
-      g2.addColorStop(0, '#10103a');
-      g2.addColorStop(1, '#0a0a1a');
-      rctx.fillStyle = g2;
-      rctx.fillRect(0, H - bandH, W, bandH);
-      // Performance window: whole source, fit-width, centered in the middle
+      const topZone = Math.round(H * 0.19);    // brand + chord + mode
+      const bottomZone = Math.round(H * 0.165); // waveform + level + URL
+
+      // ── Sharp content window (whole source, fit-width) ──
       const winH = Math.round((W * sh) / sw);
-      const midH = H - 2 * bandH;
-      const y = bandH + Math.max(0, Math.round((midH - winH) / 2));
+      const midH = H - topZone - bottomZone;
+      const y = topZone + Math.max(0, Math.round((midH - winH) / 2));
       rctx.drawImage(src, 0, y, W, winH);
-    } else {
-      // 16:9 and 1:1: cover-fill (crop top/bottom — 4:3 source is taller)
+      rctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
+      rctx.lineWidth = 2;
+      rctx.strokeRect(0, y, W, winH);
+
+      // ── Brand: gradient wordmark with a breathing glow ──
+      const brandAlpha = 0.85 + 0.15 * Math.sin(t * 2.2);
+      const grad = rctx.createLinearGradient(0, 0, 260, 0);
+      grad.addColorStop(0, '#00ffcc');
+      grad.addColorStop(1, '#ff00ff');
+      rctx.font = '800 30px Orbitron, monospace';
+      rctx.textAlign = 'left';
+      rctx.shadowColor = `rgba(0, 255, 204, ${0.4 * brandAlpha})`;
+      rctx.shadowBlur = 16;
+      rctx.fillStyle = grad;
+      rctx.fillText('GESTURE SYNTH WELD', 26, 52);
+      rctx.shadowBlur = 0;
+
+      // ── Chord name: huge, centered, pops on change ──
+      const chord = s.chordName || '—';
+      if (chord !== recChordRef.current) {
+        recChordRef.current = chord;
+        recChordTimeRef.current = now;
+      }
+      const chordAge = (now - recChordTimeRef.current) / 1000;
+      const popScale = chordAge < 0.25 ? 1 + 0.18 * (1 - chordAge / 0.25) : 1;
+      rctx.save();
+      rctx.translate(W / 2, topZone - 46);
+      rctx.scale(popScale, popScale);
+      rctx.font = '900 84px Orbitron, monospace';
+      rctx.textAlign = 'center';
+      rctx.textBaseline = 'middle';
+      rctx.shadowColor = 'rgba(0, 255, 204, 0.75)';
+      rctx.shadowBlur = 26;
+      rctx.fillStyle = '#00ffcc';
+      rctx.fillText(chord, 0, 0);
+      rctx.restore();
+      rctx.textBaseline = 'alphabetic';
+
+      // ── Mode · key ──
+      rctx.font = '500 19px Inter, system-ui, sans-serif';
+      rctx.textAlign = 'center';
+      rctx.fillStyle = '#a0a0d0';
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 18);
+
+      // ── Live waveform (bottom band) ──
+      const analyser = audioEngine.getAnalyser();
+      if (analyser) {
+        const wf = analyser.getValue() as Float32Array;
+        const n = wf.length;
+        rctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const x = 56 + (i / (n - 1)) * (W - 112);
+          const wy = H - bottomZone / 2 - 8 - wf[i] * 30;
+          if (i === 0) rctx.moveTo(x, wy);
+          else rctx.lineTo(x, wy);
+        }
+        rctx.strokeStyle = 'rgba(0, 255, 204, 0.75)';
+        rctx.lineWidth = 3;
+        rctx.shadowColor = 'rgba(0, 255, 204, 0.6)';
+        rctx.shadowBlur = 10;
+        rctx.stroke();
+        rctx.shadowBlur = 0;
+
+        // ── Level bars (cyan/magenta, follow volume) ──
+        let sumSq = 0;
+        for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
+        const rms = Math.sqrt(sumSq / n);
+        for (let i = 0; i < 8; i++) {
+          const hgt = Math.max(4, rms * 72 * (0.35 + 0.65 * (i / 8)));
+          rctx.fillStyle = i % 2 === 0 ? 'rgba(0, 255, 204, 0.9)' : 'rgba(255, 0, 255, 0.75)';
+          rctx.fillRect(W - 116 + i * 14, H - 56 - hgt, 8, hgt);
+        }
+      }
+
+      // ── Domain URL: the traffic driver, bottom center, breathing ──
+      const urlAlpha = 0.8 + 0.2 * Math.sin(t * 2.2 + 1);
+      rctx.font = '600 21px "JetBrains Mono", monospace';
+      rctx.textAlign = 'center';
+      rctx.shadowColor = `rgba(0, 255, 204, ${0.5 * urlAlpha})`;
+      rctx.shadowBlur = 12;
+      rctx.fillStyle = `rgba(0, 255, 204, ${urlAlpha})`;
+      rctx.fillText('gesturesynthweld.com', W / 2, H - 34);
+      rctx.shadowBlur = 0;
+    } else if (ratio === '1:1') {
+      // 1:1 — blur-fill + simple centered HUD (bands are small)
       const ch = Math.round((W * sh) / sw);
       const dy = Math.round((H - ch) / 2);
       rctx.drawImage(src, 0, dy, W, ch);
+      rctx.font = '800 30px Orbitron, monospace';
+      rctx.textAlign = 'center';
+      rctx.fillStyle = '#00ffcc';
+      rctx.fillText(s.chordName || '—', W / 2, 88);
+      rctx.font = '500 18px Inter, system-ui, sans-serif';
+      rctx.fillStyle = '#a0a0d0';
+      rctx.fillText(modeLabel, W / 2, 118);
+      rctx.font = '600 18px "JetBrains Mono", monospace';
+      rctx.fillStyle = 'rgba(0, 255, 204, 0.85)';
+      rctx.fillText('gesturesynthweld.com', W / 2, H - 34);
+    } else {
+      // 16:9 — cover-fill (crop top/bottom — 4:3 source is taller) + HUD
+      const ch = Math.round((W * sh) / sw);
+      const dy = Math.round((H - ch) / 2);
+      rctx.drawImage(src, 0, dy, W, ch);
+      rctx.font = '700 26px Orbitron, monospace';
+      rctx.textAlign = 'left';
+      rctx.shadowColor = 'rgba(0, 255, 204, 0.6)';
+      rctx.shadowBlur = 12;
+      rctx.fillStyle = '#00ffcc';
+      rctx.fillText(s.chordName || '—', 24, 44);
+      rctx.shadowBlur = 0;
+      rctx.font = '500 18px Inter, system-ui, sans-serif';
+      rctx.fillStyle = '#a0a0d0';
+      rctx.fillText(modeLabel, 24, 70);
+      rctx.font = '600 16px "JetBrains Mono", monospace';
+      rctx.textAlign = 'right';
+      rctx.fillStyle = 'rgba(160, 160, 208, 0.7)';
+      rctx.fillText('gesturesynthweld.com', W - 24, 44);
     }
-
-    drawRecHud(rctx, W, ratio, s.chordName, modeLabel);
   }, []);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */

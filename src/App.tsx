@@ -1782,64 +1782,26 @@ export default function App() {
             <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
-              {/* Hand-skeleton mark — chrome (liquid metal) like the rest of the icons */}
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
-                <defs>
-                  <linearGradient id="skelMetal" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#ffffff" />
-                    <stop offset="0.35" stopColor="#d8ecff" />
-                    <stop offset="0.6" stopColor="#7fb8e8" />
-                    <stop offset="0.85" stopColor="#eef8ff" />
-                    <stop offset="1" stopColor="#a8cde8" />
-                  </linearGradient>
-                </defs>
-                <path d="M7.2 20.8 L5.9 16.9 C5.3 15 6.3 13.4 8.6 13.1 L14.4 13 C17.3 13 18.9 14.6 19.3 17.1 L19.6 19.4 C19.8 20.6 18.4 21.2 16.8 21.1 L9.4 21.2 Z"
-                  stroke="url(#skelMetal)" strokeWidth="1.4" strokeLinejoin="round" />
-                <g stroke="url(#skelMetal)" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M9.6 14.3 L7.3 12.6 L5.2 10.7 L4.2 8.9" />
-                  <path d="M10.7 13.3 L10.5 9.9 L10.4 7.2 L10.4 4.9" />
-                  <path d="M12.2 13.1 L12.3 9.2 L12.4 6.1 L12.4 3.6" />
-                  <path d="M13.7 13.3 L13.9 9.9 L14.1 7.2 L14.3 4.9" />
-                  <path d="M15.1 13.7 L16.2 10.9 L17.1 8.5 L17.9 6.7" />
-                </g>
-                <g fill="url(#skelMetal)">
-                  {[[9.6,14.3],[10.7,13.3],[12.2,13.1],[13.7,13.3],[15.1,13.7],[7.3,12.6],[5.2,10.7],[4.2,8.9],[10.5,9.9],[10.4,7.2],[10.4,4.9],[12.3,9.2],[12.4,6.1],[12.4,3.6],[13.9,9.9],[14.1,7.2],[14.3,4.9],[16.2,10.9],[17.1,8.5],[17.9,6.7],[11,21.2]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1" />)}
-                </g>
+              {/* ✋ hand silhouette as line art (Apple-style pictogram) */}
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                <path d="M7.2 10.5 L7.2 5.3 A0.9 0.9 0 0 1 9 5.3 L9 10.5 L9.8 10.5 L9.8 4.4 A0.9 0.9 0 0 1 11.6 4.4 L11.6 10.5 L12.4 10.5 L12.4 5.3 A0.9 0.9 0 0 1 14.2 5.3 L14.2 10.5 L15 10.5 L15 6.7 A0.9 0.9 0 0 1 16.8 6.7 L16.8 11.3 L17.6 12 L17.9 16.3 A2.4 2.4 0 0 1 15.5 18.7 L8.8 18.7 A2.4 2.4 0 0 1 6.4 16.3 L6.3 14.9 C5.3 14.6 4.5 13.4 4.3 12.1 C4.2 11.2 4.7 10.5 5.4 10.7 C5.9 10.9 6.2 11.4 6.4 12.1 L7.2 10.5 Z"
+                  stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
               </svg>
             </button>
             <span className="divider" />
-            <button className="icon-btn flat-icon" onClick={stopCamera} data-tip="Stop camera and audio">
-              {/* Camera + cross — chrome body, magenta slash (no circle frame:
-                  the icon itself is the shape) */}
-              <svg width="23" height="19" viewBox="0 0 24 24" fill="none">
-                <defs>
-                  <linearGradient id="camMetal" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#ffffff" />
-                    <stop offset="0.35" stopColor="#d8ecff" />
-                    <stop offset="0.6" stopColor="#7fb8e8" />
-                    <stop offset="0.85" stopColor="#eef8ff" />
-                    <stop offset="1" stopColor="#a8cde8" />
-                  </linearGradient>
-                </defs>
-                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="url(#camMetal)" strokeWidth="1.7" />
-                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="url(#camMetal)" strokeWidth="1.7" strokeLinejoin="round" />
-                <circle cx="9.3" cy="11.6" r="2.4" stroke="url(#camMetal)" strokeWidth="1.7" />
-                <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2.1" strokeLinecap="round" />
+            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio">
+              {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
+              <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
-            <button className="icon-btn flat-icon" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? { color: 'var(--neon-cyan)' } : {}}>
-              {/* One big toothed gear (Apple-style) — chrome gradient, no circle frame */}
-              <svg width="27" height="27" viewBox="0 0 24 24">
-                <defs>
-                  <linearGradient id="gearMetal" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#ffffff" />
-                    <stop offset="0.35" stopColor="#d8ecff" />
-                    <stop offset="0.6" stopColor="#7fb8e8" />
-                    <stop offset="0.85" stopColor="#eef8ff" />
-                    <stop offset="1" stopColor="#a8cde8" />
-                  </linearGradient>
-                </defs>
-                <path fill="url(#gearMetal)" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2zm7.14 2.67a7.6 7.6 0 0 0-.14-1.5l2.1-1.63-2.08-3.6-2.47 1a7.7 7.7 0 0 0-1.3-.75L14.9 2h-4.2l-.36 2.6a7.7 7.7 0 0 0-1.3.75l-2.47-1-2.08 3.6L6.6 9.57a7.6 7.6 0 0 0-.14 1.5c0 .5.05 1 .14 1.5l-2.1 1.63 2.08 3.6 2.47-1c.4.3.84.55 1.3.75l.36 2.6h4.2l.36-2.6c.46-.2.9-.44 1.3-.75l2.47 1 2.08-3.6-2.1-1.63c.09-.5.14-1 .14-1.5z" />
+            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+              {/* Pictogram gear with center hole (Apple Settings style), plain color */}
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2zm7.14 2.67a7.6 7.6 0 0 0-.14-1.5l2.1-1.63-2.08-3.6-2.47 1a7.7 7.7 0 0 0-1.3-.75L14.9 2h-4.2l-.36 2.6a7.7 7.7 0 0 0-1.3.75l-2.47-1-2.08 3.6L6.6 9.57a7.6 7.6 0 0 0-.14 1.5c0 .5.05 1 .14 1.5l-2.1 1.63 2.08 3.6 2.47-1c.4.3.84.55 1.3.75l.36 2.6h4.2l.36-2.6c.46-.2.9-.44 1.3-.75l2.47 1 2.08-3.6-2.1-1.63c.09-.5.14-1 .14-1.5z" />
               </svg>
             </button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
@@ -1848,20 +1810,10 @@ export default function App() {
                 prominent button at the end of the toolbar. Shows countdown
                 seconds while recording. */}
             <button className={`icon-btn rec-capsule ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
+              {/* Abstract record: frosted pill + red dot (Apple Camera-app language) */}
               {isRecording ? `${recordingTime}s` : (
-                // Pill (capsule) — reads as "REC" at a glance, unlike any round button
-                <svg width="46" height="21" viewBox="0 0 46 21">
-                  <defs>
-                    <linearGradient id="recMetal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stopColor="#ffffff" />
-                      <stop offset="0.4" stopColor="#d8ecff" />
-                      <stop offset="0.65" stopColor="#7fb8e8" />
-                      <stop offset="1" stopColor="#a8cde8" />
-                    </linearGradient>
-                  </defs>
-                  <rect x="1" y="1" width="44" height="19" rx="9.5" fill="url(#recMetal)" />
-                  <circle cx="12" cy="10.5" r="3.3" fill="#ff3b5c" />
-                  <text x="25.5" y="13.8" textAnchor="middle" fontSize="8" fontWeight="700" fill="#0d1524" fontFamily="'JetBrains Mono', monospace" letterSpacing="0.6">REC</text>
+                <svg width="11" height="11" viewBox="0 0 11 11">
+                  <circle cx="5.5" cy="5.5" r="4.7" fill="#ff3b5c" />
                 </svg>
               )}
             </button>

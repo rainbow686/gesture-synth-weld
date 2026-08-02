@@ -417,21 +417,9 @@ body {
   font-size: 0.8rem;
 }
 
-/* Flat icon buttons (gear / stop-camera): the icon IS the shape — no
-   circle frame around it (the circle read as "dot in a circle" on small
-   screens and clashed with the record button). Active = soft glow, no ring. */
-.frost-toolbar button.icon-btn.flat-icon {
-  background: transparent;
-  border-color: transparent;
-}
-.frost-toolbar button.icon-btn.flat-icon.active {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: 0 0 10px rgba(0, 255, 204, 0.35);
-}
-
-/* Record button: a capsule (pill) so it stands out from every round
-   button — unambiguous "this records" */
+/* Record button: a frosted capsule (pill) — the only non-round toolbar
+   button, so it stands out from every circle. Abstract by design: a red
+   dot inside (Apple Camera-app record language), no chrome/3D fill. */
 .frost-toolbar button.icon-btn.rec-capsule {
   width: 50px;
   height: 27px;

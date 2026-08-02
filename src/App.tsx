@@ -177,6 +177,76 @@ function drawStageBackground(
   ctx.fillRect(0, Math.round(h * 0.85), w, Math.round(h * 0.15));
 }
 
+/** Square cover art for audio files — the site's visual family:
+ * dark cosmos background, neon sound-wave mark (cyan arcs + magenta
+ * note dot — the two-hand colors), metal brand, decorative waveform,
+ * URL pill, neon inner frame. */
+function makeCoverBlob(): Promise<Blob> {
+  const c = document.createElement('canvas');
+  c.width = 600;
+  c.height = 600;
+  const ctx = c.getContext('2d');
+  if (!ctx) return Promise.resolve(new Blob());
+
+  // background: the site's dark cosmos + footlight
+  drawStageBackground(ctx, 600, 600);
+
+  // neon inner frame (liquid-glass container)
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.28)';
+  ctx.lineWidth = 2;
+  roundRectPath(ctx, 26, 26, 548, 548, 24);
+  ctx.stroke();
+
+  // sound-wave mark: three cyan arcs + magenta note dot
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    ctx.strokeStyle = i === 1 ? 'rgba(0, 255, 204, 0.9)' : 'rgba(0, 255, 204, 0.5)';
+    ctx.lineWidth = i === 1 ? 3.5 : 2.5;
+    ctx.beginPath();
+    ctx.arc(300, 162, 30 + i * 13, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#ff6ec7';
+  ctx.shadowColor = 'rgba(255, 110, 199, 0.5)';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(300, 152, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // brand: metal wordmark centered
+  const text = 'GESTURE SYNTH WELD';
+  ctx.font = '800 44px Orbitron, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillText(text, 300, 306);
+  const g = ctx.createLinearGradient(0, 248, 0, 310);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, '#d8ecff');
+  g.addColorStop(0.5, '#7fb8e8');
+  g.addColorStop(0.7, '#eef8ff');
+  g.addColorStop(1, '#a8cde8');
+  ctx.fillStyle = g;
+  ctx.fillText(text, 300, 304);
+
+  // decorative waveform under the brand (music feel)
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 48; i++) {
+    const x = 110 + (i / 48) * 380;
+    const y = 400 + Math.sin((i / 48) * Math.PI * 4) * 14;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // URL pill centered
+  drawUrlPill(ctx, 300, 478, 24, true);
+
+  return new Promise((res) => c.toBlob((b) => res(b ?? new Blob()), 'image/jpeg', 0.85));
+}
+
 /** Rounded-rect path helper (canvas native roundRect is recent). */
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -279,6 +349,7 @@ export default function App() {
   const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
   const [recCount, setRecCount] = useState(3);
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+  const [shareFailed, setShareFailed] = useState(false);
   const [micOn, setMicOn] = useState(true);
   const [micLevel, setMicLevel] = useState(0);
   const [micPermState, setMicPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
@@ -1368,8 +1439,11 @@ export default function App() {
         files: [new File([recBlob.blob], recBlob.filename)],
         title: 'Gesture Synth Weld',
       });
-    } catch {
-      // User cancelled the share sheet — nothing to do
+      setShareFailed(false);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return; // user cancelled
+      // e.g. NotSupportedError — the browser claims support but can't share
+      setShareFailed(true);
     }
   }, [recBlob]);
 
@@ -1488,13 +1562,19 @@ export default function App() {
         // comment) so players show the site; webm keeps the branded name
         let blob = raw;
         if (ext === 'mp4' || ext === 'm4a') {
+          // Audio files also carry branded cover art so players show it
+          const cover = ext === 'm4a'
+            ? new Uint8Array(await (await makeCoverBlob()).arrayBuffer())
+            : undefined;
           blob = await injectBrandTags(
             raw,
             'Gesture Synth Weld',
             'gesturesynthweld.com',
-            'Created with Gesture Synth Weld — gesturesynthweld.com'
+            'Created with Gesture Synth Weld — gesturesynthweld.com',
+            cover
           );
         }
+        setShareFailed(false);
         setRecBlob({ blob, filename: makeRecordingFilename(ext) });
         setRecPhase('result');
       };
@@ -1872,6 +1952,9 @@ export default function App() {
               <button className="rec-btn primary" onClick={downloadRec}>💾 Download</button>
               {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
             </div>
+            {shareFailed && (
+              <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
+            )}
           </div>
         )}
 

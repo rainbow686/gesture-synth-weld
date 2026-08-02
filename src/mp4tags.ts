@@ -39,19 +39,23 @@ function box(type: string, payload: Uint8Array): Uint8Array {
 
 /** One ilst item: [size][data][type=1 u32][locale u32][utf-8 value] */
 function ilstItem(code: string, value: string): Uint8Array {
-  const v = bytes(value);
-  const data = new Uint8Array(16 + v.length);
+  return ilstItemData(code, bytes(value), 1);
+}
+
+/** One ilst item with a raw payload: type 1 = UTF-8, 13 = JPEG, 14 = PNG */
+function ilstItemData(code: string, payload: Uint8Array, type: number): Uint8Array {
+  const data = new Uint8Array(16 + payload.length);
   const dv = new DataView(data.buffer);
-  dv.setUint32(0, 16 + v.length);
+  dv.setUint32(0, 16 + payload.length);
   data.set(bytes('data'), 4);
-  dv.setUint32(8, 1); // 1 = UTF-8
+  dv.setUint32(8, type);
   dv.setUint32(12, 0); // locale
-  data.set(v, 16);
+  data.set(payload, 16);
   return box(code, data);
 }
 
 /** udta → meta (Apple-style) with hdlr + ilst entries */
-function udta(title: string, artist: string, comment: string): Uint8Array {
+function udta(title: string, artist: string, comment: string, cover?: Uint8Array): Uint8Array {
   const hdlrPayload = new Uint8Array(28); // ver/flags(4) + pre(4) + type(4) + reserved(12) + name(4)
   const dv = new DataView(hdlrPayload.buffer);
   dv.setUint32(4, 0); // pre_defined
@@ -65,7 +69,9 @@ function udta(title: string, artist: string, comment: string): Uint8Array {
     concat(
       ilstItem('©nam', title),
       ilstItem('©ART', artist),
-      ilstItem('©cmt', comment)
+      ilstItem('©cmt', comment),
+      // cover art (JPEG) — shows the brand + URL in players
+      ...(cover ? [ilstItemData('covr', cover, 13)] : [])
     )
   );
   // meta is a FullBox: 1 byte version + 3 bytes flags, then hdlr + ilst
@@ -81,7 +87,8 @@ export async function injectBrandTags(
   blob: Blob,
   title: string,
   artist: string,
-  comment: string
+  comment: string,
+  cover?: Uint8Array
 ): Promise<Blob> {
   const buf = new Uint8Array(await blob.arrayBuffer());
   if (buf.length < 8) return blob;
@@ -107,7 +114,7 @@ export async function injectBrandTags(
   // Append the udta box inside moov (box order inside moov is free) and
   // rebuild the file: [before moov][moov(new)][after moov]
   const moovPayload = buf.slice(moovStart + 8, moovStart + moovSize);
-  const newMoov = box('moov', concat(moovPayload, udta(title, artist, comment)));
+  const newMoov = box('moov', concat(moovPayload, udta(title, artist, comment, cover)));
   const tail = buf.slice(moovStart + moovSize);
   const out = new Uint8Array(moovStart + newMoov.length + tail.length);
   out.set(buf.slice(0, moovStart), 0);

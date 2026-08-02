@@ -440,6 +440,13 @@ export default function App() {
   const blurBufRef = useRef<HTMLCanvasElement | null>(null);
   const recBlurAtRef = useRef(0); // last blur-bg redraw (throttled to ~5fps)
 
+  // Camera-freeze watchdog: after a long screen lock some Android builds
+  // leave the video on the last frame forever. Track the video clock and
+  // restart the stream when it stops advancing while visible.
+  const lastVideoTimeRef = useRef(-1);
+  const lastVideoCheckRef = useRef(0);
+  const frozenChecksRef = useRef(0);
+
   // Hand detection smoothing to prevent flickering
   const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
     left: [],
@@ -1251,6 +1258,26 @@ export default function App() {
       drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
       drawWaveformRef.current?.();
 
+      // B2: camera-freeze watchdog — while visible, if the video clock
+      // hasn't advanced for ~4s the OS killed the stream (long screen
+      // lock on Android). Restart it so the picture comes back.
+      if (document.visibilityState === 'visible' && !video.paused && video.videoWidth > 0) {
+        const now = performance.now();
+        if (now - lastVideoCheckRef.current > 2000) {
+          lastVideoCheckRef.current = now;
+          if (Math.abs(video.currentTime - lastVideoTimeRef.current) < 0.001) {
+            frozenChecksRef.current += 1;
+            if (frozenChecksRef.current >= 2) {
+              frozenChecksRef.current = 0;
+              void restartCameraStream();
+            }
+          } else {
+            frozenChecksRef.current = 0;
+            lastVideoTimeRef.current = video.currentTime;
+          }
+        }
+      }
+
       // B2: during recording, build the recording-source canvas (stage or
       // camera frame + SOFT skeleton + waveform) and composite the frame.
       // The soft video skeleton differs from the live overlay; the live
@@ -1303,6 +1330,51 @@ export default function App() {
 
   /* ─── Start / Stop Camera ──────────────────────────────────────────── */
 
+  // Quietly re-acquire the camera after the OS reclaimed it (long screen
+  // lock on Android/iOS). Hand tracking + audio keep running — only the
+  // video source is swapped. Errors are swallowed: the freeze watchdog
+  // retries on its next check.
+  const restartCameraStream = useCallback(async () => {
+    const oldStream = streamRef.current;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false,
+      });
+      oldStream?.getTracks().forEach((t) => t.stop());
+      streamRef.current = stream;
+      stream.getVideoTracks().forEach((t) => {
+        t.onended = () => {
+          if (runningRef.current) void restartCameraStream();
+        };
+      });
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+      }
+      lastVideoTimeRef.current = -1; // re-baseline the watchdog
+      frozenChecksRef.current = 0;
+    } catch {
+      // Re-acquisition failed (permission dismissed, camera in use) — the
+      // watchdog will try again on the next freeze check.
+    }
+  }, []);
+
+  // Screen unlocks after a lock: resume a paused video, or fully restart
+  // the stream if the OS killed the camera track while locked.
+  const handleVisibility = useCallback(() => {
+    if (document.visibilityState !== 'visible' || !runningRef.current) return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+    if (stream.getVideoTracks().some((t) => t.readyState === 'ended')) {
+      void restartCameraStream();
+      return;
+    }
+    if (video.paused) video.play().catch(() => {});
+  }, [restartCameraStream]);
+
   const startCamera = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -1322,6 +1394,15 @@ export default function App() {
         audio: false,
       });
       streamRef.current = stream;
+
+      // If the OS reclaims the camera while the page is backgrounded
+      // (long screen lock), the track fires 'ended' — restart quietly.
+      stream.getVideoTracks().forEach((t) => {
+        t.onended = () => {
+          if (runningRef.current) void restartCameraStream();
+        };
+      });
+      document.addEventListener('visibilitychange', handleVisibility);
 
       // Request the microphone SEPARATELY (its own permission prompt —
       // sing-along use case). Optional: if denied or unavailable, the
@@ -1388,7 +1469,7 @@ export default function App() {
         }
       }
     }
-  }, []);
+  }, [handleVisibility, restartCameraStream]);
 
   /* ─── Warm up hand tracking on button intent ───────────────────────── */
 
@@ -1429,6 +1510,9 @@ export default function App() {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
+    document.removeEventListener('visibilitychange', handleVisibility);
+    lastVideoTimeRef.current = -1;
+    frozenChecksRef.current = 0;
 
     audioEngine.stopAll();
     audioEngine.stopMetronome();
@@ -1451,7 +1535,7 @@ export default function App() {
     setHasRightHand(false);
     setIsRunning(false);
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
-  }, []);
+  }, [handleVisibility]);
 
   /* ─── Recording (B2 flow: chooser → countdown → record → result) ───── */
 

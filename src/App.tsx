@@ -147,6 +147,11 @@ export default function App() {
     rightHandHistoryRef.current = [];
     pinkyMemoryRef.current = 0;
     lastChordRef.current = '';
+    // Full audio reset on mode switch: clears the engine chord dedup key
+    // (otherwise a Gesture→Piano→Gesture round-trip with the same chord
+    // goes silent) and stops the auto bass (otherwise it drones on after
+    // leaving Gesture mode).
+    audioEngine.stopAll();
   }, [synthState.appMode]);
 
   /* ─── Metronome effect ──────────────────────────────────────────────── */
@@ -301,6 +306,10 @@ export default function App() {
 
     const s = synthRef.current;
 
+    // Theremin mode uses the sine instrument; every other mode the sawtooth.
+    // Idempotent, so calling it per frame is free.
+    audioEngine.setTimbre(s.appMode === 'theremin' ? 'theremin' : 'gesture');
+
     // ─── Theremin Mode (single hand) ───────────────────────────────
     if (s.appMode === 'theremin') {
       // Dual-hand control: right hand = pitch, left hand = volume
@@ -353,6 +362,14 @@ export default function App() {
         // Use committed finger count for note selection
         const stableFingerCount = stabilizer.committed ?? rawFingerCount;
 
+        // Left fist (0 fingers) = silence, consistent with the other modes
+        if (stableFingerCount === 0) {
+          audioEngine.stopAll();
+          lastChordRef.current = '';
+          setSynthState(prev => ({ ...prev, isPlaying: false }));
+          return;
+        }
+
         // Each finger count maps to a different note interval
         const interval = FINGER_TO_NOTE_INTERVAL[stableFingerCount] ?? 0;
         const midiNote = 60 + interval + s.keyOffset; // Middle C + interval + key offset
@@ -385,13 +402,10 @@ export default function App() {
     // Left Hand → Harmony (scale degree + mode)
     let chordIndex = s.chordIndex;
     let mode: 'major' | 'minor' | 'neutral' = s.mode;
-    let hasValidChord = false;
-
     if (leftHand) {
       // Apply time-based stabilizer on chordIndex (catches VI/VII changes too)
       const now = performance.now();
       const stabilizer = stabilizerRef.current;
-      stabilizer.lastSeen = now;
 
       // Compute raw chord index including VI/VII special gestures
       const extended = leftHand.extendedFingers;
@@ -431,7 +445,6 @@ export default function App() {
       }
 
       chordIndex = stabilizer.committed ?? rawChordIndex;
-      hasValidChord = leftHand.fingerCount > 0; // 0 fingers (fist) = no valid chord
 
       if (s.leftHandMode === 'scaleTilt') {
         // Wrist tilt → major/minor (>=0 = major, <0 = minor like competitor)
@@ -489,12 +502,10 @@ export default function App() {
     // Right thumb extended → octave down (matching competitor)
     const thumbDown = !!(rightHand?.extendedFingers.includes('thumb'));
 
-    // CRITICAL: Sound only plays if BOTH hands have at least 1 finger raised
-    // Left fist or right fist = immediate stop (use raw count for instant response)
+    // CRITICAL: Sound only plays if both hands are present and left has fingers.
+    // Left fist mutes; right fist does NOT stop sound — only left fist or
+    // hand loss stops (grace period below).
     const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
-    const rightFist = rightHand ? rightHand.fingerCount === 0 : true;
-    // isPlaying: both hands present + left has fingers.
-    // Right fist does NOT stop sound — only left fist or hand loss stops.
     const isPlaying = !!(leftHand && rightHand && !leftFist);
     const chordName = getChordName(
       chordIndex,
@@ -516,12 +527,13 @@ export default function App() {
     // Create chord fingerprint to detect actual changes
     const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
 
-    // Right fist: hand IS present but non-thumb fingers = 0
-    // (rightHand check prevents matching when right hand is completely missing)
-    // Play chord - only if chord actually changed
-    // isPlaying ignores right fist — sound continues, right hand just
-    // changes octave (thumb) and chord type. Only left fist stops sound.
+    // Play chord only if the fingerprint actually changed (volume is
+    // intentionally excluded so height changes don't re-trigger).
     if (isPlaying) {
+      // Refresh the grace-period clock — sound continues while this holds.
+      // (Updating it only here means a missing right hand stops the music
+      // after GRACE_MS instead of sustaining forever on a left hand alone.)
+      stabilizerRef.current.lastSeen = performance.now();
       if (chordFingerprint !== lastChordRef.current) {
         lastChordRef.current = chordFingerprint;
         audioEngine.playChord(
@@ -1027,7 +1039,7 @@ export default function App() {
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
               <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor<br/>
               <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
-              <span style={{ color: '#b0b0d0' }}>Both hands required · Either fist = stop · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
+              <span style={{ color: '#b0b0d0' }}>Both hands required · Left fist mutes · Right fist continues · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
             </div>
 
             <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>

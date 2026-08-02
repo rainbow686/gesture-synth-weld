@@ -134,7 +134,7 @@ function getChordStyleIntervals(style: ChordStyle, isNaturallyMajor: boolean): n
     case 'majorTriad':
       return isNaturallyMajor ? [0, 7, 12, 16] : [0, 7, 12, 15]; // major vs minor third
     case 'major1stInv':
-      return [4, 7, 12]; // 1st inversion: 3rd in bass
+      return isNaturallyMajor ? [4, 7, 12] : [3, 7, 12]; // 1st inversion: 3rd in bass (minor = flat 3rd)
     case 'minorTriad':
       return [0, 3, 7];
     case 'dimTriad':

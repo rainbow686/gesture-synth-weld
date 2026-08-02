@@ -1648,48 +1648,56 @@ export default function App() {
               {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
                 <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
               )}
-              {micStreamRef.current ? (
-                <>
-                  <label className="rec-mic-toggle">
-                    <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} />
-                    <span>🎤 Include my voice — sing along with the chords</span>
-                  </label>
-                  {/* Liquid-glass mic level meter */}
-                  <div className="rec-mic-meter" title="Microphone level — speak to test">
-                    {Array.from({ length: 14 }, (_, i) => {
-                      const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
-                      return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
-                    })}
+              {/* Mic section: ALWAYS visible so users know the sing-along
+                  feature exists — grayed out until the mic is enabled */}
+              <div className={`rec-mic-section ${micStreamRef.current ? '' : 'disabled'}`}>
+                <label className="rec-mic-toggle">
+                  <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} disabled={!micStreamRef.current} />
+                  <span>🎤 Include my voice — sing along with the chords</span>
+                </label>
+                {micStreamRef.current ? (
+                  <>
+                    {/* Liquid-glass mic level meter */}
+                    <div className="rec-mic-meter" title="Microphone level — speak to test">
+                      {Array.from({ length: 14 }, (_, i) => {
+                        const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
+                        return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
+                      })}
+                    </div>
+                    {micDevices.length > 1 && (
+                      <>
+                        <div className="rec-sheet-sub">Microphone</div>
+                        <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
+                          {micDevices.map((d) => (
+                            <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                    <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
+                    <div className="rec-mix-row">
+                      <span>Voice</span>
+                      <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
+                      <span>Chords</span>
+                    </div>
+                    <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
+                  </>
+                ) : micPermState === 'denied' ? (
+                  <div className="rec-mic-notice">
+                    <strong>Sing along?</strong> You can record your voice over the chords — but the
+                    microphone is <strong>blocked for this site</strong>. Click the <strong>🔒 lock icon</strong> in the
+                    address bar → Site settings → Microphone → <strong>Allow</strong>, then come back here.
                   </div>
-                  {micDevices.length > 1 && (
-                    <>
-                      <div className="rec-sheet-sub">Microphone</div>
-                      <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
-                        {micDevices.map((d) => (
-                          <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
-                  <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
-                  <div className="rec-mix-row">
-                    <span>Voice</span>
-                    <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
-                    <span>Chords</span>
-                  </div>
-                  <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
-                </>
-              ) : micPermState === 'denied' ? (
-                <div className="rec-warn" style={{ marginTop: 10 }}>
-                  🎤 Microphone is blocked for this site — click the <strong>🔒 lock icon</strong> in the
-                  address bar → Site settings → Microphone → <strong>Allow</strong>, then try again.
-                </div>
-              ) : (
-                <>
-                  <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 No microphone yet — recording the synth only.</div>
-                  <button className="rec-btn" style={{ marginTop: 8 }} onClick={() => requestMic()}>Enable microphone to sing along</button>
-                </>
-              )}
+                ) : (
+                  <>
+                    <div className="rec-mic-notice">
+                      <strong>Sing along?</strong> You can record your voice over the chords — but the
+                      microphone isn't enabled yet.
+                    </div>
+                    <button className="rec-mic-enable-btn" onClick={() => requestMic()}>🎤 Enable microphone</button>
+                  </>
+                )}
+              </div>
             </div>
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>

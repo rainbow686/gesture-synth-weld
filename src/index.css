@@ -1315,3 +1315,40 @@ body {
 }
 .rec-sheet-sub { margin: 7px 0 5px; }
 .rec-actions { flex-shrink: 0; margin-top: 12px; }
+
+/* Mic section — grayed out until enabled; prominent notice + enable button */
+.rec-mic-section.disabled {
+  opacity: 0.55;
+}
+.rec-mic-section.disabled .rec-mic-toggle {
+  cursor: not-allowed;
+}
+.rec-mic-notice {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 170, 0, 0.45);
+  background: rgba(255, 170, 0, 0.1);
+  border-radius: 9px;
+  font-size: 0.63rem;
+  color: #ffd28a;
+  line-height: 1.55;
+}
+.rec-mic-notice strong {
+  color: #ffaa00;
+}
+.rec-mic-enable-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 9px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 204, 0.45);
+  background: rgba(0, 255, 204, 0.12);
+  color: var(--neon-cyan);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rec-mic-enable-btn:hover {
+  background: rgba(0, 255, 204, 0.22);
+}

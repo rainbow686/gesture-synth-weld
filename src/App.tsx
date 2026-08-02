@@ -166,84 +166,18 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metronomeOn, metronomeBpm, metronomeTimeSig, metronomeBars, metronomeSound]);
 
-  /* ─── Keyboard Controls ──────────────────────────────────────────── */
+  /* ─── Keyboard Controls (Space: stop, Esc: reset) ──────────────────── */
+  // Playing shortcuts (1-7, ↑/↓, T/Y, A, B) were removed: both hands must
+  // stay in front of the camera while playing, so the keyboard is
+  // unreachable mid-performance, and no competitor offers keyboard playing
+  // (see CLAUDE.md "Competitors"). Only control keys that work anytime
+  // (browser focus) remain.
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent default behavior for certain keys
-      if (['ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-        e.preventDefault();
-      }
-
-      const s = synthRef.current;
-
-      // 1-7: Select chord (I through vii°)
-      if (e.key >= '1' && e.key <= '7') {
-        const idx = parseInt(e.key) - 1;
-        const modeArg = s.mode === 'neutral' ? undefined : s.mode as 'major' | 'minor';
-        const chordName = getChordName(idx, modeArg, s.keyOffset);
-
-        setSynthState(prev => ({ ...prev, chordIndex: idx, chordName, isPlaying: true }));
-        audioEngine.init().then(() => {
-          audioEngine.playChord(idx, 'sine', modeArg, 0, s.keyOffset, s.lockedChordStyle, s.arpeggiate, s.arpSpeed);
-        });
-        return;
-      }
-
-      // Arrow Up/Down: Volume control
-      if (e.key === 'ArrowUp') {
-        const v = Math.min(1, s.volume + 0.1);
-        setSynthState(prev => ({ ...prev, volume: v }));
-        audioEngine.setVolume(v);
-        return;
-      }
-      if (e.key === 'ArrowDown') {
-        const v = Math.max(0, s.volume - 0.1);
-        setSynthState(prev => ({ ...prev, volume: v }));
-        audioEngine.setVolume(v);
-        return;
-      }
-
-      // T/Y: Major/Minor mode
-      if (e.key === 't' || e.key === 'T') {
-        setSynthState(prev => {
-          const next = { ...prev, mode: 'major' as const };
-          next.chordName = getChordName(prev.chordIndex, 'major', prev.keyOffset);
-          if (prev.isPlaying) {
-            audioEngine.playChord(prev.chordIndex, 'sine', 'major', 0, prev.keyOffset, prev.lockedChordStyle, prev.arpeggiate, prev.arpSpeed);
-          }
-          return next;
-        });
-        return;
-      }
-      if (e.key === 'y' || e.key === 'Y') {
-        setSynthState(prev => {
-          const next = { ...prev, mode: 'minor' as const };
-          next.chordName = getChordName(prev.chordIndex, 'minor', prev.keyOffset);
-          if (prev.isPlaying) {
-            audioEngine.playChord(prev.chordIndex, 'sine', 'minor', 0, prev.keyOffset, prev.lockedChordStyle, prev.arpeggiate, prev.arpSpeed);
-          }
-          return next;
-        });
-        return;
-      }
-
-      // Q/W/E/R/V: No longer used (timbre selection removed)
-
-      // A: Toggle arpeggiator
-      if (e.key === 'a' || e.key === 'A') {
-        setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }));
-        return;
-      }
-
-      // B: Toggle auto bass
-      if (e.key === 'b' || e.key === 'B') {
-        setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }));
-        return;
-      }
-
       // Space: Stop all notes
       if (e.key === ' ') {
+        e.preventDefault();
         audioEngine.stopAll();
         setSynthState(prev => ({ ...prev, isPlaying: false }));
         return;

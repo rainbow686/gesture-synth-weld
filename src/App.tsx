@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   initHandTracking,
   detectHands,
@@ -23,11 +23,101 @@ import {
   type LeftHandMode,
   type RightHandMode,
   type ArpSpeed,
+  type RecMode,
+  type RecRatio,
+  type RecPhase,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
+
+/* ─── B2: Recording constants & helpers (module level, pure) ────────── */
+
+const VIDEO_REC_SUPPORTED =
+  typeof MediaRecorder !== 'undefined' &&
+  typeof HTMLCanvasElement !== 'undefined' &&
+  typeof HTMLCanvasElement.prototype.captureStream === 'function';
+
+const REC_RATIO_DIMS: Record<RecRatio, [number, number]> = {
+  '9:16': [720, 1280],
+  '16:9': [1280, 720],
+  '1:1': [1080, 1080],
+};
+
+const REC_RATIO_HINTS: Record<RecRatio, string> = {
+  '9:16': 'TikTok · Instagram Reels · YouTube Shorts',
+  '16:9': 'YouTube · general sharing',
+  '1:1': 'Instagram feed · Discord · Reddit',
+};
+
+const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
+  video: (
+    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
+      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
+      <circle cx="22" cy="14" r="6" fill="#3a3a6a" />
+      <path d="M14 29c0-4.2 3.5-6.5 8-6.5s8 2.3 8 6.5" fill="#3a3a6a" />
+      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
+      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
+      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
+      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
+    </svg>
+  ),
+  skeleton: (
+    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
+      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
+      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
+      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
+      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
+      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
+    </svg>
+  ),
+  audio: (
+    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
+      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
+      {[8, 14, 20, 26, 32, 38, 44, 50, 56].map((x, i) => (
+        <rect key={x} x={x} y={18 - (i % 3) * 4} width="3" height={(i % 3) * 8 + 8} rx="1.5" fill="#00ffcc" opacity={0.85} />
+      ))}
+    </svg>
+  ),
+};
+
+/** Pick the best MediaRecorder mime type (mp4 preferred, webm fallback). */
+function pickRecMimeType(): { mime: string; ext: string } {
+  const candidates: [string, string][] = [
+    ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
+    ['video/mp4', 'mp4'],
+    ['video/webm;codecs=vp9,opus', 'webm'],
+    ['video/webm;codecs=vp8,opus', 'webm'],
+    ['video/webm', 'webm'],
+  ];
+  for (const [mime, ext] of candidates) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) return { mime, ext };
+  }
+  return { mime: '', ext: 'webm' };
+}
+
+/** HUD overlay drawn into the recording frame. */
+function drawRecHud(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  ratio: RecRatio,
+  chordName: string,
+  modeLabel: string,
+): void {
+  const yTop = ratio === '9:16' ? 56 : 40;
+  ctx.font = '700 26px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#00ffcc';
+  ctx.fillText(chordName || '—', 24, yTop);
+  ctx.font = '500 20px system-ui, sans-serif';
+  ctx.fillStyle = '#a0a0d0';
+  ctx.fillText(modeLabel, 24, ratio === '9:16' ? 92 : 68);
+  ctx.font = '600 18px system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = 'rgba(160,160,208,0.7)';
+  ctx.fillText('Gesture Synth Weld', W - 24, yTop);
+}
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Unknown error';
@@ -84,6 +174,21 @@ export default function App() {
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
 
+  // B2: recording flow (chooser → countdown → recording → result)
+  const [recPhase, setRecPhase] = useState<RecPhase>('idle');
+  const [recMode, setRecMode] = useState<RecMode>(() => (localStorage.getItem('gsw-rec-mode') as RecMode) || 'audio');
+  const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
+  const [recCount, setRecCount] = useState(3);
+  const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+  const recModeRef = useRef<RecMode>('audio');
+  const recRatioRef = useRef<RecRatio>('9:16');
+  const recCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recChunksRef = useRef<Blob[]>([]);
+  const countdownTimerRef = useRef<number | null>(null);
+  const recordingAbortedRef = useRef(false);
+
   // Hand detection smoothing to prevent flickering
   const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
     left: [],
@@ -98,6 +203,13 @@ export default function App() {
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
+  const recordingActiveRef = useRef(false);
+
+  useEffect(() => { recModeRef.current = recMode; }, [recMode]);
+  useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
+  useEffect(() => {
+    recordingActiveRef.current = isRecording;
+  }, [isRecording]);
 
   /* ─── Metronome state ───────────────────────────────────────────────── */
 
@@ -577,6 +689,57 @@ export default function App() {
     ctx.shadowBlur = 0;
   };
 
+  /* ─── B2: recording compositor ──────────────────────────────────────── */
+
+  // Composites the current performance (live canvas, or skeleton canvas in
+  // skeleton mode) into the recording canvas at the chosen aspect ratio,
+  // with brand gradient bands (9:16) and a live HUD (chord + mode).
+  const drawRecFrame = useCallback(() => {
+    const rec = recCanvasRef.current;
+    const mode = recModeRef.current;
+    const src = mode === 'skeleton' ? skeletonCanvasRef.current : canvasRef.current;
+    if (!rec || !src || !src.width || !src.height) return;
+    const rctx = rec.getContext('2d');
+    if (!rctx) return;
+
+    const W = rec.width;
+    const H = rec.height;
+    const sw = src.width;
+    const sh = src.height;
+    const ratio = recRatioRef.current;
+    const s = synthRef.current;
+    const modeLabel = s.appMode === 'gesture' ? 'Gesture' : s.appMode === 'theremin' ? 'Theremin' : 'Piano';
+
+    rctx.fillStyle = '#0a0a1a';
+    rctx.fillRect(0, 0, W, H);
+
+    if (ratio === '9:16') {
+      const bandH = Math.round(H * 0.24);
+      const g1 = rctx.createLinearGradient(0, 0, 0, bandH);
+      g1.addColorStop(0, '#0a0a1a');
+      g1.addColorStop(1, '#10103a');
+      rctx.fillStyle = g1;
+      rctx.fillRect(0, 0, W, bandH);
+      const g2 = rctx.createLinearGradient(0, H - bandH, 0, H);
+      g2.addColorStop(0, '#10103a');
+      g2.addColorStop(1, '#0a0a1a');
+      rctx.fillStyle = g2;
+      rctx.fillRect(0, H - bandH, W, bandH);
+      // Performance window: whole source, fit-width, centered in the middle
+      const winH = Math.round((W * sh) / sw);
+      const midH = H - 2 * bandH;
+      const y = bandH + Math.max(0, Math.round((midH - winH) / 2));
+      rctx.drawImage(src, 0, y, W, winH);
+    } else {
+      // 16:9 and 1:1: cover-fill (crop top/bottom — 4:3 source is taller)
+      const ch = Math.round((W * sh) / sw);
+      const dy = Math.round((H - ch) / 2);
+      rctx.drawImage(src, 0, dy, W, ch);
+    }
+
+    drawRecHud(rctx, W, ratio, s.chordName, modeLabel);
+  }, []);
+
   /* ─── Animation loop ───────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -625,6 +788,30 @@ export default function App() {
 
       drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
       drawWaveformRef.current?.();
+
+      // B2: during recording, build the skeleton canvas (if needed) and
+      // composite the recording frame at the chosen aspect ratio.
+      if (recordingActiveRef.current) {
+        const mode = recModeRef.current;
+        if (mode === 'skeleton') {
+          const sc = skeletonCanvasRef.current;
+          if (sc) {
+            if (sc.width !== canvas.width || sc.height !== canvas.height) {
+              sc.width = canvas.width;
+              sc.height = canvas.height;
+            }
+            const sctx = sc.getContext('2d');
+            if (sctx) {
+              sctx.fillStyle = '#0a0a1a';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              drawOverlayRef.current?.(sctx, sc.width, sc.height);
+              const wf = waveformCanvasRef.current;
+              if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
+            }
+          }
+        }
+        drawRecFrame();
+      }
     };
 
     rafIdRef.current = requestAnimationFrame(loop);
@@ -726,6 +913,20 @@ export default function App() {
   }, []);
 
   const stopCamera = useCallback(() => {
+    // Cancel any in-flight recording flow
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      recordingAbortedRef.current = true;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    // Discard any in-flight audio recording (Tone.Recorder) so a later
+    // recording starts fresh
+    audioEngine.stopRecording();
+    setRecPhase('idle');
     runningRef.current = false;
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
@@ -760,33 +961,188 @@ export default function App() {
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
-  /* ─── Recording ────────────────────────────────────────────────────── */
+  /* ─── Recording (B2 flow: chooser → countdown → record → result) ───── */
 
-  const toggleRecording = useCallback(async () => {
-    if (isRecording) {
-      const blob = await audioEngine.stopRecording();
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = makeRecordingFilename();
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        // Delay revocation to avoid Firefox download race
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
+  const downloadRec = useCallback(() => {
+    if (!recBlob) return;
+    const url = URL.createObjectURL(recBlob.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = recBlob.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Delay revocation to avoid Firefox download race
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }, [recBlob]);
+
+  const shareRec = useCallback(async () => {
+    if (!recBlob) return;
+    try {
+      await navigator.share({
+        files: [new File([recBlob.blob], recBlob.filename)],
+        title: 'Gesture Synth Weld',
+      });
+    } catch {
+      // User cancelled the share sheet — nothing to do
+    }
+  }, [recBlob]);
+
+  const canFileShare = !!recBlob &&
+    typeof navigator.share === 'function' &&
+    (typeof navigator.canShare !== 'function' ||
+      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename)] }));
+
+  // Start the actual recording (audio via Tone.Recorder; video/skeleton via
+  // MediaRecorder on the composited recording canvas + audio tap).
+  const beginRecording = useCallback(() => {
+    const mode = recModeRef.current;
+    if (mode === 'audio') {
+      if (!audioEngine.startRecording()) {
+        setRecPhase('idle');
+        return;
       }
-      setIsRecording(false);
-      setRecordingTime(0);
-      recordingStartRef.current = null;
     } else {
-      const ok = audioEngine.startRecording();
-      if (ok) {
-        setIsRecording(true);
-        recordingStartRef.current = Date.now();
+      // Skeleton mode composites an offscreen canvas: dark bg + skeleton +
+      // waveform (no camera feed). Create/size it here so beginRecording
+      // sees a valid source before the draw loop starts painting it.
+      if (mode === 'skeleton') {
+        const live = canvasRef.current;
+        if (!live || !live.width) {
+          setRecPhase('idle');
+          return;
+        }
+        if (!skeletonCanvasRef.current) {
+          skeletonCanvasRef.current = document.createElement('canvas');
+        }
+        skeletonCanvasRef.current.width = live.width;
+        skeletonCanvasRef.current.height = live.height;
+      }
+      const srcCanvas = mode === 'skeleton' ? skeletonCanvasRef.current : canvasRef.current;
+      if (!srcCanvas || !srcCanvas.width) {
+        setRecPhase('idle');
+        return;
+      }
+      const [rw, rh] = REC_RATIO_DIMS[recRatioRef.current];
+      let rec = recCanvasRef.current;
+      if (!rec) {
+        rec = document.createElement('canvas');
+        recCanvasRef.current = rec;
+      }
+      rec.width = rw;
+      rec.height = rh;
+      drawRecFrame(); // first paint before captureStream
+
+      let stream: MediaStream;
+      try {
+        stream = new MediaStream(rec.captureStream(30).getVideoTracks());
+        const aTrack = audioEngine.getRecordingAudioTrack();
+        if (aTrack) stream.addTrack(aTrack);
+      } catch {
+        setRecPhase('idle');
+        return;
+      }
+      const { mime } = pickRecMimeType();
+      const recorder = new MediaRecorder(stream, {
+        mimeType: mime || undefined,
+        videoBitsPerSecond: 3_000_000,
+      });
+      const finalMime = recorder.mimeType || mime || 'video/webm';
+      const ext = finalMime.includes('mp4') ? 'mp4' : 'webm';
+      recChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        if (recordingAbortedRef.current) {
+          recordingAbortedRef.current = false;
+          recChunksRef.current = [];
+          return;
+        }
+        const blob = new Blob(recChunksRef.current, { type: finalMime.split(';')[0] || 'video/webm' });
+        recChunksRef.current = [];
+        setRecBlob({ blob, filename: makeRecordingFilename(ext) });
+        setRecPhase('result');
+      };
+      recorder.start(500);
+      mediaRecorderRef.current = recorder;
+    }
+    setIsRecording(true);
+    recordingStartRef.current = Date.now();
+    setRecPhase('recording');
+  }, [drawRecFrame]);
+
+  // 3-2-1 countdown before recording starts (time to get hands back up)
+  const startCountdown = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setRecPhase('countdown');
+    setRecCount(3);
+    let n = 3;
+    countdownTimerRef.current = window.setInterval(() => {
+      n -= 1;
+      if (n <= 0) {
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
+        }
+        beginRecording();
+      } else {
+        setRecCount(n);
+      }
+    }, 1000);
+  }, [beginRecording]);
+
+  // Stop recording and produce the result panel
+  const finishRecording = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (recModeRef.current === 'audio') {
+      audioEngine.stopRecording().then((blob) => {
+        if (blob) {
+          setRecBlob({ blob, filename: makeRecordingFilename('webm') });
+          setRecPhase('result');
+        } else {
+          setRecPhase('idle');
+        }
+      });
+    } else {
+      const rec = mediaRecorderRef.current;
+      if (rec && rec.state === 'recording') {
+        rec.stop();
+      } else {
+        setRecPhase('idle');
       }
     }
-  }, [isRecording]);
+    setIsRecording(false);
+    setRecordingTime(0);
+    recordingStartRef.current = null;
+  }, []);
+
+  const finishRecordingRef = useRef<() => void>(() => {});
+  finishRecordingRef.current = finishRecording;
+
+  // Record button: idle → open chooser; recording → stop;
+  // countdown/result phases ignore the button (use the panel buttons)
+  const onRecordButton = useCallback(() => {
+    if (!isRunning) return;
+    if (isRecording) {
+      finishRecording();
+      return;
+    }
+    setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
+  }, [isRunning, isRecording, finishRecording]);
+
+  const handleStartRecording = useCallback(() => {
+    localStorage.setItem('gsw-rec-mode', recMode);
+    localStorage.setItem('gsw-rec-ratio', recRatio);
+    setRecPhase('idle'); // close the chooser
+    startCountdown();
+  }, [recMode, recRatio, startCountdown]);
 
   // Recording timer with 15s auto-stop
   useEffect(() => {
@@ -800,21 +1156,8 @@ export default function App() {
     }, 100);
 
     // Auto-stop at 15s
-    const timeout = setTimeout(async () => {
-      const blob = await audioEngine.stopRecording();
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = makeRecordingFilename();
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-      }
-      setIsRecording(false);
-      setRecordingTime(0);
-      recordingStartRef.current = null;
+    const timeout = setTimeout(() => {
+      finishRecordingRef.current();
     }, 15000);
 
     return () => {
@@ -834,6 +1177,15 @@ export default function App() {
         <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
         <canvas ref={canvasRef} className="camera-canvas" />
 
+        {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
+        {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
+          <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}>
+            {recRatio === '16:9' && <><div className="rec-strip top" /><div className="rec-strip bottom" /></>}
+            <div className="rec-window" />
+            <div className="rec-tag">REC {recRatio}</div>
+          </div>
+        )}
+
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
           <div className="frost-toolbar" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
@@ -850,7 +1202,7 @@ export default function App() {
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
             <span className="divider" />
-            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
+            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — audio, video or skeleton (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
             <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
@@ -979,6 +1331,70 @@ export default function App() {
             <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
               Full guide & tips below ↓
             </a>
+          </div>
+        )}
+
+        {/* ─── B2: recording UI — chooser, countdown, result ──────────── */}
+
+        {/* 3-2-1 countdown overlay */}
+        {recPhase === 'countdown' && (
+          <div className="countdown-overlay">
+            <div className="countdown-hint">Get ready</div>
+            <div key={recCount} className="countdown-num">{recCount}</div>
+          </div>
+        )}
+
+        {/* Mode + ratio chooser (bottom sheet on mobile, card on desktop) */}
+        {recPhase === 'choosing' && (
+          <div className="rec-sheet">
+            <div className="rec-sheet-title">Record performance</div>
+            <div className="rec-sheet-sub">What should the recording capture?</div>
+            <div className="rec-options">
+              {(['video', 'skeleton', 'audio'] as RecMode[]).map((id) => (
+                <button
+                  key={id}
+                  className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
+                  onClick={() => { if (id === 'audio' || VIDEO_REC_SUPPORTED) setRecMode(id); }}
+                >
+                  {REC_SVG_PREVIEWS[id]}
+                  <span>
+                    <strong>{id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}</strong>
+                    <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {recMode !== 'audio' && (
+              <>
+                <div className="rec-sheet-sub">Aspect ratio</div>
+                <div className="rec-ratios">
+                  {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
+                    <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
+                  ))}
+                </div>
+                <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
+              </>
+            )}
+            {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
+              <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
+            )}
+            <div className="rec-actions">
+              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
+              <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
+            </div>
+          </div>
+        )}
+
+        {/* Result panel: download (all), share (mobile via Web Share API) */}
+        {recPhase === 'result' && recBlob && (
+          <div className="rec-sheet">
+            <div className="rec-sheet-title">✓ Recording ready</div>
+            <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
+            <div className="rec-actions">
+              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
+              <button className="rec-btn primary" onClick={downloadRec}>💾 Download</button>
+              {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
+            </div>
           </div>
         )}
 

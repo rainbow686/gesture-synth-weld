@@ -77,6 +77,7 @@ export class AudioEngine {
   private instruments: Map<TimbreType, Instrument> = new Map();
   private activeNotes: Set<number> = new Set();
   private recordingDestination: Tone.Recorder | null = null;
+  private mediaStreamDest: MediaStreamAudioDestinationNode | null = null;
   private isRecordingActive = false;
   private initCalled = false;
 
@@ -124,6 +125,14 @@ export class AudioEngine {
 
     this.recordingDestination = new Tone.Recorder();
     Tone.Destination.connect(this.recordingDestination);
+
+    // Audio tap for video recording (MediaRecorder): same post-masterGain
+    // signal, exposed as a track that can be muxed with the canvas stream.
+    const rawCtx = this.ctx;
+    if (rawCtx) {
+      this.mediaStreamDest = rawCtx.createMediaStreamDestination();
+      if (this.mediaStreamDest) this.masterGain.connect(this.mediaStreamDest);
+    }
 
     // Create bass synth for auto bass
     this.bassSynth = new Tone.Synth({
@@ -418,6 +427,14 @@ export class AudioEngine {
 
   isRecording(): boolean {
     return this.isRecordingActive;
+  }
+
+  /**
+   * Audio track for video recording — the same post-masterGain signal that
+   * goes to the speakers, tapped for MediaRecorder muxing.
+   */
+  getRecordingAudioTrack(): MediaStreamTrack | null {
+    return this.mediaStreamDest?.stream.getAudioTracks()[0] ?? null;
   }
 
   getChordName(

@@ -95,3 +95,14 @@ export interface SynthState {
   /** Bass volume (0-1) */
   bassVolume: number;
 }
+
+/* ─── Recording (B2) ────────────────────────────────────────────────── */
+
+/** What the recording captures. */
+export type RecMode = 'audio' | 'video' | 'skeleton';
+
+/** Output aspect ratio for video/skeleton recordings. */
+export type RecRatio = '9:16' | '16:9' | '1:1';
+
+/** Recording flow phase. */
+export type RecPhase = 'idle' | 'choosing' | 'countdown' | 'recording' | 'result';

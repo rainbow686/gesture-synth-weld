@@ -83,6 +83,30 @@ const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
   ),
 };
 
+/** Domain URL on a dark pill — white bold for maximum clarity. */
+function drawUrlPill(
+  ctx: CanvasRenderingContext2D,
+  anchorX: number,
+  baseY: number,
+  fontSize: number,
+  centered: boolean,
+): void {
+  const url = 'gesturesynthweld.com';
+  ctx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+  const w = ctx.measureText(url).width;
+  const pillH = fontSize + 14;
+  const left = centered ? anchorX - w / 2 - 14 : anchorX - w - 26;
+  roundRectPath(ctx, left, baseY - pillH + 4, w + 28, pillH, pillH / 2);
+  ctx.fillStyle = 'rgba(5, 5, 15, 0.72)';
+  ctx.fill();
+  ctx.textAlign = centered ? 'center' : 'right';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(url, anchorX, baseY);
+  ctx.shadowBlur = 0;
+}
+
 /** Rounded-rect path helper (canvas native roundRect is recent). */
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -883,45 +907,83 @@ export default function App() {
       rctx.fillRect(0, 0, W, H);
     }
 
-    // ── Layouts per ratio (each size is designed deliberately):
+    // ── Layouts per ratio (each size designed deliberately):
+    //  16:9 — full-frame cover-crop (matches the user's live view: the
+    //   stage already crops 4:3 → 16:9, so output = what they saw), with
+    //   corner placement only: brand top-left (fancy), waveform along the
+    //   bottom edge, URL bottom-right (white bold on pill — clarity
+    //   first). No chord/mode/level bars — the frame IS the content.
     //  9:16 & 1:1 — vertical poster: stacked top band (brand → chord →
-    //   mode), window, stacked bottom band (waveform → level bars → URL)
-    //  16:9 — horizontal: one top line (brand left, mode·key right, chord
-    //   centered), window, compact bottom stack (waveform → bars → URL)
+    //   mode), content window, stacked bottom band (waveform → level
+    //   bars → URL)
+    if (ratio === '16:9') {
+      const ch = Math.round((W * sh) / sw);
+      const dy = Math.round((H - ch) / 2);
+      rctx.drawImage(src, 0, dy, W, ch);
+
+      // Brand: fancy gradient wordmark, top-left, fixed glow
+      const grad = rctx.createLinearGradient(0, 0, 260, 0);
+      grad.addColorStop(0, '#00ffcc');
+      grad.addColorStop(1, '#ff00ff');
+      rctx.font = '800 26px Orbitron, monospace';
+      rctx.textAlign = 'left';
+      rctx.shadowColor = 'rgba(0, 255, 204, 0.45)';
+      rctx.shadowBlur = 16;
+      rctx.fillStyle = grad;
+      rctx.fillText('GESTURE SYNTH WELD', 24, 40);
+      rctx.shadowBlur = 0;
+
+      // Waveform: bottom edge, full width — only in camera mode
+      // (skeleton mode already contains its own waveform)
+      if (mode !== 'skeleton') {
+        const analyser = audioEngine.getAnalyser();
+        if (analyser) {
+          const wf = analyser.getValue() as Float32Array;
+          const n = wf.length;
+          const waveY = H - 32;
+          rctx.beginPath();
+          for (let i = 0; i < n; i++) {
+            const x = W * 0.02 + (i / (n - 1)) * W * 0.96;
+            const wy2 = waveY - wf[i] * 24;
+            if (i === 0) rctx.moveTo(x, wy2);
+            else rctx.lineTo(x, wy2);
+          }
+          rctx.strokeStyle = 'rgba(0, 255, 204, 0.8)';
+          rctx.lineWidth = 3;
+          rctx.shadowColor = 'rgba(0, 255, 204, 0.6)';
+          rctx.shadowBlur = 8;
+          rctx.stroke();
+          rctx.shadowBlur = 0;
+        }
+      }
+
+      // URL: bottom-right, white bold on pill (YouTube watermark position)
+      drawUrlPill(rctx, W - 26, H - 24, 22, false);
+      return;
+    }
+
     const L = ratio === '9:16'
       ? { top: 0.19, bottom: 0.165, brand: 30, chord: 84, mode: 19, url: 24, waveH: 30, brandY: 52, chordY: -46, barH: 34 }
-      : ratio === '16:9'
-        ? { top: 0.17, bottom: 0.155, brand: 26, chord: 56, mode: 18, url: 20, waveH: 20, brandY: 40, chordY: 92, barH: 20 }
-        : { top: 0.15, bottom: 0.15, brand: 26, chord: 72, mode: 18, url: 24, waveH: 26, brandY: 44, chordY: -34, barH: 30 };
+      : { top: 0.15, bottom: 0.15, brand: 26, chord: 72, mode: 18, url: 24, waveH: 26, brandY: 44, chordY: -34, barH: 30 };
     const topZone = Math.round(H * L.top);
     const bottomZone = Math.round(H * L.bottom);
     const midH = H - topZone - bottomZone;
     // Bottom-band vertical offsets (distance from the bottom edge):
     // waveform line → level bars (centered, under the waveform) → URL pill
-    const waveOff = ratio === '16:9' ? 68 : bottomZone / 2 + 12;
-    const barsOff = waveOff - L.waveH - 12;
-    const urlOff = ratio === '16:9' ? 24 : 40;
+    const waveOff = bottomZone / 2 + 12;
+    // Level bars only on 9:16 (roomy bottom band) — 1:1's band is too
+    // tight and they'd crowd the URL; 16:9 is full-frame without bars.
+    const withBars = ratio === '9:16';
+    const barsOff = waveOff - L.waveH - 9;
+    const urlOff = 40;
 
-    // Sharp content window (fit-width for 9:16/1:1, fit-height for 16:9)
-    let winW: number;
-    let winH: number;
-    let wx: number;
-    let wy: number;
-    if (ratio === '16:9') {
-      winH = midH;
-      winW = Math.round((winH * sw) / sh);
-      wx = Math.round((W - winW) / 2);
-      wy = topZone;
-    } else {
-      winW = W;
-      winH = Math.round((W * sh) / sw);
-      wy = topZone + Math.max(0, Math.round((midH - winH) / 2));
-      wx = 0;
-    }
-    rctx.drawImage(src, wx, wy, winW, winH);
+    // Sharp content window: fit-width, centered
+    const winH = Math.round((W * sh) / sw);
+    const wy = topZone + Math.max(0, Math.round((midH - winH) / 2));
+    rctx.drawImage(src, 0, wy, W, winH);
     rctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
     rctx.lineWidth = 2;
-    rctx.strokeRect(wx, wy, winW, winH);
+    rctx.strokeRect(0, wy, W, winH);
 
     // Brand: static gradient wordmark, fixed glow (no breathing)
     const grad = rctx.createLinearGradient(0, 0, 260, 0);
@@ -943,7 +1005,7 @@ export default function App() {
     }
     const chordAge = (now - recChordTimeRef.current) / 1000;
     const popScale = chordAge < 0.25 ? 1 + 0.18 * (1 - chordAge / 0.25) : 1;
-    const chordY = ratio === '9:16' || ratio === '1:1' ? topZone + L.chordY : L.chordY;
+    const chordY = topZone + L.chordY;
     rctx.save();
     rctx.translate(W / 2, chordY);
     rctx.scale(popScale, popScale);
@@ -957,20 +1019,15 @@ export default function App() {
     rctx.restore();
     rctx.textBaseline = 'alphabetic';
 
-    // Mode · key — 16:9 keeps it on the top line (right-aligned), the
-    // vertical ratios center it under the chord
+    // Mode · key, centered under the chord
     rctx.font = `500 ${L.mode}px Inter, system-ui, sans-serif`;
     rctx.fillStyle = '#a0a0d0';
-    if (ratio === '16:9') {
-      rctx.textAlign = 'right';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W - 26, 40);
-    } else {
-      rctx.textAlign = 'center';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 34);
-    }
+    rctx.textAlign = 'center';
+    rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 34);
 
-    // Live waveform (centered in the bottom zone)
-    const analyser = audioEngine.getAnalyser();
+    // Live waveform (centered in the bottom zone) — skipped in skeleton
+    // mode, whose content canvas already carries its own waveform
+    const analyser = mode === 'skeleton' ? null : audioEngine.getAnalyser();
     if (analyser) {
       const wf = analyser.getValue() as Float32Array;
       const n = wf.length;
@@ -989,37 +1046,27 @@ export default function App() {
       rctx.stroke();
       rctx.shadowBlur = 0;
 
-      // Level bars: single cyan, centered directly under the waveform
-      let sumSq = 0;
-      for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
-      const rms = Math.sqrt(sumSq / n);
-      const barCount = 10;
-      const barW = Math.max(5, Math.round(W * 0.014));
-      const gap = 3;
-      const totalW = barCount * barW + (barCount - 1) * gap;
-      const barY = H - barsOff;
-      for (let i = 0; i < barCount; i++) {
-        const hgt = Math.max(3, rms * L.barH * (0.4 + 0.6 * (i / barCount)));
-        rctx.fillStyle = 'rgba(0, 255, 204, 0.9)';
-        rctx.fillRect((W - totalW) / 2 + i * (barW + gap), barY - hgt, barW, hgt);
+      // Level bars: only on 9:16, single cyan, centered under the waveform
+      if (withBars) {
+        let sumSq = 0;
+        for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
+        const rms = Math.sqrt(sumSq / n);
+        const barCount = 10;
+        const barW = Math.max(5, Math.round(W * 0.014));
+        const gap = 3;
+        const totalW = barCount * barW + (barCount - 1) * gap;
+        const barY = H - barsOff;
+        for (let i = 0; i < barCount; i++) {
+          const hgt = Math.max(3, rms * L.barH * (0.4 + 0.6 * (i / barCount)));
+          rctx.fillStyle = 'rgba(0, 255, 204, 0.9)';
+          rctx.fillRect((W - totalW) / 2 + i * (barW + gap), barY - hgt, barW, hgt);
+        }
       }
 
-      // URL: static, pill-backed for crisp legibility (traffic driver)
-      const url = 'gesturesynthweld.com';
-      rctx.font = `700 ${L.url}px "JetBrains Mono", monospace`;
-      const urlW = rctx.measureText(url).width;
-      const urlY = H - urlOff;
-      const pillH = L.url + 16;
-      rctx.fillStyle = 'rgba(5, 5, 15, 0.62)';
-      roundRectPath(rctx, W / 2 - urlW / 2 - 14, urlY - pillH + 4, urlW + 28, pillH, pillH / 2);
-      rctx.fill();
-      rctx.textAlign = 'center';
-      rctx.fillStyle = '#00ffcc';
-      rctx.shadowColor = 'rgba(0, 255, 204, 0.5)';
-      rctx.shadowBlur = 6;
-      rctx.fillText(url, W / 2, urlY);
-      rctx.shadowBlur = 0;
     }
+
+    // URL: white bold on a dark pill — clarity first, always shown
+    drawUrlPill(rctx, W / 2, H - urlOff, L.url, true);
   }, []);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */

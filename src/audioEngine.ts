@@ -499,16 +499,6 @@ export class AudioEngine {
     return Math.min(1, Math.sqrt(sum / data.length) * 3);
   }
 
-  /**
-   * Mic-path diagnostic (shown in the chooser while debugging):
-   * track state + context state + analyser/gain wiring.
-   */
-  getMicDebugInfo(): string {
-    const trackState = this.micTrack
-      ? `${this.micTrack.readyState}/${this.micTrack.enabled ? 'on' : 'off'}${this.micTrack.muted ? '/muted' : ''}`
-      : 'no-source';
-    return `ctx=${this.ctx?.state ?? '?'} track=${trackState} an=${this.micAnalyser ? 'y' : 'n'} g=${this.micGain ? this.micGain.gain.value.toFixed(2) : '?'} dest=${this.mediaStreamDest ? 'y' : 'n'}`;
-  }
 
   getChordName(
     chordIndex: number,

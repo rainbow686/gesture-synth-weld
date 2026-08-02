@@ -168,7 +168,7 @@ export default function App() {
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [micLevel, setMicLevel] = useState(0);
-  const [micRawMode, setMicRawMode] = useState(false);
+  const [micPermState, setMicPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
   const [recVoice, setRecVoice] = useState(() => Number(localStorage.getItem('gsw-rec-voice')) || 1.3);
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [micDeviceId, setMicDeviceId] = useState('');
@@ -176,6 +176,47 @@ export default function App() {
   const micOnRef = useRef(true);
   const micStreamRef = useRef<MediaStream | null>(null);
   const micRetriedRef = useRef(false);
+
+  // Reflect Chrome's mic permission state (used to give the right
+  // guidance: prompt → we can ask again; denied → only the browser's
+  // site settings can restore it).
+  const updateMicPermState = useCallback(() => {
+    if (typeof navigator.permissions?.query !== 'function') {
+      setMicPermState('prompt');
+      return;
+    }
+    navigator.permissions
+      .query({ name: 'microphone' as PermissionName })
+      .then((s) => setMicPermState(s.state as 'granted' | 'denied' | 'prompt'))
+      .catch(() => setMicPermState('prompt'));
+  }, []);
+
+  // Request the microphone (camera start + the chooser's "Enable
+  // microphone" button — for first-time users who denied it earlier).
+  const requestMic = useCallback(async (): Promise<boolean> => {
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
+      });
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = micStream;
+      audioEngine.setMicStream(micStream);
+      audioEngine.setMicEnabled(micOnRef.current);
+      // List mic devices so the user can pick the real one — Chrome's
+      // permission prompt defaults to a virtual/loopback device on some
+      // Macs (e.g. BlackHole), which records silence.
+      const devs = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+      setMicDevices(devs.filter((d) => d.kind === 'audioinput'));
+      const cur = micStream.getAudioTracks()[0]?.getSettings().deviceId;
+      if (cur) setMicDeviceId(cur);
+      setMicPermState('granted');
+      return true;
+    } catch {
+      micStreamRef.current = null;
+      updateMicPermState();
+      return false;
+    }
+  }, [updateMicPermState]);
 
   // Chrome workaround: some Chrome/macOS builds deliver silence from the
   // mic when echo cancellation is active (Safari is unaffected). Re-request
@@ -189,7 +230,6 @@ export default function App() {
       micStreamRef.current = s2;
       audioEngine.setMicStream(s2);
       audioEngine.setMicEnabled(micOnRef.current);
-      setMicRawMode(true);
     } catch {
       // keep the original stream
     }
@@ -248,12 +288,16 @@ export default function App() {
       audioEngine.setMicStream(s2);
       audioEngine.setMicEnabled(micOnRef.current);
       setMicDeviceId(deviceId);
-      setMicRawMode(true);
       micRetriedRef.current = true;
     } catch {
       // device unavailable — keep the current stream
     }
   }, []);
+
+  // Reflect the mic permission state whenever the chooser opens
+  useEffect(() => {
+    if (recPhase === 'choosing') updateMicPermState();
+  }, [recPhase, updateMicPermState]);
 
   // Live mic level while the chooser is open (diagnostic: is the mic
   // actually receiving sound?). Also triggers the Chrome raw-mic retry:
@@ -1056,22 +1100,10 @@ export default function App() {
 
       // Request the microphone SEPARATELY (its own permission prompt —
       // sing-along use case). Optional: if denied or unavailable, the
-      // camera keeps working and recordings are synth-only.
-      try {
-        const micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
-        });
-        micStreamRef.current = micStream;
-        // List mic devices so the user can pick the real one — Chrome's
-        // permission prompt defaults to a virtual/loopback device on some
-        // Macs (e.g. BlackHole), which records silence.
-        const devs = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
-        setMicDevices(devs.filter((d) => d.kind === 'audioinput'));
-        const cur = micStream.getAudioTracks()[0]?.getSettings().deviceId;
-        if (cur) setMicDeviceId(cur);
-      } catch {
-        micStreamRef.current = null;
-      }
+      // camera keeps working and recordings are synth-only. Users who
+      // deny it can re-enable later via the chooser's "Enable
+      // microphone" button.
+      await requestMic();
 
       const video = videoRef.current;
       if (!video) throw new Error('Video element not found');
@@ -1584,72 +1616,81 @@ export default function App() {
         {/* Mode + ratio chooser (bottom sheet on mobile, card on desktop) */}
         {recPhase === 'choosing' && (
           <div className="rec-sheet">
-            <div className="rec-sheet-title">Record performance</div>
-            <div className="rec-sheet-sub">What should the recording capture?</div>
-            <div className="rec-options">
-              {(['video', 'skeleton', 'audio'] as RecMode[]).map((id) => (
-                <button
-                  key={id}
-                  className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
-                  onClick={() => { if (id === 'audio' || VIDEO_REC_SUPPORTED) setRecMode(id); }}
-                >
-                  {REC_SVG_PREVIEWS[id]}
-                  <span>
-                    <strong>{id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}</strong>
-                    <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
-                  </span>
-                </button>
-              ))}
+            <div className="rec-body">
+              <div className="rec-sheet-title">Record performance</div>
+              <div className="rec-sheet-sub">What should the recording capture?</div>
+              <div className="rec-options">
+                {(['video', 'skeleton', 'audio'] as RecMode[]).map((id) => (
+                  <button
+                    key={id}
+                    className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
+                    onClick={() => { if (id === 'audio' || VIDEO_REC_SUPPORTED) setRecMode(id); }}
+                  >
+                    {REC_SVG_PREVIEWS[id]}
+                    <span>
+                      <strong>{id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}</strong>
+                      <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {recMode !== 'audio' && (
+                <>
+                  <div className="rec-sheet-sub">Aspect ratio</div>
+                  <div className="rec-ratios">
+                    {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
+                      <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
+                    ))}
+                  </div>
+                  <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
+                </>
+              )}
+              {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
+                <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
+              )}
+              {micStreamRef.current ? (
+                <>
+                  <label className="rec-mic-toggle">
+                    <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} />
+                    <span>🎤 Include my voice — sing along with the chords</span>
+                  </label>
+                  {/* Liquid-glass mic level meter */}
+                  <div className="rec-mic-meter" title="Microphone level — speak to test">
+                    {Array.from({ length: 14 }, (_, i) => {
+                      const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
+                      return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
+                    })}
+                  </div>
+                  {micDevices.length > 1 && (
+                    <>
+                      <div className="rec-sheet-sub">Microphone</div>
+                      <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
+                        {micDevices.map((d) => (
+                          <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
+                  <div className="rec-mix-row">
+                    <span>Voice</span>
+                    <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
+                    <span>Chords</span>
+                  </div>
+                  <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
+                </>
+              ) : micPermState === 'denied' ? (
+                <div className="rec-warn" style={{ marginTop: 10 }}>
+                  🎤 Microphone is blocked for this site — click the <strong>🔒 lock icon</strong> in the
+                  address bar → Site settings → Microphone → <strong>Allow</strong>, then try again.
+                </div>
+              ) : (
+                <>
+                  <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 No microphone yet — recording the synth only.</div>
+                  <button className="rec-btn" style={{ marginTop: 8 }} onClick={() => requestMic()}>Enable microphone to sing along</button>
+                </>
+              )}
             </div>
-            {recMode !== 'audio' && (
-              <>
-                <div className="rec-sheet-sub">Aspect ratio</div>
-                <div className="rec-ratios">
-                  {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
-                    <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
-                  ))}
-                </div>
-                <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
-              </>
-            )}
-            {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
-              <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
-            )}
-            {micStreamRef.current ? (
-              <>
-                <label className="rec-mic-toggle">
-                  <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} />
-                  <span>🎤 Include my voice — sing along with the chords</span>
-                </label>
-                <div className="rec-ratio-hint" style={{ marginTop: 4 }}>
-                  Mic level: <span style={{ color: micLevel > 0.02 ? 'var(--neon-cyan)' : '#ffb86c' }}>{micLevel > 0.02 ? `● ${Math.round(micLevel * 100)}%` : `○ ${Math.round(micLevel * 100)}% — speak to test, or check System Settings → Sound → Input`}</span>
-                </div>
-                {micRawMode && (
-                  <div className="rec-ratio-hint" style={{ marginTop: 2, color: '#ffb86c' }}>Mic reconnected without audio processing (Chrome workaround)</div>
-                )}
-                {micDevices.length > 1 && (
-                  <>
-                    <div className="rec-sheet-sub">Microphone</div>
-                    <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
-                      {micDevices.map((d) => (
-                        <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
-                <div className="rec-sheet-sub">Recording mix</div>
-                <div className="rec-mix-row">
-                  <span>Voice</span>
-                  <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
-                  <span>{Math.round(recVoice * 100)}%</span>
-                </div>
-                <div className="rec-ratio-hint" style={{ marginTop: 2, fontFamily: 'var(--font-mono)', fontSize: '0.52rem', color: '#606090' }}>
-                  {audioEngine.getMicDebugInfo()}
-                </div>
-              </>
-            ) : (
-              <div className="rec-ratio-hint" style={{ marginTop: 10 }}>🎤 Microphone unavailable — recording the synth only. Allow microphone access in the browser prompt to sing along.</div>
-            )}
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
               <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>

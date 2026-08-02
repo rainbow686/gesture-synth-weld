@@ -1052,17 +1052,24 @@ body {
   bottom: 20px;
   transform: translateX(-50%);
   width: min(480px, calc(100vw - 24px));
-  max-height: min(78vh, 620px);
-  overflow-y: auto;
+  max-height: min(82vh, 660px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: rgba(10, 10, 24, 0.88);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid rgba(0, 255, 204, 0.15);
   border-radius: 18px;
   box-shadow: var(--frost-shadow), 0 0 24px rgba(0, 255, 204, 0.08);
-  padding: 16px 18px;
+  padding: 14px 16px;
   animation: rec-sheet-up 0.25s ease;
   z-index: 95;
+}
+.rec-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
 }
 @keyframes rec-sheet-up {
   from { opacity: 0; transform: translateX(-50%) translateY(24px); }
@@ -1095,18 +1102,18 @@ body {
 .rec-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .rec-option {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   cursor: pointer;
   color: #e0e0f0;
   transition: border-color 0.15s, background 0.15s;
@@ -1118,8 +1125,8 @@ body {
 }
 .rec-option.disabled { opacity: 0.45; cursor: not-allowed; }
 .rec-option .rec-preview {
-  width: 72px;
-  height: 40px;
+  width: 60px;
+  height: 34px;
   border-radius: 6px;
   flex-shrink: 0;
 }
@@ -1273,3 +1280,38 @@ body {
   accent-color: var(--neon-cyan);
   cursor: pointer;
 }
+
+/* Liquid-glass mic level meter (bars rise with input) */
+.rec-mic-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  margin-top: 7px;
+  padding: 2px 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 255, 204, 0.12);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.rec-mic-meter span {
+  flex: 1;
+  background: linear-gradient(180deg, #00ffcc, #007a66);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 5px rgba(0, 255, 204, 0.45);
+  transition: height 0.12s ease, opacity 0.2s ease;
+}
+
+/* Recording mix description + value */
+.rec-mix-desc {
+  font-size: 0.58rem;
+  color: #b0b0d0;
+  font-weight: 400;
+}
+.rec-mix-value {
+  font-size: 0.58rem;
+  color: var(--neon-cyan);
+  margin-top: 3px;
+}
+.rec-sheet-sub { margin: 7px 0 5px; }
+.rec-actions { flex-shrink: 0; margin-top: 12px; }

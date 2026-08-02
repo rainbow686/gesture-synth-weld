@@ -109,7 +109,7 @@ function drawUrlPill(
   ctx.shadowBlur = 0;
 }
 
-/** Metallic brand wordmark — static, textured chrome look, no flash. */
+/** Metallic brand wordmark — cyan-cool chrome, static, no flash. */
 function drawMetalBrand(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -122,15 +122,68 @@ function drawMetalBrand(
   // subtle dark drop for a raised, dimensional look
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
   ctx.fillText(text, x, y + 2);
-  // silver/chrome vertical gradient: light → dark band → light
+  // cyan-cool chrome gradient: white → light cyan → cool mid → bright
   const g = ctx.createLinearGradient(0, y - size, 0, y + 4);
   g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.38, '#c9cee2');
-  g.addColorStop(0.52, '#767c9c');
-  g.addColorStop(0.72, '#e6e9f8');
-  g.addColorStop(1, '#9aa0bc');
+  g.addColorStop(0.35, '#d8ecff');
+  g.addColorStop(0.5, '#7fb8e8');
+  g.addColorStop(0.7, '#eef8ff');
+  g.addColorStop(1, '#a8cde8');
   ctx.fillStyle = g;
+  // fixed faint cyan glow (not animated)
+  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+  ctx.shadowBlur = 8;
   ctx.fillText(text, x, y);
+  ctx.shadowBlur = 0;
+}
+
+/** Soft static chord pill — like the on-site display. */
+function drawChordPill(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baseY: number,
+  size: number,
+  text: string,
+): void {
+  ctx.font = `700 ${size}px Orbitron, monospace`;
+  const w = ctx.measureText(text).width;
+  const pw = w + 52;
+  roundRectPath(ctx, cx - pw / 2, baseY - size - 8, pw, size + 16, (size + 16) / 2);
+  ctx.fillStyle = 'rgba(5, 5, 15, 0.5)';
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0, 255, 204, 0.92)';
+  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+  ctx.shadowBlur = 8;
+  ctx.fillText(text, cx, baseY);
+  ctx.shadowBlur = 0;
+}
+
+/** Skeleton-mode stage: the website's dark cosmos + stage footlight. */
+function drawStageBackground(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+): void {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, w, h);
+  // website-style radial glows (cyan above, purple mid)
+  let g = ctx.createRadialGradient(w * 0.5, h * 0.35, 0, w * 0.5, h * 0.35, Math.max(w, h) * 0.6);
+  g.addColorStop(0, 'rgba(0, 255, 204, 0.07)');
+  g.addColorStop(1, 'rgba(0, 255, 204, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  g = ctx.createRadialGradient(w * 0.5, h * 0.7, 0, w * 0.5, h * 0.7, Math.max(w, h) * 0.7);
+  g.addColorStop(0, 'rgba(120, 80, 255, 0.06)');
+  g.addColorStop(1, 'rgba(120, 80, 255, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  // stage footlight (merges with the waveform zone)
+  const f = ctx.createLinearGradient(0, h * 0.85, 0, h);
+  f.addColorStop(0, 'rgba(0, 255, 204, 0)');
+  f.addColorStop(1, 'rgba(0, 255, 204, 0.09)');
+  ctx.fillStyle = f;
+  ctx.fillRect(0, Math.round(h * 0.85), w, Math.round(h * 0.15));
 }
 
 /** Rounded-rect path helper (canvas native roundRect is recent). */
@@ -808,6 +861,17 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
   };
 
+  // Video version of the skeleton: soft palette + thinner lines + weak
+  // glow — matches the frame's quiet design language (used only inside
+  // recordings; the live view keeps the brighter look).
+  const drawOverlayVideoRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number) => void>();
+  drawOverlayVideoRef.current = (ctx, w, h) => {
+    if (!showSkeleton) return;
+    const g = gestureRef.current;
+    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00e6c0', 'rgba(0,230,192,0.35)', 2, 5);
+    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff6ec7', 'rgba(255,110,199,0.3)', 2, 4);
+  };
+
   // Draw waveform visualization — line thickness follows volume,
   // gray when muted, invisible when silent.
   const drawWaveformRef = useRef<() => void>();
@@ -884,7 +948,7 @@ export default function App() {
   const drawRecFrame = useCallback(() => {
     const rec = recCanvasRef.current;
     const mode = recModeRef.current;
-    const src = mode === 'skeleton' ? skeletonCanvasRef.current : canvasRef.current;
+    const src = skeletonCanvasRef.current; // recording-source canvas (stage or camera + soft skeleton)
     if (!rec || !src || !src.width || !src.height) return;
     const rctx = rec.getContext('2d');
     if (!rctx) return;
@@ -930,16 +994,18 @@ export default function App() {
       rctx.fillRect(0, 0, W, H);
     }
 
-    // ── Unified design (all ratios, all modes):
-    //   OUTSIDE the window — only the brand (top-left, metallic, static,
-    //   like a broadcast bug) and the URL (bottom-right, white bold on a
-    //   pill — clarity first, like a channel watermark).
-    //   INSIDE the window — everything dynamic: chord name (soft, static,
-    //   pill-backed, like the on-site display), mode·key, waveform and
-    //   level bars (camera mode only — skeleton content carries its own
-    //   waveform), all subtle with soft alpha, no flashing.
-    //   Window: full-frame cover for 16:9 (matches the live view),
-    //   fit-width centered for 9:16/1:1.
+    // ── Design language (all ratios):
+    //   Brand = cyan-cool metal (top-left, static); URL = white bold on
+    //   pill (bottom-right, clarity first). Everything else is placed per
+    //   ratio:
+    //   9:16 — poster: top band (brand → chord → mode), window, bottom
+    //     band (waveform → level bars → URL) — the bands are the design
+    //     space and stay filled
+    //   1:1 — the window fills the frame with small margins; chord, mode,
+    //     waveform and bars live INSIDE the window
+    //   16:9 — full-frame cover-crop (matches the live view); chord and
+    //     waveform live inside the frame
+    const isPoster = ratio === '9:16';
 
     // ── Content window ──
     let wy = 0;
@@ -950,38 +1016,82 @@ export default function App() {
       rctx.drawImage(src, 0, dy, W, ch);
     } else {
       winH = Math.round((W * sh) / sw);
-      wy = Math.round((H - winH) / 2);
+      const topZone = isPoster ? Math.round(H * 0.19) : 0;
+      const bottomZone = isPoster ? Math.round(H * 0.165) : 0;
+      const midH = H - topZone - bottomZone;
+      wy = isPoster
+        ? topZone + Math.max(0, Math.round((midH - winH) / 2))
+        : Math.round((H - winH) / 2);
       rctx.drawImage(src, 0, wy, W, winH);
       rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
       rctx.lineWidth = 2;
       rctx.strokeRect(0, wy, W, winH);
     }
 
-    // ── Inside the window: chord (soft, static, pill-backed) ──
-    const chordSize = ratio === '9:16' ? 54 : ratio === '16:9' ? 46 : 48;
-    const chordY = ratio === '16:9' ? 84 : wy + 64;
-    const chord = s.chordName || '—';
-    rctx.font = `700 ${chordSize}px Orbitron, monospace`;
-    const cw = rctx.measureText(chord).width;
-    const cpw = cw + 52;
-    roundRectPath(rctx, W / 2 - cpw / 2, chordY - chordSize - 8, cpw, chordSize + 16, (chordSize + 16) / 2);
-    rctx.fillStyle = 'rgba(5, 5, 15, 0.5)';
-    rctx.fill();
-    rctx.textAlign = 'center';
-    rctx.fillStyle = 'rgba(0, 255, 204, 0.92)';
-    rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-    rctx.shadowBlur = 8;
-    rctx.fillText(chord, W / 2, chordY);
-    rctx.shadowBlur = 0;
+    if (isPoster) {
+      // ── Poster top band: metal brand + soft chord + mode ──
+      drawMetalBrand(rctx, 24, 52, 28);
+      const topZone = Math.round(H * 0.19);
+      drawChordPill(rctx, W / 2, topZone - 42, 76, s.chordName || '—');
+      rctx.font = '500 17px Inter, system-ui, sans-serif';
+      rctx.textAlign = 'center';
+      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 22);
 
-    // Mode · key (poster ratios only; 16:9 stays clean)
+      // ── Poster bottom band: waveform + bars + URL ──
+      if (mode !== 'skeleton') {
+        const analyser = audioEngine.getAnalyser();
+        if (analyser) {
+          const wf = analyser.getValue() as Float32Array;
+          const n = wf.length;
+          const bottomZone = Math.round(H * 0.165);
+          const waveBase = H - bottomZone / 2 - 6;
+          rctx.beginPath();
+          for (let i = 0; i < n; i++) {
+            const x = W * 0.08 + (i / (n - 1)) * W * 0.84;
+            const wy2 = waveBase - wf[i] * 28;
+            if (i === 0) rctx.moveTo(x, wy2);
+            else rctx.lineTo(x, wy2);
+          }
+          rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
+          rctx.lineWidth = 2;
+          rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+          rctx.shadowBlur = 6;
+          rctx.stroke();
+          rctx.shadowBlur = 0;
+
+          // Level bars: centered directly under the waveform (position A)
+          let sumSq = 0;
+          for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
+          const rms = Math.sqrt(sumSq / n);
+          const barCount = 10;
+          const barW = Math.max(5, Math.round(W * 0.014));
+          const gap = 3;
+          const totalW = barCount * barW + (barCount - 1) * gap;
+          const barY = waveBase - 32;
+          for (let i = 0; i < barCount; i++) {
+            const hgt = Math.max(2, rms * 24 * (0.4 + 0.6 * (i / barCount)));
+            rctx.fillStyle = 'rgba(0, 255, 204, 0.55)';
+            rctx.fillRect((W - totalW) / 2 + i * (barW + gap), barY - hgt, barW, hgt);
+          }
+        }
+      }
+      drawUrlPill(rctx, W - 26, H - 24, 22, false);
+      return;
+    }
+
+    // ── Inside the window (1:1 + 16:9): chord, mode, waveform, bars ──
+    const chordSize = ratio === '16:9' ? 46 : 48;
+    const chordY = ratio === '16:9' ? 84 : wy + 64;
+    drawChordPill(rctx, W / 2, chordY, chordSize, s.chordName || '—');
+
     if (ratio !== '16:9') {
       rctx.font = '500 16px Inter, system-ui, sans-serif';
+      rctx.textAlign = 'center';
       rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
       rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 28);
     }
 
-    // ── Inside the window: waveform + level bars (camera mode only) ──
     if (mode !== 'skeleton') {
       const analyser = audioEngine.getAnalyser();
       if (analyser) {
@@ -995,7 +1105,6 @@ export default function App() {
           if (i === 0) rctx.moveTo(x, wy2);
           else rctx.lineTo(x, wy2);
         }
-        // subtle, like the on-site display (thin, soft alpha)
         rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
         rctx.lineWidth = 2;
         rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
@@ -1003,7 +1112,6 @@ export default function App() {
         rctx.stroke();
         rctx.shadowBlur = 0;
 
-        // Level bars: poster ratios only, small and faint
         if (ratio !== '16:9') {
           let sumSq = 0;
           for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
@@ -1022,10 +1130,8 @@ export default function App() {
       }
     }
 
-    // ── Outside: metallic brand (top-left) + URL (bottom-right) ──
-    drawMetalBrand(rctx, 24, 40, ratio === '9:16' ? 28 : 26);
+    drawMetalBrand(rctx, 24, 40, 26);
     drawUrlPill(rctx, W - 26, H - 24, 22, false);
-
   }, []);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */
@@ -1077,28 +1183,43 @@ export default function App() {
       drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
       drawWaveformRef.current?.();
 
-      // B2: during recording, build the skeleton canvas (if needed) and
-      // composite the recording frame at the chosen aspect ratio.
+      // B2: during recording, build the recording-source canvas (stage or
+      // camera frame + SOFT skeleton + waveform) and composite the frame.
+      // The soft video skeleton differs from the live overlay; the live
+      // view above keeps the brighter look.
       if (recordingActiveRef.current) {
         const mode = recModeRef.current;
-        if (mode === 'skeleton') {
-          const sc = skeletonCanvasRef.current;
-          if (sc) {
-            if (sc.width !== canvas.width || sc.height !== canvas.height) {
-              sc.width = canvas.width;
-              sc.height = canvas.height;
-            }
-            const sctx = sc.getContext('2d');
-            if (sctx) {
-              sctx.fillStyle = '#0a0a1a';
+        const sc = skeletonCanvasRef.current;
+        if (sc) {
+          if (sc.width !== canvas.width || sc.height !== canvas.height) {
+            sc.width = canvas.width;
+            sc.height = canvas.height;
+          }
+          const sctx = sc.getContext('2d');
+          if (sctx) {
+            if (mode === 'skeleton') {
+              // Stage: the website's dark cosmos + footlight, soft skeleton
+              drawStageBackground(sctx, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+            } else {
+              // Camera frame (mirrored like the live view) + soft skeleton
+              sctx.fillStyle = '#050510';
               sctx.fillRect(0, 0, sc.width, sc.height);
-              drawOverlayRef.current?.(sctx, sc.width, sc.height);
-              const wf = waveformCanvasRef.current;
-              if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
+              sctx.save();
+              sctx.scale(-1, 1);
+              sctx.drawImage(video, -sc.width, 0, sc.width, sc.height);
+              sctx.restore();
+              sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
             }
+            const wf = waveformCanvasRef.current;
+            if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
+
           }
         }
         drawRecFrame();
+
       }
     };
 
@@ -1309,19 +1430,19 @@ export default function App() {
     // valid source before the draw loop starts painting it.)
     let rec: HTMLCanvasElement | null = null;
     if (mode !== 'audio') {
-      if (mode === 'skeleton') {
-        const live = canvasRef.current;
-        if (!live || !live.width) {
-          setRecPhase('idle');
-          return;
-        }
-        if (!skeletonCanvasRef.current) {
-          skeletonCanvasRef.current = document.createElement('canvas');
-        }
-        skeletonCanvasRef.current.width = live.width;
-        skeletonCanvasRef.current.height = live.height;
+      const live = canvasRef.current;
+      if (!live || !live.width) {
+        setRecPhase('idle');
+        return;
       }
-      const srcCanvas = mode === 'skeleton' ? skeletonCanvasRef.current : canvasRef.current;
+      // The recording-source canvas (stage or camera + soft skeleton) is
+      // the source for BOTH video modes
+      if (!skeletonCanvasRef.current) {
+        skeletonCanvasRef.current = document.createElement('canvas');
+      }
+      skeletonCanvasRef.current.width = live.width;
+      skeletonCanvasRef.current.height = live.height;
+      const srcCanvas = skeletonCanvasRef.current;
       if (!srcCanvas || !srcCanvas.width) {
         setRecPhase('idle');
         return;
@@ -1335,6 +1456,33 @@ export default function App() {
       rec.width = rw;
       rec.height = rh;
       recBlurAtRef.current = 0; // force the first blur-bg paint
+      // Paint the source once BEFORE the first composite — otherwise the
+      // video's first keyframe shows an empty (black) window.
+      {
+        const sc = skeletonCanvasRef.current;
+        if (sc) {
+          const sctx = sc.getContext('2d');
+          if (sctx) {
+            if (mode === 'skeleton') {
+              drawStageBackground(sctx, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+            } else {
+              sctx.fillStyle = '#050510';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              sctx.save();
+              sctx.scale(-1, 1);
+              const v0 = videoRef.current;
+              if (v0) sctx.drawImage(v0, -sc.width, 0, sc.width, sc.height);
+              sctx.restore();
+              sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+            }
+            const wf0 = waveformCanvasRef.current;
+            if (wf0) sctx.drawImage(wf0, 0, 0, sc.width, sc.height);
+          }
+        }
+      }
       drawRecFrame(); // first paint before captureStream
     }
 
@@ -2055,6 +2203,8 @@ function drawHandSkeleton(
   canvasH: number,
   color: string,
   glowColor: string,
+  lineWidth: number = 3,
+  tipGlow: number = 8,
 ) {
   const pts = hand.landmarks;
   if (!pts || pts.length < 21) return;
@@ -2065,7 +2215,7 @@ function drawHandSkeleton(
   });
 
   ctx.strokeStyle = glowColor;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = lineWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -2089,7 +2239,7 @@ function drawHandSkeleton(
 
     if (isTip) {
       ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = tipGlow;
       ctx.fill();
       ctx.shadowBlur = 0;
     }

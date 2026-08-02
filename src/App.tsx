@@ -1099,10 +1099,19 @@ export default function App() {
       const fitH = Math.round((W * sh) / sw);
       if (fitH > winAreaH) {
         // Portrait source: cover-crop into the window area (centered).
+        // The cover rect is larger than the window — clip it so the video
+        // never bleeds into the design bands (chord / waveform / URL zone).
         const scale = Math.max(W / sw, winAreaH / sh);
         const dw = Math.round(sw * scale);
         const dh = Math.round(sh * scale);
-        rctx.drawImage(src, Math.round((W - dw) / 2), topZone + Math.round((winAreaH - dh) / 2), dw, dh);
+        const dx = Math.round((W - dw) / 2);
+        const dy = topZone + Math.round((winAreaH - dh) / 2);
+        rctx.save();
+        rctx.beginPath();
+        rctx.rect(0, topZone, W, winAreaH);
+        rctx.clip();
+        rctx.drawImage(src, dx, dy, dw, dh);
+        rctx.restore();
         wy = topZone;
         winH = winAreaH;
       } else {

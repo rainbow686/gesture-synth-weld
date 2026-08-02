@@ -1237,10 +1237,11 @@ body {
   border: 2px solid rgba(0, 255, 204, 0.55);
   border-radius: 6px;
 }
-/* 9:16 and 1:1 capture the full 4:3 canvas (bands are added around it),
-   so the window covers everything — only 16:9 crops top/bottom. */
-.rec-frame-overlay.ratio-1x1 .rec-window,
-.rec-frame-overlay.ratio-916 .rec-window { inset: 0; }
+/* 1:1 captures the full frame — window covers everything.
+   9:16 has design bands (19% top / 16.5% bottom) — the window is the
+   mid zone, matching the composited video's strokeRect exactly. */
+.rec-frame-overlay.ratio-1x1 .rec-window { inset: 0; }
+.rec-frame-overlay.ratio-916 .rec-window { top: 19%; bottom: 16.5%; left: 0; right: 0; }
 .rec-tag {
   position: absolute;
   top: 10px;

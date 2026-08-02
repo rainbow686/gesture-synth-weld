@@ -873,15 +873,14 @@ body {
     align-self: auto !important;
   }
 
-  /* Scale guide: compact, margin on edges */
+  /* Scale guide: 2 rows × 4 in portrait (all 8 notes visible, no overflow) */
   .scale-guide {
-    padding: 0 8px;
-    max-width: 100vw;
-    overflow-x: auto;
-    scrollbar-width: none;
-    justify-content: flex-start !important;
+    width: 201px !important; /* 4 × 48px + 3 × 3px gap */
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 3px 3px !important;
+    overflow: visible;
   }
-  .scale-guide::-webkit-scrollbar { display: none; }
   .scale-guide > div {
     width: 48px !important;
     min-width: 48px !important;
@@ -957,9 +956,12 @@ body {
     gap: 6px !important;
   }
 
-  /* Scale guide: wider spacing in landscape */
+  /* Scale guide: wider spacing, single row in landscape */
   .scale-guide {
     bottom: 50px !important;
+    width: auto !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
     justify-content: center !important;
     gap: 6px !important;
   }
@@ -1001,4 +1003,357 @@ body {
 ::selection {
   background: rgba(0, 255, 204, 0.25);
   color: var(--text-primary);
+}
+
+/* ─── B2: Recording UI ──────────────────────────────────────────────── */
+
+/* Countdown overlay — full screen, dimmed, big neon numbers */
+.countdown-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 15, 0.72);
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 96;
+  pointer-events: none;
+}
+.countdown-hint {
+  color: #a0a0c8;
+  font-size: 0.85rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-family: var(--font-display);
+}
+.countdown-num {
+  font-family: var(--font-display);
+  font-size: clamp(6rem, 26vw, 10rem);
+  line-height: 1;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 34px rgba(0, 255, 204, 0.55);
+  animation: countdown-pop 1s ease-out forwards;
+}
+@keyframes countdown-pop {
+  0%   { transform: scale(2.6); opacity: 0; }
+  20%  { transform: scale(1.05); opacity: 1; }
+  75%  { transform: scale(0.94); opacity: 1; }
+  100% { transform: scale(0.72); opacity: 0; }
+}
+/* Wrap-up 3-2-1 — magenta signals "stopping" (vs cyan "starting") */
+.countdown-num.wrap-up {
+  color: var(--neon-magenta);
+  text-shadow: 0 0 34px rgba(255, 110, 199, 0.55);
+}
+
+/* Mode/ratio chooser + result sheet: bottom sheet on mobile, centered card on desktop.
+   Dark frosted glass (keeps text readable over the busy camera view) with the
+   app's liquid-glass border/shadow language. Floats above everything (z 95). */
+.rec-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  width: min(480px, calc(100vw - 24px));
+  max-height: min(82vh, 660px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(10, 10, 24, 0.88);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.15);
+  border-radius: 18px;
+  box-shadow: var(--frost-shadow), 0 0 24px rgba(0, 255, 204, 0.08);
+  padding: 14px 16px;
+  animation: rec-sheet-up 0.25s ease;
+  z-index: 95;
+}
+.rec-body {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+@keyframes rec-sheet-up {
+  from { opacity: 0; transform: translateX(-50%) translateY(24px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@media (min-width: 769px) {
+  .rec-sheet {
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+  }
+  @keyframes rec-sheet-up {
+    from { opacity: 0; transform: translate(-50%, -42%); }
+    to   { opacity: 1; transform: translate(-50%, -50%); }
+  }
+}
+.rec-sheet-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--neon-cyan);
+  margin-bottom: 4px;
+}
+.rec-sheet-sub {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  margin: 8px 0 6px;
+}
+
+/* Mode option cards with mini previews */
+.rec-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rec-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: #e0e0f0;
+  transition: border-color 0.15s, background 0.15s;
+}
+.rec-option:hover { background: rgba(255, 255, 255, 0.07); }
+.rec-option.active {
+  border-color: rgba(0, 255, 204, 0.55);
+  background: rgba(0, 255, 204, 0.08);
+}
+.rec-option.disabled { opacity: 0.45; cursor: not-allowed; }
+.rec-option .rec-preview {
+  width: 60px;
+  height: 34px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.rec-option strong { display: block; font-size: 0.78rem; }
+.rec-option em {
+  display: block;
+  font-style: normal;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Ratio segmented control */
+.rec-ratios {
+  display: flex;
+  gap: 8px;
+}
+.rec-ratio-btn {
+  flex: 1;
+  padding: 8px 0;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #d0d0e8;
+  cursor: pointer;
+}
+.rec-ratio-btn.active {
+  border-color: rgba(0, 255, 204, 0.55);
+  background: rgba(0, 255, 204, 0.1);
+  color: var(--neon-cyan);
+}
+.rec-ratio-hint {
+  font-size: 0.56rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.rec-warn {
+  margin-top: 8px;
+  font-size: 0.6rem;
+  color: #ffb86c;
+}
+
+/* Action buttons */
+.rec-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.rec-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e0e0f0;
+}
+.rec-btn.primary {
+  background: linear-gradient(135deg, rgba(0, 255, 204, 0.22), rgba(255, 0, 255, 0.18));
+  border-color: rgba(0, 255, 204, 0.5);
+  color: var(--neon-cyan);
+}
+
+/* Capture-frame overlay: shows exactly what will be recorded */
+.rec-frame-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.rec-strip {
+  position: absolute;
+  background: rgba(5, 5, 15, 0.55);
+}
+.rec-strip.top { top: 0; left: 0; right: 0; height: 12.5%; }
+.rec-strip.bottom { bottom: 0; left: 0; right: 0; height: 12.5%; }
+.rec-strip.left { left: 0; top: 0; bottom: 0; width: 12.5%; }
+.rec-strip.right { right: 0; top: 0; bottom: 0; width: 12.5%; }
+.rec-window {
+  position: absolute;
+  inset: 12.5% 0;
+  border: 2px solid rgba(0, 255, 204, 0.55);
+  border-radius: 6px;
+}
+/* 9:16 and 1:1 capture the full 4:3 canvas (bands are added around it),
+   so the window covers everything — only 16:9 crops top/bottom. */
+.rec-frame-overlay.ratio-1x1 .rec-window,
+.rec-frame-overlay.ratio-916 .rec-window { inset: 0; }
+.rec-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: #ff4d6d;
+  background: rgba(5, 5, 15, 0.7);
+  border: 1px solid rgba(255, 77, 109, 0.5);
+  border-radius: 999px;
+  padding: 3px 10px;
+  animation: rec-blink 1.2s ease-in-out infinite;
+}
+@keyframes rec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Mic toggle in the recording chooser */
+.rec-mic-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.68rem;
+  color: #d0d0e8;
+  cursor: pointer;
+  user-select: none;
+}
+.rec-mic-toggle input {
+  accent-color: var(--neon-cyan);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Mic device picker + recording mix slider */
+.rec-device-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #e0e0f0;
+  font-size: 0.66rem;
+}
+.rec-device-select option { background: #12122a; }
+.rec-mix-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.64rem;
+  color: #d0d0e8;
+}
+.rec-mix-slider {
+  flex: 1;
+  accent-color: var(--neon-cyan);
+  cursor: pointer;
+}
+
+/* Liquid-glass mic level meter (bars rise with input) */
+.rec-mic-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  margin-top: 7px;
+  padding: 2px 3px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 255, 204, 0.12);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.rec-mic-meter span {
+  flex: 1;
+  background: linear-gradient(180deg, #00ffcc, #007a66);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 5px rgba(0, 255, 204, 0.45);
+  transition: height 0.12s ease, opacity 0.2s ease;
+}
+
+/* Recording mix description + value */
+.rec-mix-desc {
+  font-size: 0.58rem;
+  color: #b0b0d0;
+  font-weight: 400;
+}
+.rec-mix-value {
+  font-size: 0.58rem;
+  color: var(--neon-cyan);
+  margin-top: 3px;
+}
+.rec-sheet-sub { margin: 7px 0 5px; }
+.rec-actions { flex-shrink: 0; margin-top: 12px; }
+
+/* Mic section — grayed out until enabled; prominent notice + enable button */
+.rec-mic-section.disabled {
+  opacity: 0.55;
+}
+.rec-mic-section.disabled .rec-mic-toggle {
+  cursor: not-allowed;
+}
+.rec-mic-notice {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 170, 0, 0.45);
+  background: rgba(255, 170, 0, 0.1);
+  border-radius: 9px;
+  font-size: 0.63rem;
+  color: #ffd28a;
+  line-height: 1.55;
+}
+.rec-mic-notice strong {
+  color: #ffaa00;
+}
+.rec-mic-enable-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 9px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 255, 204, 0.45);
+  background: rgba(0, 255, 204, 0.12);
+  color: var(--neon-cyan);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rec-mic-enable-btn:hover {
+  background: rgba(0, 255, 204, 0.22);
 }

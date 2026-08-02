@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   initHandTracking,
   detectHands,
@@ -23,11 +23,278 @@ import {
   type LeftHandMode,
   type RightHandMode,
   type ArpSpeed,
+  type RecMode,
+  type RecRatio,
+  type RecPhase,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
+import { injectBrandTags } from './mp4tags';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
+
+/* ─── B2: Recording constants & helpers (module level, pure) ────────── */
+
+const VIDEO_REC_SUPPORTED =
+  typeof MediaRecorder !== 'undefined' &&
+  typeof HTMLCanvasElement !== 'undefined' &&
+  typeof HTMLCanvasElement.prototype.captureStream === 'function';
+
+const REC_RATIO_DIMS: Record<RecRatio, [number, number]> = {
+  '9:16': [720, 1280],
+  '16:9': [1280, 720],
+  '1:1': [1080, 1080],
+};
+
+const REC_RATIO_HINTS: Record<RecRatio, string> = {
+  '9:16': 'TikTok · Instagram Reels · YouTube Shorts',
+  '16:9': 'YouTube · general sharing',
+  '1:1': 'Instagram feed · Discord · Reddit',
+};
+
+const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
+  video: (
+    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
+      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
+      <circle cx="22" cy="14" r="6" fill="#3a3a6a" />
+      <path d="M14 29c0-4.2 3.5-6.5 8-6.5s8 2.3 8 6.5" fill="#3a3a6a" />
+      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
+      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
+      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
+      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
+    </svg>
+  ),
+  skeleton: (
+    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
+      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
+      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
+      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
+      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
+      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
+    </svg>
+  ),
+  audio: (
+    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
+      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
+      {[8, 14, 20, 26, 32, 38, 44, 50, 56].map((x, i) => (
+        <rect key={x} x={x} y={18 - (i % 3) * 4} width="3" height={(i % 3) * 8 + 8} rx="1.5" fill="#00ffcc" opacity={0.85} />
+      ))}
+    </svg>
+  ),
+};
+
+/** Domain URL on a dark pill — white bold, text vertically centered. */
+function drawUrlPill(
+  ctx: CanvasRenderingContext2D,
+  anchorX: number,
+  baseY: number,
+  fontSize: number,
+  centered: boolean,
+): void {
+  const url = 'gesturesynthweld.com';
+  ctx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+  const w = ctx.measureText(url).width;
+  const pillH = fontSize + 14;
+  const textMid = baseY - fontSize * 0.35; // visual center of the glyphs
+  const pillTop = textMid - pillH / 2; // pill centered on the text
+  const left = centered ? anchorX - w / 2 - 14 : anchorX - w - 14;
+  roundRectPath(ctx, left, pillTop, w + 28, pillH, pillH / 2);
+  ctx.fillStyle = 'rgba(5, 5, 15, 0.72)';
+  ctx.fill();
+  ctx.textAlign = centered ? 'center' : 'right';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(url, anchorX, baseY);
+  ctx.shadowBlur = 0;
+}
+
+/** Metallic brand wordmark — cyan-cool chrome, static, no flash. */
+function drawMetalBrand(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+): void {
+  const text = 'GESTURE SYNTH WELD';
+  ctx.font = `800 ${size}px Orbitron, monospace`;
+  ctx.textAlign = 'left';
+  // subtle dark drop for a raised, dimensional look
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillText(text, x, y + 2);
+  // cyan-cool chrome gradient: white → light cyan → cool mid → bright
+  const g = ctx.createLinearGradient(0, y - size, 0, y + 4);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, '#d8ecff');
+  g.addColorStop(0.5, '#7fb8e8');
+  g.addColorStop(0.7, '#eef8ff');
+  g.addColorStop(1, '#a8cde8');
+  ctx.fillStyle = g;
+  ctx.fillText(text, x, y);
+}
+
+/** Soft chord text — floats directly, like the on-site display. */
+function drawChordText(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baseY: number,
+  size: number,
+  text: string,
+): void {
+  ctx.font = `700 ${size}px Orbitron, monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0, 255, 204, 0.88)';
+  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+  ctx.shadowBlur = 6;
+  ctx.fillText(text, cx, baseY);
+  ctx.shadowBlur = 0;
+}
+
+/** Skeleton-mode stage: the website's dark cosmos + stage footlight. */
+function drawStageBackground(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+): void {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, w, h);
+  // website-style radial glows (cyan above, purple mid)
+  let g = ctx.createRadialGradient(w * 0.5, h * 0.35, 0, w * 0.5, h * 0.35, Math.max(w, h) * 0.6);
+  g.addColorStop(0, 'rgba(0, 255, 204, 0.07)');
+  g.addColorStop(1, 'rgba(0, 255, 204, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  g = ctx.createRadialGradient(w * 0.5, h * 0.7, 0, w * 0.5, h * 0.7, Math.max(w, h) * 0.7);
+  g.addColorStop(0, 'rgba(120, 80, 255, 0.06)');
+  g.addColorStop(1, 'rgba(120, 80, 255, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  // stage footlight (merges with the waveform zone)
+  const f = ctx.createLinearGradient(0, h * 0.85, 0, h);
+  f.addColorStop(0, 'rgba(0, 255, 204, 0)');
+  f.addColorStop(1, 'rgba(0, 255, 204, 0.09)');
+  ctx.fillStyle = f;
+  ctx.fillRect(0, Math.round(h * 0.85), w, Math.round(h * 0.15));
+}
+
+/** Square cover art for audio files — the site's visual family:
+ * dark cosmos background, neon sound-wave mark (cyan arcs + magenta
+ * note dot — the two-hand colors), metal brand, decorative waveform,
+ * URL pill, neon inner frame. */
+function makeCoverBlob(): Promise<Blob> {
+  const c = document.createElement('canvas');
+  c.width = 600;
+  c.height = 600;
+  const ctx = c.getContext('2d');
+  if (!ctx) return Promise.resolve(new Blob());
+
+  // background: the site's dark cosmos + footlight
+  drawStageBackground(ctx, 600, 600);
+
+  // neon inner frame (liquid-glass container)
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.28)';
+  ctx.lineWidth = 2;
+  roundRectPath(ctx, 26, 26, 548, 548, 24);
+  ctx.stroke();
+
+  // sound-wave mark: three cyan arcs + magenta note dot
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    ctx.strokeStyle = i === 1 ? 'rgba(0, 255, 204, 0.9)' : 'rgba(0, 255, 204, 0.5)';
+    ctx.lineWidth = i === 1 ? 3.5 : 2.5;
+    ctx.beginPath();
+    ctx.arc(300, 162, 30 + i * 13, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#ff6ec7';
+  ctx.shadowColor = 'rgba(255, 110, 199, 0.5)';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(300, 152, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // brand: metal wordmark centered — auto-shrink so it never touches the edges
+  // (target width = 80% of the canvas, leaving breathing room on both sides)
+  const text = 'GESTURE SYNTH WELD';
+  let size = 44;
+  ctx.font = `800 ${size}px Orbitron, monospace`;
+  ctx.textAlign = 'center';
+  const targetW = 480;
+  const measureW = ctx.measureText(text).width;
+  if (measureW > targetW) {
+    size = Math.floor(size * (targetW / measureW));
+    ctx.font = `800 ${size}px Orbitron, monospace`;
+  }
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillText(text, 300, 306);
+  const g = ctx.createLinearGradient(0, 304 - size, 0, 310);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, '#d8ecff');
+  g.addColorStop(0.5, '#7fb8e8');
+  g.addColorStop(0.7, '#eef8ff');
+  g.addColorStop(1, '#a8cde8');
+  ctx.fillStyle = g;
+  ctx.fillText(text, 300, 304);
+
+  // decorative waveform under the brand (music feel)
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i <= 48; i++) {
+    const x = 110 + (i / 48) * 380;
+    const y = 400 + Math.sin((i / 48) * Math.PI * 4) * 14;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // URL pill centered
+  drawUrlPill(ctx, 300, 478, 24, true);
+
+  return new Promise((res) => c.toBlob((b) => res(b ?? new Blob()), 'image/jpeg', 0.85));
+}
+
+/** Rounded-rect path helper (canvas native roundRect is recent). */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/** Pick the best MediaRecorder mime type (mp4/m4a preferred, webm fallback). */
+function pickRecMimeType(audioOnly: boolean = false): { mime: string; ext: string } {
+  const candidates: [string, string][] = audioOnly
+    ? [
+        ['audio/mp4;codecs=mp4a.40.2', 'm4a'],
+        ['audio/mp4', 'm4a'],
+        ['audio/webm;codecs=opus', 'webm'],
+        ['audio/webm', 'webm'],
+      ]
+    : [
+        ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
+        ['video/mp4', 'mp4'],
+        ['video/webm;codecs=vp9,opus', 'webm'],
+        ['video/webm;codecs=vp8,opus', 'webm'],
+        ['video/webm', 'webm'],
+      ];
+  for (const [mime, ext] of candidates) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) return { mime, ext };
+  }
+  return { mime: '', ext: audioOnly ? 'webm' : 'webm' };
+}
+
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Unknown error';
@@ -84,6 +351,95 @@ export default function App() {
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
 
+  // B2: recording flow (chooser → countdown → recording → result)
+  const [recPhase, setRecPhase] = useState<RecPhase>('idle');
+  const [recMode, setRecMode] = useState<RecMode>(() => (localStorage.getItem('gsw-rec-mode') as RecMode) || 'audio');
+  const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
+  const [recCount, setRecCount] = useState(3);
+  const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
+  const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+  const [shareFailed, setShareFailed] = useState(false);
+  const [micOn, setMicOn] = useState(true);
+  const [micLevel, setMicLevel] = useState(0);
+  const [micPermState, setMicPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
+  const [recVoice, setRecVoice] = useState(() => Number(localStorage.getItem('gsw-rec-voice')) || 1.3);
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
+  const [micDeviceId, setMicDeviceId] = useState('');
+  const recVoiceRef = useRef(1.3);
+  const micOnRef = useRef(true);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const micRetriedRef = useRef(false);
+
+  // Reflect Chrome's mic permission state (used to give the right
+  // guidance: prompt → we can ask again; denied → only the browser's
+  // site settings can restore it).
+  const updateMicPermState = useCallback(() => {
+    if (typeof navigator.permissions?.query !== 'function') {
+      setMicPermState('prompt');
+      return;
+    }
+    navigator.permissions
+      .query({ name: 'microphone' as PermissionName })
+      .then((s) => setMicPermState(s.state as 'granted' | 'denied' | 'prompt'))
+      .catch(() => setMicPermState('prompt'));
+  }, []);
+
+  // Request the microphone (camera start + the chooser's "Enable
+  // microphone" button — for first-time users who denied it earlier).
+  const requestMic = useCallback(async (): Promise<boolean> => {
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
+      });
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = micStream;
+      audioEngine.setMicStream(micStream);
+      audioEngine.setMicEnabled(micOnRef.current);
+      // List mic devices so the user can pick the real one — Chrome's
+      // permission prompt defaults to a virtual/loopback device on some
+      // Macs (e.g. BlackHole), which records silence.
+      const devs = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+      setMicDevices(devs.filter((d) => d.kind === 'audioinput'));
+      const cur = micStream.getAudioTracks()[0]?.getSettings().deviceId;
+      if (cur) setMicDeviceId(cur);
+      setMicPermState('granted');
+      return true;
+    } catch {
+      micStreamRef.current = null;
+      updateMicPermState();
+      return false;
+    }
+  }, [updateMicPermState]);
+
+  // Chrome workaround: some Chrome/macOS builds deliver silence from the
+  // mic when echo cancellation is active (Safari is unaffected). Re-request
+  // the mic WITHOUT audio processing and rewire, once.
+  const retryMicRaw = useCallback(async () => {
+    try {
+      const s2 = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = s2;
+      audioEngine.setMicStream(s2);
+      audioEngine.setMicEnabled(micOnRef.current);
+    } catch {
+      // keep the original stream
+    }
+  }, []);
+  const recModeRef = useRef<RecMode>('audio');
+  const recRatioRef = useRef<RecRatio>('9:16');
+  const recCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recChunksRef = useRef<Blob[]>([]);
+  const countdownTimerRef = useRef<number | null>(null);
+  const endCountTimerRef = useRef<number | null>(null);
+  const recordingAbortedRef = useRef(false);
+  // B2: recording compositor helpers (cheap blur buffer + chord-pop timing)
+  const blurBufRef = useRef<HTMLCanvasElement | null>(null);
+  const recBlurAtRef = useRef(0); // last blur-bg redraw (throttled to ~5fps)
+
   // Hand detection smoothing to prevent flickering
   const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
     left: [],
@@ -98,6 +454,68 @@ export default function App() {
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
+  const recordingActiveRef = useRef(false);
+
+  useEffect(() => { recModeRef.current = recMode; }, [recMode]);
+  useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
+  useEffect(() => { micOnRef.current = micOn; }, [micOn]);
+  useEffect(() => { audioEngine.setMicEnabled(micOn); }, [micOn]);
+  useEffect(() => { recVoiceRef.current = recVoice; }, [recVoice]);
+  useEffect(() => {
+    audioEngine.setRecordingMix(recVoice);
+    localStorage.setItem('gsw-rec-voice', String(recVoice));
+  }, [recVoice]);
+
+  // Re-select the mic device (Chrome's permission prompt defaults to a
+  // virtual/loopback device on some Macs — e.g. BlackHole — which records
+  // silence). Enumerated after mic permission is granted.
+  const switchMicDevice = useCallback(async (deviceId: string) => {
+    if (!deviceId) return;
+    try {
+      const s2 = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = s2;
+      audioEngine.setMicStream(s2);
+      audioEngine.setMicEnabled(micOnRef.current);
+      setMicDeviceId(deviceId);
+      micRetriedRef.current = true;
+    } catch {
+      // device unavailable — keep the current stream
+    }
+  }, []);
+
+  // Reflect the mic permission state whenever the chooser opens
+  useEffect(() => {
+    if (recPhase === 'choosing') updateMicPermState();
+  }, [recPhase, updateMicPermState]);
+
+  // Live mic level while the chooser is open (diagnostic: is the mic
+  // actually receiving sound?). Also triggers the Chrome raw-mic retry:
+  // ~2.5s of silence with the toggle on means the OS granted the mic but
+  // Chrome isn't delivering audio (echo-cancellation bug class).
+  useEffect(() => {
+    if (recPhase !== 'choosing' || !micStreamRef.current) return;
+    let silentFor = 0;
+    const t = window.setInterval(() => {
+      const lvl = audioEngine.getMicLevel();
+      setMicLevel(lvl);
+      if (lvl < 0.005 && micOnRef.current && !micRetriedRef.current) {
+        silentFor += 250;
+        if (silentFor >= 2500) {
+          micRetriedRef.current = true;
+          retryMicRaw();
+        }
+      } else {
+        silentFor = 0;
+      }
+    }, 250);
+    return () => window.clearInterval(t);
+  }, [recPhase, retryMicRaw]);
+  useEffect(() => {
+    recordingActiveRef.current = isRecording;
+  }, [isRecording]);
 
   /* ─── Metronome state ───────────────────────────────────────────────── */
 
@@ -515,6 +933,17 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
   };
 
+  // Video version of the skeleton: soft palette + thinner lines + weak
+  // glow — matches the frame's quiet design language (used only inside
+  // recordings; the live view keeps the brighter look).
+  const drawOverlayVideoRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number) => void>();
+  drawOverlayVideoRef.current = (ctx, w, h) => {
+    if (!showSkeleton) return;
+    const g = gestureRef.current;
+    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00e6c0', 'rgba(0,230,192,0.35)', 2, 5);
+    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff6ec7', 'rgba(255,110,199,0.3)', 2, 4);
+  };
+
   // Draw waveform visualization — line thickness follows volume,
   // gray when muted, invisible when silent.
   const drawWaveformRef = useRef<() => void>();
@@ -577,6 +1006,176 @@ export default function App() {
     ctx.shadowBlur = 0;
   };
 
+  /* ─── B2: recording compositor ──────────────────────────────────────── */
+
+  // Composites the current performance (live canvas, or skeleton canvas in
+  // skeleton mode) into the recording canvas at the chosen aspect ratio.
+  //
+  // 9:16 — vertical share frame: blur-fill background (the performance
+  // itself, enlarged + blurred + darkened — the industry standard for
+  // landscape→vertical), sharp content window, brand name (gradient,
+  // breathing glow), huge live chord name (pops on change), mode · key,
+  // live waveform + level bars, and the domain URL (the traffic driver).
+  // 16:9 — cover-fill with a small HUD. 1:1 — blur-fill + simple HUD.
+  const drawRecFrame = useCallback(() => {
+    const rec = recCanvasRef.current;
+    const mode = recModeRef.current;
+    const src = skeletonCanvasRef.current; // recording-source canvas (stage or camera + soft skeleton)
+    if (!rec || !src || !src.width || !src.height) return;
+    const rctx = rec.getContext('2d');
+    if (!rctx) return;
+
+    const W = rec.width;
+    const H = rec.height;
+    const sw = src.width;
+    const sh = src.height;
+    const ratio = recRatioRef.current;
+    const s = synthRef.current;
+    const modeLabel = s.appMode === 'gesture' ? 'Gesture' : s.appMode === 'theremin' ? 'Theremin' : 'Piano';
+    const now = performance.now();
+
+    // ── Blur-fill background (cheap: draw via a tiny copy, then upscale) ──
+    // Redrawn at ~5fps — it's visually stable, and this is the heaviest
+    // draw (a full-frame upscale), so throttling it removes most of the
+    // recording-compositor load that can cause jank.
+    {
+      rctx.fillStyle = '#050510';
+      rctx.fillRect(0, 0, W, H);
+      const bw = Math.max(32, Math.round(W / 10));
+      const bh = Math.max(56, Math.round(H / 10));
+      if (!blurBufRef.current) blurBufRef.current = document.createElement('canvas');
+      const bb = blurBufRef.current;
+      if (bb.width !== bw || bb.height !== bh) {
+        bb.width = bw;
+        bb.height = bh;
+      }
+      const bctx = bb.getContext('2d');
+      if (bctx) {
+        const scale = Math.max(bw / sw, bh / sh);
+        const dw = sw * scale;
+        const dh = sh * scale;
+        bctx.imageSmoothingEnabled = true;
+        bctx.imageSmoothingQuality = 'medium';
+        bctx.drawImage(src, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
+      }
+      rctx.imageSmoothingEnabled = true;
+      rctx.imageSmoothingQuality = 'medium';
+      rctx.drawImage(bb, 0, 0, W, H);
+      rctx.fillStyle = 'rgba(5, 5, 15, 0.55)';
+      rctx.fillRect(0, 0, W, H);
+    }
+
+    // ── Design language (all ratios):
+    //   Brand = cyan-cool metal (top-left, static); URL = white bold on
+    //   pill (bottom-right, clarity first). Everything else is placed per
+    //   ratio:
+    //   9:16 — poster: top band (brand → chord → mode), window, bottom
+    //     band (waveform → level bars → URL) — the bands are the design
+    //     space and stay filled
+    //   1:1 — the window fills the frame with small margins; chord, mode,
+    //     waveform and bars live INSIDE the window
+    //   16:9 — full-frame cover-crop (matches the live view); chord and
+    //     waveform live inside the frame
+    const isPoster = ratio === '9:16';
+
+    // ── Content window ──
+    let wy = 0;
+    let winH = H;
+    if (ratio === '16:9') {
+      const ch = Math.round((W * sh) / sw);
+      const dy = Math.round((H - ch) / 2);
+      rctx.drawImage(src, 0, dy, W, ch);
+    } else {
+      winH = Math.round((W * sh) / sw);
+      const topZone = isPoster ? Math.round(H * 0.19) : 0;
+      const bottomZone = isPoster ? Math.round(H * 0.165) : 0;
+      const midH = H - topZone - bottomZone;
+      wy = isPoster
+        ? topZone + Math.max(0, Math.round((midH - winH) / 2))
+        : Math.round((H - winH) / 2);
+      rctx.drawImage(src, 0, wy, W, winH);
+      rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
+      rctx.lineWidth = 2;
+      rctx.strokeRect(0, wy, W, winH);
+    }
+
+    if (isPoster) {
+      // ── Poster top band: metal brand + soft chord + mode ──
+      drawMetalBrand(rctx, 24, 52, 28);
+      const topZone = Math.round(H * 0.19);
+      drawChordText(rctx, W / 2, topZone - 42, 76, s.chordName || '—');
+      rctx.font = '500 17px Inter, system-ui, sans-serif';
+      rctx.textAlign = 'center';
+      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 22);
+
+      // ── Poster bottom band: big waveform (mirrors the chord zone) + URL ──
+      if (mode !== 'skeleton') {
+        const analyser = audioEngine.getAnalyser();
+        if (analyser) {
+          const wf = analyser.getValue() as Float32Array;
+          const n = wf.length;
+          // amplitude ~48 so the waveform fills the band like the chord
+          // fills the top zone (visual symmetry)
+          const waveBase = H - 150;
+          rctx.beginPath();
+          for (let i = 0; i < n; i++) {
+            const x = W * 0.08 + (i / (n - 1)) * W * 0.84;
+            const wy2 = waveBase - wf[i] * 48;
+            if (i === 0) rctx.moveTo(x, wy2);
+            else rctx.lineTo(x, wy2);
+          }
+          rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
+          rctx.lineWidth = 2.5;
+          rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+          rctx.shadowBlur = 6;
+          rctx.stroke();
+          rctx.shadowBlur = 0;
+        }
+      }
+      drawUrlPill(rctx, W - 26, H - 24, 22, false);
+      return;
+    }
+
+    // ── Inside the window (1:1 + 16:9): chord, mode, waveform, bars ──
+    const chordSize = ratio === '16:9' ? 46 : 48;
+    const chordY = ratio === '16:9' ? 84 : wy + 64;
+    drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
+
+    if (ratio !== '16:9') {
+      rctx.font = '500 16px Inter, system-ui, sans-serif';
+      rctx.textAlign = 'center';
+      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 28);
+    }
+
+    if (mode !== 'skeleton') {
+      const analyser = audioEngine.getAnalyser();
+      if (analyser) {
+        const wf = analyser.getValue() as Float32Array;
+        const n = wf.length;
+        const waveBase = ratio === '16:9' ? H - 34 : wy + winH - 40;
+        rctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const x = W * 0.06 + (i / (n - 1)) * W * 0.88;
+          const wy2 = waveBase - wf[i] * (ratio === '16:9' ? 20 : 22);
+          if (i === 0) rctx.moveTo(x, wy2);
+          else rctx.lineTo(x, wy2);
+        }
+        rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
+        rctx.lineWidth = 2;
+        rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+        rctx.shadowBlur = 6;
+        rctx.stroke();
+        rctx.shadowBlur = 0;
+
+      }
+    }
+
+    drawMetalBrand(rctx, 24, 40, 26);
+    drawUrlPill(rctx, W - 26, H - 24, 22, false);
+  }, []);
+
   /* ─── Animation loop ───────────────────────────────────────────────── */
 
   useEffect(() => {
@@ -625,6 +1224,46 @@ export default function App() {
 
       drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
       drawWaveformRef.current?.();
+
+      // B2: during recording, build the recording-source canvas (stage or
+      // camera frame + SOFT skeleton + waveform) and composite the frame.
+      // The soft video skeleton differs from the live overlay; the live
+      // view above keeps the brighter look.
+      if (recordingActiveRef.current) {
+        const mode = recModeRef.current;
+        const sc = skeletonCanvasRef.current;
+        if (sc) {
+          if (sc.width !== canvas.width || sc.height !== canvas.height) {
+            sc.width = canvas.width;
+            sc.height = canvas.height;
+          }
+          const sctx = sc.getContext('2d');
+          if (sctx) {
+            if (mode === 'skeleton') {
+              // Stage: the website's dark cosmos + footlight, soft skeleton
+              drawStageBackground(sctx, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+              const wf = waveformCanvasRef.current;
+              if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
+            } else {
+              // Camera frame (mirrored like the live view) + soft skeleton.
+              // NO waveform here — camera layouts draw their own HUD
+              // waveform (bottom band / frame bottom).
+              sctx.fillStyle = '#050510';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              sctx.save();
+              sctx.scale(-1, 1);
+              sctx.drawImage(video, -sc.width, 0, sc.width, sc.height);
+              sctx.restore();
+              sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+            }
+          }
+        }
+        drawRecFrame();
+
+      }
     };
 
     rafIdRef.current = requestAnimationFrame(loop);
@@ -658,6 +1297,13 @@ export default function App() {
       });
       streamRef.current = stream;
 
+      // Request the microphone SEPARATELY (its own permission prompt —
+      // sing-along use case). Optional: if denied or unavailable, the
+      // camera keeps working and recordings are synth-only. Users who
+      // deny it can re-enable later via the chooser's "Enable
+      // microphone" button.
+      await requestMic();
+
       const video = videoRef.current;
       if (!video) throw new Error('Video element not found');
 
@@ -685,6 +1331,9 @@ export default function App() {
       // Wait for hand tracking before starting the detection loop
       await trackingPromise;
       await audioEngine.init();
+      // Attach the mic AFTER init — the engine's mic gain node only exists
+      // once initialized
+      audioEngine.setMicStream(micStreamRef.current);
 
       setIsRunning(true);
       setIsLoading(false);
@@ -726,6 +1375,24 @@ export default function App() {
   }, []);
 
   const stopCamera = useCallback(() => {
+    // Cancel any in-flight recording flow
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      recordingAbortedRef.current = true;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    // Release the mic from the recording tap
+    audioEngine.setMicEnabled(false);
+    audioEngine.setMicStream(null);
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+    }
+    setRecPhase('idle');
     runningRef.current = false;
     if (rafIdRef.current) {
       cancelAnimationFrame(rafIdRef.current);
@@ -760,66 +1427,288 @@ export default function App() {
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
   }, []);
 
-  /* ─── Recording ────────────────────────────────────────────────────── */
+  /* ─── Recording (B2 flow: chooser → countdown → record → result) ───── */
 
-  const toggleRecording = useCallback(async () => {
-    if (isRecording) {
-      const blob = await audioEngine.stopRecording();
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = makeRecordingFilename();
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        // Delay revocation to avoid Firefox download race
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
+  const downloadRec = useCallback(() => {
+    if (!recBlob) return;
+    const url = URL.createObjectURL(recBlob.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = recBlob.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Delay revocation to avoid Firefox download race
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }, [recBlob]);
+
+  const shareRec = useCallback(async () => {
+    if (!recBlob) return;
+    try {
+      await navigator.share({
+        files: [new File([recBlob.blob], recBlob.filename)],
+        title: 'Gesture Synth Weld — hand gesture music synthesizer',
+        text: 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com',
+      });
+      setShareFailed(false);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return; // user cancelled
+      // e.g. NotSupportedError — the browser claims support but can't share
+      setShareFailed(true);
+    }
+  }, [recBlob]);
+
+  const canFileShare = !!recBlob &&
+    typeof navigator.share === 'function' &&
+    (typeof navigator.canShare !== 'function' ||
+      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename)] }));
+
+  // Start the actual recording (audio via Tone.Recorder; video/skeleton via
+  // MediaRecorder on the composited recording canvas + audio tap).
+  const beginRecording = useCallback(() => {
+    const mode = recModeRef.current;
+    // Sing-along: mix the mic into the recording tap while recording
+    audioEngine.setRecordingMix(recVoiceRef.current);
+    audioEngine.setMicEnabled(micOnRef.current && !!micStreamRef.current);
+
+    // Video/skeleton modes need the composited recording canvas as source.
+    // (Skeleton mode composites an offscreen canvas: dark bg + skeleton +
+    // waveform, no camera feed — created here so beginRecording sees a
+    // valid source before the draw loop starts painting it.)
+    let rec: HTMLCanvasElement | null = null;
+    if (mode !== 'audio') {
+      const live = canvasRef.current;
+      if (!live || !live.width) {
+        setRecPhase('idle');
+        return;
       }
-      setIsRecording(false);
-      setRecordingTime(0);
-      recordingStartRef.current = null;
-    } else {
-      const ok = audioEngine.startRecording();
-      if (ok) {
-        setIsRecording(true);
-        recordingStartRef.current = Date.now();
+      // The recording-source canvas (stage or camera + soft skeleton) is
+      // the source for BOTH video modes
+      if (!skeletonCanvasRef.current) {
+        skeletonCanvasRef.current = document.createElement('canvas');
+      }
+      skeletonCanvasRef.current.width = live.width;
+      skeletonCanvasRef.current.height = live.height;
+      const srcCanvas = skeletonCanvasRef.current;
+      if (!srcCanvas || !srcCanvas.width) {
+        setRecPhase('idle');
+        return;
+      }
+      const [rw, rh] = REC_RATIO_DIMS[recRatioRef.current];
+      rec = recCanvasRef.current;
+      if (!rec) {
+        rec = document.createElement('canvas');
+        recCanvasRef.current = rec;
+      }
+      rec.width = rw;
+      rec.height = rh;
+      recBlurAtRef.current = 0; // force the first blur-bg paint
+      // Paint the source once BEFORE the first composite — otherwise the
+      // video's first keyframe shows an empty (black) window.
+      {
+        const sc = skeletonCanvasRef.current;
+        if (sc) {
+          const sctx = sc.getContext('2d');
+          if (sctx) {
+            if (mode === 'skeleton') {
+              drawStageBackground(sctx, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+              const wf0 = waveformCanvasRef.current;
+              if (wf0) sctx.drawImage(wf0, 0, 0, sc.width, sc.height);
+            } else {
+              sctx.fillStyle = '#050510';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              sctx.save();
+              sctx.scale(-1, 1);
+              const v0 = videoRef.current;
+              if (v0) sctx.drawImage(v0, -sc.width, 0, sc.width, sc.height);
+              sctx.restore();
+              sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
+              sctx.fillRect(0, 0, sc.width, sc.height);
+              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+            }
+          }
+        }
+      }
+      drawRecFrame(); // first paint before captureStream
+    }
+
+    // Unified recording stream: the audio tap (synth + mic when enabled),
+    // plus canvas video tracks for video/skeleton modes.
+    const stream = new MediaStream();
+    const aTrack = audioEngine.getRecordingAudioTrack();
+    if (aTrack) stream.addTrack(aTrack);
+    if (rec) {
+      try {
+        // 24fps instead of 30 — nearly invisible, ~20% less encoder load
+        rec.captureStream(24).getVideoTracks().forEach((t) => stream.addTrack(t));
+      } catch {
+        setRecPhase('idle');
+        return;
       }
     }
-  }, [isRecording]);
 
-  // Recording timer with 15s auto-stop
+    const { mime } = pickRecMimeType(mode === 'audio');
+    const recorder = new MediaRecorder(stream, {
+      mimeType: mime || undefined,
+      videoBitsPerSecond: 3_000_000,
+    });
+    const finalMime = recorder.mimeType || mime || (mode === 'audio' ? 'audio/webm' : 'video/webm');
+    const ext = finalMime.includes('mp4') || finalMime.includes('m4a')
+      ? (finalMime.includes('audio') ? 'm4a' : 'mp4')
+      : 'webm';
+      recChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
+      };
+      recorder.onstop = async () => {
+        if (recordingAbortedRef.current) {
+          recordingAbortedRef.current = false;
+          recChunksRef.current = [];
+          return;
+        }
+        const raw = new Blob(recChunksRef.current, { type: finalMime.split(';')[0] || 'video/webm' });
+        recChunksRef.current = [];
+        // Brand the file: mp4/m4a get iTunes-style tags (title/artist/
+        // comment) so players show the site; webm keeps the branded name
+        let blob = raw;
+        if (ext === 'mp4' || ext === 'm4a') {
+          // Audio files also carry branded cover art so players show it
+          const cover = ext === 'm4a'
+            ? new Uint8Array(await (await makeCoverBlob()).arrayBuffer())
+            : undefined;
+          blob = await injectBrandTags(
+            raw,
+            'Gesture Synth Weld',
+            'gesturesynthweld.com',
+            'Created with Gesture Synth Weld — gesturesynthweld.com',
+            cover
+          );
+        }
+        setShareFailed(false);
+        setRecBlob({ blob, filename: makeRecordingFilename(ext) });
+        setRecPhase('result');
+      };
+      recorder.start(500);
+      mediaRecorderRef.current = recorder;
+
+    setIsRecording(true);
+    recordingStartRef.current = Date.now();
+    setRecPhase('recording');
+  }, [drawRecFrame]);
+
+  // 3-2-1 countdown before recording starts (time to get hands back up)
+  const startCountdown = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setRecPhase('countdown');
+    setRecCount(3);
+    let n = 3;
+    countdownTimerRef.current = window.setInterval(() => {
+      n -= 1;
+      if (n <= 0) {
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
+        }
+        beginRecording();
+      } else {
+        setRecCount(n);
+      }
+    }, 1000);
+  }, [beginRecording]);
+
+  // Stop recording and produce the result panel (unified MediaRecorder
+  // path for audio, video and skeleton modes)
+  const finishRecording = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    if (endCountTimerRef.current) {
+      clearInterval(endCountTimerRef.current);
+      endCountTimerRef.current = null;
+    }
+    setEndCount(null);
+    audioEngine.setMicEnabled(false);
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state === 'recording') {
+      rec.stop();
+    } else {
+      setRecPhase('idle');
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+    recordingStartRef.current = null;
+  }, []);
+
+  const finishRecordingRef = useRef<() => void>(() => {});
+  finishRecordingRef.current = finishRecording;
+
+  // Record button: idle → open chooser; recording → stop;
+  // countdown/result phases ignore the button (use the panel buttons)
+  const onRecordButton = useCallback(() => {
+    if (!isRunning) return;
+    if (isRecording) {
+      finishRecording();
+      return;
+    }
+    setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
+  }, [isRunning, isRecording, finishRecording]);
+
+  const handleStartRecording = useCallback(() => {
+    localStorage.setItem('gsw-rec-mode', recMode);
+    localStorage.setItem('gsw-rec-ratio', recRatio);
+    setRecPhase('idle'); // close the chooser
+    startCountdown();
+  }, [recMode, recRatio, startCountdown]);
+
+  // Recording timer: countdown of remaining seconds + 3-2-1 wrap-up overlay
+  // (12s in → show 3,2,1 at the center, DOM-only so it never enters the video)
   useEffect(() => {
     if (!isRecording) return;
 
     const interval = setInterval(() => {
       if (recordingStartRef.current) {
         const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        setRecordingTime(Math.min(elapsed, 15));
+        setRecordingTime(Math.max(0, 15 - elapsed));
       }
     }, 100);
 
     // Auto-stop at 15s
-    const timeout = setTimeout(async () => {
-      const blob = await audioEngine.stopRecording();
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = makeRecordingFilename();
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-      }
-      setIsRecording(false);
-      setRecordingTime(0);
-      recordingStartRef.current = null;
+    const timeout = setTimeout(() => {
+      finishRecordingRef.current();
     }, 15000);
+
+    // Start the wrap-up countdown with 3s left
+    const endTimeout = setTimeout(() => {
+      setEndCount(3);
+      let n = 3;
+      endCountTimerRef.current = window.setInterval(() => {
+        n -= 1;
+        if (n <= 0) {
+          if (endCountTimerRef.current) {
+            clearInterval(endCountTimerRef.current);
+            endCountTimerRef.current = null;
+          }
+          setEndCount(null);
+        } else {
+          setEndCount(n);
+        }
+      }, 1000);
+    }, 12000);
 
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
+      clearTimeout(endTimeout);
+      if (endCountTimerRef.current) {
+        clearInterval(endCountTimerRef.current);
+        endCountTimerRef.current = null;
+      }
+      setEndCount(null);
     };
   }, [isRecording]);
 
@@ -833,6 +1722,15 @@ export default function App() {
       <section className="camera-stage">
         <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
         <canvas ref={canvasRef} className="camera-canvas" />
+
+        {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
+        {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
+          <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}>
+            {recRatio === '16:9' && <><div className="rec-strip top" /><div className="rec-strip bottom" /></>}
+            <div className="rec-window" />
+            <div className="rec-tag">REC {recRatio}</div>
+          </div>
+        )}
 
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
@@ -850,7 +1748,7 @@ export default function App() {
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
             <span className="divider" />
-            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — captures WebM audio (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
+            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>{isRecording ? `${recordingTime}s` : '●'}</button>
             <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
@@ -979,6 +1877,140 @@ export default function App() {
             <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
               Full guide & tips below ↓
             </a>
+          </div>
+        )}
+
+        {/* ─── B2: recording UI — chooser, countdown, result ──────────── */}
+
+        {/* 3-2-1 countdown overlay */}
+        {recPhase === 'countdown' && (
+          <div className="countdown-overlay">
+            <div className="countdown-hint">Get ready</div>
+            <div key={recCount} className="countdown-num">{recCount}</div>
+          </div>
+        )}
+
+        {/* Wrap-up 3-2-1 during the last 3s — same language as the opening,
+            lighter dim so the hands stay visible; DOM-only, never in the video */}
+        {endCount !== null && (
+          <div className="countdown-overlay" style={{ background: 'rgba(5, 5, 15, 0.42)' }}>
+            <div className="countdown-hint">Wrap up</div>
+            <div key={endCount} className="countdown-num wrap-up">{endCount}</div>
+          </div>
+        )}
+
+        {/* Mode + ratio chooser (bottom sheet on mobile, card on desktop) */}
+        {recPhase === 'choosing' && (
+          <div className="rec-sheet">
+            <div className="rec-body">
+              <div className="rec-sheet-title">Record performance</div>
+              <div className="rec-sheet-sub">What should the recording capture?</div>
+              <div className="rec-options">
+                {(['video', 'skeleton', 'audio'] as RecMode[]).map((id) => (
+                  <button
+                    key={id}
+                    className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
+                    onClick={() => { if (id === 'audio' || VIDEO_REC_SUPPORTED) setRecMode(id); }}
+                  >
+                    {REC_SVG_PREVIEWS[id]}
+                    <span>
+                      <strong>{id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}</strong>
+                      <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {recMode !== 'audio' && (
+                <>
+                  <div className="rec-sheet-sub">Aspect ratio</div>
+                  <div className="rec-ratios">
+                    {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
+                      <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
+                    ))}
+                  </div>
+                  <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
+                </>
+              )}
+              {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
+                <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
+              )}
+              {/* Mic section: ALWAYS visible so users know the sing-along
+                  feature exists — grayed out until the mic is enabled */}
+              <div className={`rec-mic-section ${micStreamRef.current ? '' : 'disabled'}`}>
+                <label className="rec-mic-toggle">
+                  <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} disabled={!micStreamRef.current} />
+                  <span>🎤 Include my voice — sing along with the chords</span>
+                </label>
+                {micStreamRef.current ? (
+                  <>
+                    {/* Liquid-glass mic level meter */}
+                    <div className="rec-mic-meter" title="Microphone level — speak to test">
+                      {Array.from({ length: 14 }, (_, i) => {
+                        const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
+                        return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
+                      })}
+                    </div>
+                    {micDevices.length > 1 && (
+                      <>
+                        <div className="rec-sheet-sub">Microphone</div>
+                        <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
+                          {micDevices.map((d) => (
+                            <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                    <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
+                    <div className="rec-mix-row">
+                      <span>Voice</span>
+                      <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
+                      <span>Chords</span>
+                    </div>
+                    <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
+                  </>
+                ) : micPermState === 'denied' ? (
+                  <div className="rec-mic-notice">
+                    <strong>Sing along?</strong> You can record your voice over the chords — but the
+                    microphone is <strong>blocked for this site</strong>. Click the <strong>🔒 lock icon</strong> in the
+                    address bar → Site settings → Microphone → <strong>Allow</strong>, then come back here.
+                  </div>
+                ) : (
+                  <>
+                    <div className="rec-mic-notice">
+                      <strong>Sing along?</strong> You can record your voice over the chords — but the
+                      microphone isn't enabled yet.
+                    </div>
+                    <button className="rec-mic-enable-btn" onClick={() => requestMic()}>🎤 Enable microphone</button>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="rec-actions">
+              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
+              <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
+            </div>
+          </div>
+        )}
+
+        {/* Result panel: download (all), share (mobile via Web Share API) */}
+        {recPhase === 'result' && recBlob && (
+          <div className="rec-sheet">
+            <div className="rec-sheet-title">✓ Recording ready</div>
+            <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
+            <div className="rec-actions">
+              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
+              <button className="rec-btn primary" onClick={downloadRec}>💾 Download</button>
+              {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
+            </div>
+            {canFileShare && (
+              <div className="rec-sheet-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
+                Share directly: WhatsApp · WeChat · Telegram<br />
+                TikTok · Instagram · 抖音: Save to Photos, then upload in-app
+              </div>
+            )}
+            {shareFailed && (
+              <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
+            )}
           </div>
         )}
 
@@ -1272,6 +2304,8 @@ function drawHandSkeleton(
   canvasH: number,
   color: string,
   glowColor: string,
+  lineWidth: number = 3,
+  tipGlow: number = 8,
 ) {
   const pts = hand.landmarks;
   if (!pts || pts.length < 21) return;
@@ -1282,7 +2316,7 @@ function drawHandSkeleton(
   });
 
   ctx.strokeStyle = glowColor;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = lineWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -1306,7 +2340,7 @@ function drawHandSkeleton(
 
     if (isTip) {
       ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = tipGlow;
       ctx.fill();
       ctx.shadowBlur = 0;
     }

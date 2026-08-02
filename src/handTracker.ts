@@ -7,25 +7,38 @@ import type { HandData, LandmarkPoint } from './types';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
-// Use @latest to avoid version mismatch with installed package
-const MODEL_PATH =
-  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
+// Self-hosted, no third-party CDNs. The versioned directory is part of the
+// URL: browsers cache these files for 1 year (immutable, see vercel.json),
+// so a version bump MUST change this path — see CLAUDE.md update procedure.
+const MODEL_PATH = '/v0.10.35/wasm';
+const MODEL_ASSET_PATH = '/v0.10.35/hand_landmarker.task';
 
 let handLandmarker: HandLandmarker | null = null;
+let initPromise: Promise<HandLandmarker> | null = null;
 
 /**
  * Initialize the MediaPipe HandLandmarker.
  * Safe to call multiple times — returns the existing instance if already loaded.
+ * Concurrent calls (prefetch + click) share one in-flight promise so the
+ * ~19 MB download happens exactly once.
  */
-export async function initHandTracking(): Promise<HandLandmarker> {
-  if (handLandmarker) return handLandmarker;
+export function initHandTracking(): Promise<HandLandmarker> {
+  if (handLandmarker) return Promise.resolve(handLandmarker);
+  if (!initPromise) {
+    initPromise = doInit().finally(() => {
+      initPromise = null;
+    });
+  }
+  return initPromise;
+}
 
+async function doInit(): Promise<HandLandmarker> {
   let vision;
   try {
     vision = await FilesetResolver.forVisionTasks(MODEL_PATH);
   } catch (e) {
     throw new Error(
-      `Failed to load MediaPipe WASM runtime from CDN. Check your internet connection. (${e instanceof Error ? e.message : String(e)})`
+      `Failed to load MediaPipe WASM runtime. Check your internet connection. (${e instanceof Error ? e.message : String(e)})`
     );
   }
 
@@ -33,8 +46,7 @@ export async function initHandTracking(): Promise<HandLandmarker> {
   try {
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        modelAssetPath: MODEL_ASSET_PATH,
         delegate: 'GPU',
       },
       runningMode: 'VIDEO',
@@ -47,8 +59,7 @@ export async function initHandTracking(): Promise<HandLandmarker> {
     // GPU delegate not available — try CPU
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+        modelAssetPath: MODEL_ASSET_PATH,
         delegate: 'CPU',
       },
       runningMode: 'VIDEO',

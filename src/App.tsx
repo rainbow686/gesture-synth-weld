@@ -701,7 +701,10 @@ export default function App() {
         throw new Error('Your browser does not support camera access.');
       }
 
-      await initHandTracking();
+      // Download the model in parallel with the camera permission prompt
+      // (prefetch may have already started it on button hover/touch)
+      const trackingPromise = initHandTracking();
+      trackingPromise.catch(() => {}); // errors surface via the await below
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
@@ -733,6 +736,8 @@ export default function App() {
         throw new Error(`Video playback failed: ${getErrorMessage(playErr)}`);
       }
 
+      // Wait for hand tracking before starting the detection loop
+      await trackingPromise;
       await audioEngine.init();
 
       setIsRunning(true);
@@ -762,6 +767,16 @@ export default function App() {
         }
       }
     }
+  }, []);
+
+  /* ─── Warm up hand tracking on button intent ───────────────────────── */
+
+  // Starts the ~19 MB model + WASM download the moment the user shows
+  // intent (hover / touch / focus on the Enable Camera button) so the
+  // actual click has nothing left to wait for. Users who never approach
+  // the button download nothing. Errors surface at startCamera.
+  const prefetchTracking = useCallback(() => {
+    initHandTracking().catch(() => {});
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -1043,7 +1058,14 @@ export default function App() {
             <div className="camera-placeholder-brand">
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
-            <button className="enable-camera-btn" onClick={startCamera} disabled={isLoading}>
+            <button
+              className="enable-camera-btn"
+              onClick={startCamera}
+              disabled={isLoading}
+              onMouseEnter={prefetchTracking}
+              onFocus={prefetchTracking}
+              onTouchStart={prefetchTracking}
+            >
               <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
                 <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
               </svg>

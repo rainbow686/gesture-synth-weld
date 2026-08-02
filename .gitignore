@@ -7,5 +7,3 @@ dist/
 !.env.example
 docs/
 .vercel
-
-SESSION_SUMMARY_*.md

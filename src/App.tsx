@@ -1162,8 +1162,12 @@ export default function App() {
               // Stage: the website's dark cosmos + footlight, soft skeleton
               drawStageBackground(sctx, sc.width, sc.height);
               drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+              const wf = waveformCanvasRef.current;
+              if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
             } else {
-              // Camera frame (mirrored like the live view) + soft skeleton
+              // Camera frame (mirrored like the live view) + soft skeleton.
+              // NO waveform here — camera layouts draw their own HUD
+              // waveform (bottom band / frame bottom).
               sctx.fillStyle = '#050510';
               sctx.fillRect(0, 0, sc.width, sc.height);
               sctx.save();
@@ -1174,9 +1178,6 @@ export default function App() {
               sctx.fillRect(0, 0, sc.width, sc.height);
               drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
             }
-            const wf = waveformCanvasRef.current;
-            if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
-
           }
         }
         drawRecFrame();

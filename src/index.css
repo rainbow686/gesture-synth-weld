@@ -1042,6 +1042,11 @@ body {
   75%  { transform: scale(0.94); opacity: 1; }
   100% { transform: scale(0.72); opacity: 0; }
 }
+/* Wrap-up 3-2-1 — magenta signals "stopping" (vs cyan "starting") */
+.countdown-num.wrap-up {
+  color: var(--neon-magenta);
+  text-shadow: 0 0 34px rgba(255, 110, 199, 0.55);
+}
 
 /* Mode/ratio chooser + result sheet: bottom sheet on mobile, centered card on desktop.
    Dark frosted glass (keeps text readable over the busy camera view) with the

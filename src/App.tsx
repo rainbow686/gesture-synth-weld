@@ -1894,7 +1894,7 @@ export default function App() {
         {endCount !== null && (
           <div className="countdown-overlay" style={{ background: 'rgba(5, 5, 15, 0.42)' }}>
             <div className="countdown-hint">Wrap up</div>
-            <div key={endCount} className="countdown-num">{endCount}</div>
+            <div key={endCount} className="countdown-num wrap-up">{endCount}</div>
           </div>
         )}
 

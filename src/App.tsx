@@ -214,13 +214,21 @@ function makeCoverBlob(): Promise<Blob> {
   ctx.fill();
   ctx.shadowBlur = 0;
 
-  // brand: metal wordmark centered
+  // brand: metal wordmark centered — auto-shrink so it never touches the edges
+  // (target width = 80% of the canvas, leaving breathing room on both sides)
   const text = 'GESTURE SYNTH WELD';
-  ctx.font = '800 44px Orbitron, monospace';
+  let size = 44;
+  ctx.font = `800 ${size}px Orbitron, monospace`;
   ctx.textAlign = 'center';
+  const targetW = 480;
+  const measureW = ctx.measureText(text).width;
+  if (measureW > targetW) {
+    size = Math.floor(size * (targetW / measureW));
+    ctx.font = `800 ${size}px Orbitron, monospace`;
+  }
   ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
   ctx.fillText(text, 300, 306);
-  const g = ctx.createLinearGradient(0, 248, 0, 310);
+  const g = ctx.createLinearGradient(0, 304 - size, 0, 310);
   g.addColorStop(0, '#ffffff');
   g.addColorStop(0.35, '#d8ecff');
   g.addColorStop(0.5, '#7fb8e8');

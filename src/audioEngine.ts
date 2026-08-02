@@ -455,7 +455,7 @@ export class AudioEngine {
     }
     const track = stream?.getAudioTracks()[0] ?? null;
     this.micTrack = track;
-    if (track) {
+    if (track && stream) {
       this.micSource = rawCtx.createMediaStreamSource(stream);
       if (this.micAnalyser) this.micSource.connect(this.micAnalyser);
       else this.micSource.connect(this.micGain);

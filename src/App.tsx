@@ -1079,6 +1079,12 @@ export default function App() {
     const isPoster = ratio === '9:16';
 
     // ── Content window ──
+    // The window area is FIXED per ratio (9:16 = the mid zone between the
+    // design bands; 1:1 = the full frame). A landscape source fits by width
+    // inside it; a PORTRAIT source (phone camera) would overflow the area —
+    // the fit-width height exceeds the area, eating the bands (brand/URL
+    // land inside the video, waveform vanishes). So portrait sources are
+    // cover-cropped into the window area instead (same rule as 16:9).
     let wy = 0;
     let winH = H;
     if (ratio === '16:9') {
@@ -1086,14 +1092,25 @@ export default function App() {
       const dy = Math.round((H - ch) / 2);
       rctx.drawImage(src, 0, dy, W, ch);
     } else {
-      winH = Math.round((W * sh) / sw);
       const topZone = isPoster ? Math.round(H * 0.19) : 0;
       const bottomZone = isPoster ? Math.round(H * 0.165) : 0;
       const midH = H - topZone - bottomZone;
-      wy = isPoster
-        ? topZone + Math.max(0, Math.round((midH - winH) / 2))
-        : Math.round((H - winH) / 2);
-      rctx.drawImage(src, 0, wy, W, winH);
+      const winAreaH = isPoster ? midH : H;
+      const fitH = Math.round((W * sh) / sw);
+      if (fitH > winAreaH) {
+        // Portrait source: cover-crop into the window area (centered).
+        const scale = Math.max(W / sw, winAreaH / sh);
+        const dw = Math.round(sw * scale);
+        const dh = Math.round(sh * scale);
+        rctx.drawImage(src, Math.round((W - dw) / 2), topZone + Math.round((winAreaH - dh) / 2), dw, dh);
+        wy = topZone;
+        winH = winAreaH;
+      } else {
+        // Landscape/square source: fit-width, centered (unchanged).
+        wy = isPoster ? topZone + Math.max(0, Math.round((midH - fitH) / 2)) : Math.round((H - fitH) / 2);
+        winH = fitH;
+        rctx.drawImage(src, 0, wy, W, winH);
+      }
       rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
       rctx.lineWidth = 2;
       rctx.strokeRect(0, wy, W, winH);
@@ -1444,24 +1461,42 @@ export default function App() {
 
   const shareRec = useCallback(async () => {
     if (!recBlob) return;
+    // The File MUST carry an explicit MIME type — Android Chrome rejects
+    // typeless File objects during share() validation (canShare passes but
+    // share throws NotSupportedError).
+    const file = new File([recBlob.blob], recBlob.filename, {
+      type: recBlob.blob.type || 'application/octet-stream',
+    });
+    const brandText = 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com';
     try {
       await navigator.share({
-        files: [new File([recBlob.blob], recBlob.filename)],
+        files: [file],
         title: 'Gesture Synth Weld — hand gesture music synthesizer',
-        text: 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com',
+        text: brandText,
       });
       setShareFailed(false);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return; // user cancelled
-      // e.g. NotSupportedError — the browser claims support but can't share
-      setShareFailed(true);
+      // Files share rejected (NotSupportedError etc.) — retry text-only so
+      // the brand message still reaches the share sheet.
+      try {
+        await navigator.share({
+          title: 'Gesture Synth Weld — hand gesture music synthesizer',
+          text: brandText,
+          url: 'https://gesturesynthweld.com',
+        });
+        setShareFailed(false);
+      } catch (e2) {
+        if (e2 instanceof DOMException && e2.name === 'AbortError') return;
+        setShareFailed(true);
+      }
     }
   }, [recBlob]);
 
   const canFileShare = !!recBlob &&
     typeof navigator.share === 'function' &&
     (typeof navigator.canShare !== 'function' ||
-      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename)] }));
+      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename, { type: recBlob.blob.type || 'application/octet-stream' })] }));
 
   // Start the actual recording (audio via Tone.Recorder; video/skeleton via
   // MediaRecorder on the composited recording canvas + audio tap).
@@ -1746,13 +1781,56 @@ export default function App() {
             <span className="divider" />
             <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
-            <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
+            <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+              {/* Hand-tracking skeleton: the MediaPipe 21-landmark graph
+                  (this IS what the toggle shows over the hands) */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M11 21.2 L9.4 17.6 L7.1 15.6 L5.4 13.1 L4.7 11.3 M11 21.2 L9.7 14.9 L9.5 10.6 L9.5 7.6 L9.6 5.3 M9.7 14.9 L11.3 14.9 L11.5 9.9 L11.6 6.5 L11.7 3.9 M11.3 14.9 L12.9 14.9 L13.3 10.6 L13.6 7.6 L13.9 5.3 M12.9 14.9 L14.5 15.5 L15.5 12.1 L16.2 9.6 L16.9 7.5 M11 21.2 L14.5 15.5"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <g fill="currentColor">
+                  {[[11,21.2],[9.4,17.6],[7.1,15.6],[5.4,13.1],[4.7,11.3],[9.7,14.9],[9.5,10.6],[9.5,7.6],[9.6,5.3],[11.3,14.9],[11.5,9.9],[11.6,6.5],[11.7,3.9],[12.9,14.9],[13.3,10.6],[13.6,7.6],[13.9,5.3],[14.5,15.5],[15.5,12.1],[16.2,9.6],[16.9,7.5]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="0.85" />)}
+                </g>
+              </svg>
+            </button>
             <span className="divider" />
-            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>{isRecording ? `${recordingTime}s` : '●'}</button>
-            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
+            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio">
+              {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
+              <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+              {/* Gear like the iOS Settings / clockwork cog: a thick ring
+                  with many short fat teeth and an open center */}
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="5.7" stroke="currentColor" strokeWidth="2.7" />
+                {Array.from({ length: 12 }, (_, i) => {
+                  const a = (i * 30 * Math.PI) / 180;
+                  return (
+                    <line key={i}
+                      x1={12 + 5.7 * Math.cos(a)} y1={12 + 5.7 * Math.sin(a)}
+                      x2={12 + 8.4 * Math.cos(a)} y2={12 + 8.4 * Math.sin(a)}
+                      stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" />
+                  );
+                })}
+              </svg>
+            </button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
-            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio" style={{ color: 'var(--neon-magenta)' }}>■</button>
+            {/* Record capsule — a horizontal bar with a red dot (REC), the most
+                prominent button at the end of the toolbar. Shows countdown
+                seconds while recording. */}
+            <button className={`icon-btn rec-capsule ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
+              {/* Abstract record: frosted pill + red dot (Apple Camera-app language) */}
+              {isRecording ? `${recordingTime}s` : (
+                <svg width="11" height="11" viewBox="0 0 11 11">
+                  <circle cx="5.5" cy="5.5" r="4.7" fill="#ff3b5c" />
+                </svg>
+              )}
+            </button>
           </div>
 
           {/* Settings panel — only for Gesture mode */}

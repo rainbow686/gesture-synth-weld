@@ -356,6 +356,7 @@ export default function App() {
   const [recMode, setRecMode] = useState<RecMode>(() => (localStorage.getItem('gsw-rec-mode') as RecMode) || 'audio');
   const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
   const [recCount, setRecCount] = useState(3);
+  const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const [shareFailed, setShareFailed] = useState(false);
   const [micOn, setMicOn] = useState(true);
@@ -433,6 +434,7 @@ export default function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recChunksRef = useRef<Blob[]>([]);
   const countdownTimerRef = useRef<number | null>(null);
+  const endCountTimerRef = useRef<number | null>(null);
   const recordingAbortedRef = useRef(false);
   // B2: recording compositor helpers (cheap blur buffer + chord-pop timing)
   const blurBufRef = useRef<HTMLCanvasElement | null>(null);
@@ -1624,6 +1626,11 @@ export default function App() {
       clearInterval(countdownTimerRef.current);
       countdownTimerRef.current = null;
     }
+    if (endCountTimerRef.current) {
+      clearInterval(endCountTimerRef.current);
+      endCountTimerRef.current = null;
+    }
+    setEndCount(null);
     audioEngine.setMicEnabled(false);
     const rec = mediaRecorderRef.current;
     if (rec && rec.state === 'recording') {
@@ -1657,14 +1664,15 @@ export default function App() {
     startCountdown();
   }, [recMode, recRatio, startCountdown]);
 
-  // Recording timer with 15s auto-stop
+  // Recording timer: countdown of remaining seconds + 3-2-1 wrap-up overlay
+  // (12s in → show 3,2,1 at the center, DOM-only so it never enters the video)
   useEffect(() => {
     if (!isRecording) return;
 
     const interval = setInterval(() => {
       if (recordingStartRef.current) {
         const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        setRecordingTime(Math.min(elapsed, 15));
+        setRecordingTime(Math.max(0, 15 - elapsed));
       }
     }, 100);
 
@@ -1673,9 +1681,33 @@ export default function App() {
       finishRecordingRef.current();
     }, 15000);
 
+    // Start the wrap-up countdown with 3s left
+    const endTimeout = setTimeout(() => {
+      setEndCount(3);
+      let n = 3;
+      endCountTimerRef.current = window.setInterval(() => {
+        n -= 1;
+        if (n <= 0) {
+          if (endCountTimerRef.current) {
+            clearInterval(endCountTimerRef.current);
+            endCountTimerRef.current = null;
+          }
+          setEndCount(null);
+        } else {
+          setEndCount(n);
+        }
+      }, 1000);
+    }, 12000);
+
     return () => {
       clearInterval(interval);
       clearTimeout(timeout);
+      clearTimeout(endTimeout);
+      if (endCountTimerRef.current) {
+        clearInterval(endCountTimerRef.current);
+        endCountTimerRef.current = null;
+      }
+      setEndCount(null);
     };
   }, [isRecording]);
 
@@ -1715,7 +1747,7 @@ export default function App() {
             <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>✋</button>
             <span className="divider" />
-            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording ${recordingTime}s / 15s` : 'Record — audio, video or skeleton (max 15s)'}>{isRecording ? `${recordingTime}s` : '●'}</button>
+            <button className={`icon-btn ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>{isRecording ? `${recordingTime}s` : '●'}</button>
             <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
             <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
@@ -1854,6 +1886,15 @@ export default function App() {
           <div className="countdown-overlay">
             <div className="countdown-hint">Get ready</div>
             <div key={recCount} className="countdown-num">{recCount}</div>
+          </div>
+        )}
+
+        {/* Wrap-up 3-2-1 during the last 3s — same language as the opening,
+            lighter dim so the hands stay visible; DOM-only, never in the video */}
+        {endCount !== null && (
+          <div className="countdown-overlay" style={{ background: 'rgba(5, 5, 15, 0.42)' }}>
+            <div className="countdown-hint">Wrap up</div>
+            <div key={endCount} className="countdown-num">{endCount}</div>
           </div>
         )}
 

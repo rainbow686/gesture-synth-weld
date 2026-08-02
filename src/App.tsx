@@ -28,6 +28,7 @@ import {
   type RecPhase,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
+import { HAND_ART } from './handArt';
 import { injectBrandTags } from './mp4tags';
 // Config imports removed — external scripts feature not currently active
 
@@ -492,18 +493,19 @@ export default function App() {
   });
 
   // Help-panel hand demo: 8 steps — left hand picks the chord degree,
-  // right hand picks the chord type (1=triad, 2=1st inversion, 3=7th,
-  // 4=9th); both hands move together as in real play, and the matching
-  // table row highlights.
+  // right hand picks the chord type (finger count = voicing size); both
+  // hands move together as in real play, and the matching table row
+  // highlights. The left hand renders real gesture art (HAND_ART), the
+  // right hand is described by finger count.
   const HELP_DEMO_STEPS = [
-    { left: ['index'], right: ['index'], row: 0, label: 'I · triad' },
-    { left: ['index', 'middle'], right: ['index', 'middle'], row: 1, label: 'II · 1st inversion' },
-    { left: ['index', 'middle', 'ring'], right: ['index', 'middle', 'ring'], row: 2, label: 'III · 7th' },
-    { left: ['index', 'middle', 'ring', 'pinky'], right: ['index', 'middle', 'ring', 'pinky'], row: 3, label: 'IV · 9th' },
-    { left: ['index', 'middle', 'ring', 'pinky', 'thumb'], right: ['index', 'middle', 'ring', 'pinky'], row: 4, label: 'V · 9th' },
-    { left: ['index', 'pinky'], right: ['index'], row: 5, label: 'VI · triad' },
-    { left: ['index', 'pinky', 'thumb'], right: ['index', 'middle', 'ring'], row: 6, label: 'VII · 7th' },
-    { left: [], right: [], row: 7, label: 'Left fist = mute' },
+    { left: '1', right: '1 finger', row: 0 },
+    { left: '2', right: '2 fingers', row: 1 },
+    { left: '3', right: '3 fingers', row: 2 },
+    { left: '4', right: '4 fingers', row: 3 },
+    { left: '5', right: '4 fingers', row: 4 },
+    { left: 'VI', right: '1 finger', row: 5 },
+    { left: 'VII', right: '3 fingers', row: 6 },
+    { left: 'mute', right: 'fist', row: 7 },
   ] as const;
   const [demoStep, setDemoStep] = useState(0);
   useEffect(() => {
@@ -512,19 +514,31 @@ export default function App() {
     return () => window.clearInterval(t);
   }, [showHelp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Hand silhouette (outline style) for the Help demo — drawn as a real
-  // hand back: narrow wrist, widest mid-palm, webbed finger roots, and
-  // the thumb leaving the side of the palm (not the finger line). Each
-  // finger has a raised (straight, bold) and a relaxed (short, dim) path.
-  const HAND_PALM = 'M44 135 L44 120 Q40 100 40 88 L38 80 Q26 72 22 60 Q21 56 25 54 Q28 52 30 56 Q33 48 39 50 Q42 52 42 58 L45 62 Q48 58 52 61 Q55 58 59 61 Q62 58 66 61 Q71 63 73 70 L76 88 Q77 104 73 118 Q71 130 68 135 Z';
-  const HAND_FINGERS = {
-    thumb: { up: 'M39 74 L27 62 L24 49', down: 'M39 74 Q34 71 33 65' },
-    index: { up: 'M48 61 L46 46 L48 32 L47 20', down: 'M48 61 Q45 55 47 49' },
-    middle: { up: 'M55 61 L55 44 L55 28 L55 15', down: 'M55 61 Q53 55 55 48' },
-    ring: { up: 'M62 61 L64 45 L62 31 L63 21', down: 'M62 61 Q64 55 62 49' },
-    pinky: { up: 'M68 63 L71 49 L69 39 L70 30', down: 'M68 63 Q70 56 68 50' },
-  } as const;
-  const FINGER_ORDER = ['thumb', 'index', 'middle', 'ring', 'pinky'] as const;
+  // Chord name in the currently selected key (e.g. key C → "I · C",
+  // key G → "I · G"); follows the toolbar key selector.
+  const chordNameFor = (chordIndex: number): string => {
+    const c = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
+    const rootName = (KEYS[(c.intervals[0] + synthState.keyOffset) % KEYS.length]?.name ?? '?').split('/')[0];
+    const third = c.intervals[1] - c.intervals[0];
+    const fifth = c.intervals[2] - c.intervals[1];
+    if (third === 3 && fifth === 3) return `${rootName}dim`;
+    if (c.isMajor) return rootName;
+    return `${rootName}m`;
+  };
+  const gradeNameFor = (chordIndex: number): string =>
+    chordIndex < DIATONIC_CHORDS.length
+      ? `${DIATONIC_CHORDS[chordIndex].roman} · ${chordNameFor(chordIndex)}`
+      : 'mute';
+
+  // Renders one of the licensed hand artworks, sized by height.
+  const handArt = (key: string, size: number, color: string): ReactNode => {
+    const a = HAND_ART[key];
+    if (!a) return null;
+    return (
+      <svg viewBox={a.vb} style={{ height: size, width: 'auto', color, flexShrink: 0, display: 'block' }}
+        dangerouslySetInnerHTML={{ __html: a.body }} />
+    );
+  };
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const [showSettings, setShowSettings] = useState(!isMobile);
@@ -2109,34 +2123,21 @@ export default function App() {
             </div>
 
             {/* How it works — two-hand demo: the left hand raises the
-                chord degree, the right hand the chord type, together as
-                in real play. The matching table row highlights. */}
+                chord degree (real gesture art), the right hand the chord
+                type by finger count; together as in real play. The
+                matching table row highlights. */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px' }}>
-                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0 }}>
-                  <path d={HAND_PALM} stroke="var(--neon-cyan)" strokeWidth="2.4" strokeLinejoin="round" />
-                  {FINGER_ORDER.map((f) => (
-                    <g key={f}>
-                      <path d={HAND_FINGERS[f].down} stroke="var(--neon-cyan)" strokeWidth="2" strokeLinecap="round" opacity="0.32" />
-                      <path d={HAND_FINGERS[f].up} stroke="var(--neon-cyan)" strokeWidth="3" strokeLinecap="round" opacity={(HELP_DEMO_STEPS[demoStep].left as readonly string[]).includes(f) ? 1 : 0} style={{ transition: 'opacity 0.25s ease' }} />
-                    </g>
-                  ))}
-                </svg>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px', minHeight: '58px' }}>
+                {handArt(HELP_DEMO_STEPS[demoStep].left, 52, 'var(--neon-cyan)')}
                 <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
                   <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chord</div>
-                  <div key={demoStep} className="demo-step-text">{HELP_DEMO_STEPS[demoStep].label}</div>
+                  <div key={demoStep} className="demo-step-text" style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff' }}>{gradeNameFor(HELP_DEMO_STEPS[demoStep].row)}</div>
                 </div>
               </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px' }}>
-                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0, transform: 'scaleX(-1)' }}>
-                  <path d={HAND_PALM} stroke="var(--neon-magenta)" strokeWidth="2.4" strokeLinejoin="round" />
-                  {FINGER_ORDER.map((f) => (
-                    <g key={f}>
-                      <path d={HAND_FINGERS[f].down} stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" opacity="0.32" />
-                      <path d={HAND_FINGERS[f].up} stroke="var(--neon-magenta)" strokeWidth="3" strokeLinecap="round" opacity={(HELP_DEMO_STEPS[demoStep].right as readonly string[]).includes(f) ? 1 : 0} style={{ transition: 'opacity 0.25s ease' }} />
-                    </g>
-                  ))}
-                </svg>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px', minHeight: '58px' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--neon-magenta)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em', minWidth: '70px', textAlign: 'center' }}>
+                  <div key={demoStep} className="demo-step-text">{HELP_DEMO_STEPS[demoStep].right}</div>
+                </div>
                 <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
                   <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — type</div>
                   <div style={{ color: '#d0d0e8' }}>height → volume</div>
@@ -2144,36 +2145,36 @@ export default function App() {
               </div>
             </div>
 
+            <div style={{ fontSize: '0.56rem', color: '#a0a0c8', marginBottom: '6px', lineHeight: 1.5 }}>
+              Right hand: <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>1</span> = 3-note chord · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>2</span> = inverted · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>3</span> = 4-note · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>4</span> = 5-note · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>fist</span> = mute
+            </div>
+
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
               <thead>
                 <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '60px' }}>Fingers</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '40px' }}>Chord</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Gesture</th>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '56px' }}>Left hand</th>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '86px' }}>Chord</th>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
                 </tr>
               </thead>
               <tbody>
-                {[
-                  ['1', 'I', '1 finger raised'],
-                  ['2', 'II', '2 fingers raised'],
-                  ['3', 'III', '3 fingers raised'],
-                  ['4', 'IV', '4 fingers raised'],
-                  ['5', 'V', '5 fingers raised'],
-                  ['VI', 'VI', 'Index + Pinky'],
-                  ['VII', 'VII', 'Idx + Pky + Thumb'],
-                  ['0', '—', 'Fist (left) = mute'],
-                ].map(([fn, chord, gest], row) => {
+                {HELP_DEMO_STEPS.map((s, row) => {
                   const active = row === HELP_DEMO_STEPS[demoStep].row;
                   return (
-                    <tr key={fn} style={{
+                    <tr key={s.left} style={{
                       borderBottom: '1px solid rgba(255,255,255,0.03)',
                       background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
                       boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
                       transition: 'background 0.25s ease',
                     }}>
-                      <td style={{ padding: '3px 0', fontFamily: 'var(--font-display)', color: active ? 'var(--neon-cyan)' : '#fff', fontWeight: 700, fontSize: active ? '0.78rem' : '0.72rem' }}>{fn}</td>
-                      <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.78rem' : '0.68rem' }}>{chord}</td>
-                      <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{gest}</td>
+                      <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {handArt(s.left, 26, active ? 'var(--neon-cyan)' : '#8fbfd0')}
+                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.62rem', color: 'var(--text-muted)' }}>{s.left}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.72rem' : '0.64rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
+                      <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{s.right}</td>
                     </tr>
                   );
                 })}

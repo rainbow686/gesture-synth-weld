@@ -68,6 +68,7 @@ src/
 ├── index.css           # Full-screen cyberpunk theme
 ├── main.tsx            # React entry point
 ├── wavEncoder.ts       # WAV export utility
+├── handArt.ts          # Licensed hand-gesture SVG art for the Help demo (Commons CC BY-SA / Noto Apache-2.0 / OpenClipart CC0, single-color)
 └── mp4tags.ts          # MP4/M4A brand tags + cover art (covr) injection
 
 public/

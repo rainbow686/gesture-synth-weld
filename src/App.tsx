@@ -2094,7 +2094,7 @@ export default function App() {
                 in real play. The matching table row highlights. */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px' }}>
-                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0, transform: 'scaleX(-1)' }}>
+                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0 }}>
                   <path d={HAND_PALM} stroke="var(--neon-cyan)" strokeWidth="2.4" strokeLinejoin="round" />
                   {FINGER_ORDER.map((f) => (
                     <g key={f}>
@@ -2109,7 +2109,7 @@ export default function App() {
                 </div>
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px' }}>
-                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0 }}>
+                <svg width="40" height="54" viewBox="0 0 100 140" fill="none" style={{ flexShrink: 0, transform: 'scaleX(-1)' }}>
                   <path d={HAND_PALM} stroke="var(--neon-magenta)" strokeWidth="2.4" strokeLinejoin="round" />
                   {FINGER_ORDER.map((f) => (
                     <g key={f}>

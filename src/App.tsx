@@ -28,6 +28,7 @@ import {
   type RecPhase,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
+import { injectBrandTags } from './mp4tags';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
@@ -81,6 +82,24 @@ const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
     </svg>
   ),
 };
+
+/** Rounded-rect path helper (canvas native roundRect is recent). */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 
 /** Pick the best MediaRecorder mime type (mp4/m4a preferred, webm fallback). */
 function pickRecMimeType(audioOnly: boolean = false): { mime: string; ext: string } {
@@ -864,132 +883,142 @@ export default function App() {
       rctx.fillRect(0, 0, W, H);
     }
 
-    if (ratio === '9:16') {
-      const topZone = Math.round(H * 0.19);    // brand + chord + mode
-      const bottomZone = Math.round(H * 0.165); // waveform + level + URL
+    // ── Layouts per ratio (each size is designed deliberately):
+    //  9:16 & 1:1 — vertical poster: stacked top band (brand → chord →
+    //   mode), window, stacked bottom band (waveform → level bars → URL)
+    //  16:9 — horizontal: one top line (brand left, mode·key right, chord
+    //   centered), window, compact bottom stack (waveform → bars → URL)
+    const L = ratio === '9:16'
+      ? { top: 0.19, bottom: 0.165, brand: 30, chord: 84, mode: 19, url: 24, waveH: 30, brandY: 52, chordY: -46, barH: 34 }
+      : ratio === '16:9'
+        ? { top: 0.17, bottom: 0.155, brand: 26, chord: 56, mode: 18, url: 20, waveH: 20, brandY: 40, chordY: 92, barH: 20 }
+        : { top: 0.15, bottom: 0.15, brand: 26, chord: 72, mode: 18, url: 24, waveH: 26, brandY: 44, chordY: -34, barH: 30 };
+    const topZone = Math.round(H * L.top);
+    const bottomZone = Math.round(H * L.bottom);
+    const midH = H - topZone - bottomZone;
+    // Bottom-band vertical offsets (distance from the bottom edge):
+    // waveform line → level bars (centered, under the waveform) → URL pill
+    const waveOff = ratio === '16:9' ? 68 : bottomZone / 2 + 12;
+    const barsOff = waveOff - L.waveH - 12;
+    const urlOff = ratio === '16:9' ? 24 : 40;
 
-      // ── Sharp content window (whole source, fit-width) ──
-      const winH = Math.round((W * sh) / sw);
-      const midH = H - topZone - bottomZone;
-      const y = topZone + Math.max(0, Math.round((midH - winH) / 2));
-      rctx.drawImage(src, 0, y, W, winH);
-      rctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
-      rctx.lineWidth = 2;
-      rctx.strokeRect(0, y, W, winH);
-
-      // ── Brand: gradient wordmark with a breathing glow ──
-      const brandAlpha = 0.85 + 0.15 * Math.sin(t * 2.2);
-      const grad = rctx.createLinearGradient(0, 0, 260, 0);
-      grad.addColorStop(0, '#00ffcc');
-      grad.addColorStop(1, '#ff00ff');
-      rctx.font = '800 30px Orbitron, monospace';
-      rctx.textAlign = 'left';
-      rctx.shadowColor = `rgba(0, 255, 204, ${0.4 * brandAlpha})`;
-      rctx.shadowBlur = 16;
-      rctx.fillStyle = grad;
-      rctx.fillText('GESTURE SYNTH WELD', 26, 52);
-      rctx.shadowBlur = 0;
-
-      // ── Chord name: huge, centered, pops on change ──
-      const chord = s.chordName || '—';
-      if (chord !== recChordRef.current) {
-        recChordRef.current = chord;
-        recChordTimeRef.current = now;
-      }
-      const chordAge = (now - recChordTimeRef.current) / 1000;
-      const popScale = chordAge < 0.25 ? 1 + 0.18 * (1 - chordAge / 0.25) : 1;
-      rctx.save();
-      rctx.translate(W / 2, topZone - 46);
-      rctx.scale(popScale, popScale);
-      rctx.font = '900 84px Orbitron, monospace';
-      rctx.textAlign = 'center';
-      rctx.textBaseline = 'middle';
-      rctx.shadowColor = 'rgba(0, 255, 204, 0.75)';
-      rctx.shadowBlur = 26;
-      rctx.fillStyle = '#00ffcc';
-      rctx.fillText(chord, 0, 0);
-      rctx.restore();
-      rctx.textBaseline = 'alphabetic';
-
-      // ── Mode · key ──
-      rctx.font = '500 19px Inter, system-ui, sans-serif';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = '#a0a0d0';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 18);
-
-      // ── Live waveform (bottom band) ──
-      const analyser = audioEngine.getAnalyser();
-      if (analyser) {
-        const wf = analyser.getValue() as Float32Array;
-        const n = wf.length;
-        rctx.beginPath();
-        for (let i = 0; i < n; i++) {
-          const x = 56 + (i / (n - 1)) * (W - 112);
-          const wy = H - bottomZone / 2 - 8 - wf[i] * 30;
-          if (i === 0) rctx.moveTo(x, wy);
-          else rctx.lineTo(x, wy);
-        }
-        rctx.strokeStyle = 'rgba(0, 255, 204, 0.75)';
-        rctx.lineWidth = 3;
-        rctx.shadowColor = 'rgba(0, 255, 204, 0.6)';
-        rctx.shadowBlur = 10;
-        rctx.stroke();
-        rctx.shadowBlur = 0;
-
-        // ── Level bars (cyan/magenta, follow volume) ──
-        let sumSq = 0;
-        for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
-        const rms = Math.sqrt(sumSq / n);
-        for (let i = 0; i < 8; i++) {
-          const hgt = Math.max(4, rms * 72 * (0.35 + 0.65 * (i / 8)));
-          rctx.fillStyle = i % 2 === 0 ? 'rgba(0, 255, 204, 0.9)' : 'rgba(255, 0, 255, 0.75)';
-          rctx.fillRect(W - 116 + i * 14, H - 56 - hgt, 8, hgt);
-        }
-      }
-
-      // ── Domain URL: the traffic driver, bottom center, breathing ──
-      const urlAlpha = 0.8 + 0.2 * Math.sin(t * 2.2 + 1);
-      rctx.font = '600 21px "JetBrains Mono", monospace';
-      rctx.textAlign = 'center';
-      rctx.shadowColor = `rgba(0, 255, 204, ${0.5 * urlAlpha})`;
-      rctx.shadowBlur = 12;
-      rctx.fillStyle = `rgba(0, 255, 204, ${urlAlpha})`;
-      rctx.fillText('gesturesynthweld.com', W / 2, H - 34);
-      rctx.shadowBlur = 0;
-    } else if (ratio === '1:1') {
-      // 1:1 — blur-fill + simple centered HUD (bands are small)
-      const ch = Math.round((W * sh) / sw);
-      const dy = Math.round((H - ch) / 2);
-      rctx.drawImage(src, 0, dy, W, ch);
-      rctx.font = '800 30px Orbitron, monospace';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = '#00ffcc';
-      rctx.fillText(s.chordName || '—', W / 2, 88);
-      rctx.font = '500 18px Inter, system-ui, sans-serif';
-      rctx.fillStyle = '#a0a0d0';
-      rctx.fillText(modeLabel, W / 2, 118);
-      rctx.font = '600 18px "JetBrains Mono", monospace';
-      rctx.fillStyle = 'rgba(0, 255, 204, 0.85)';
-      rctx.fillText('gesturesynthweld.com', W / 2, H - 34);
+    // Sharp content window (fit-width for 9:16/1:1, fit-height for 16:9)
+    let winW: number;
+    let winH: number;
+    let wx: number;
+    let wy: number;
+    if (ratio === '16:9') {
+      winH = midH;
+      winW = Math.round((winH * sw) / sh);
+      wx = Math.round((W - winW) / 2);
+      wy = topZone;
     } else {
-      // 16:9 — cover-fill (crop top/bottom — 4:3 source is taller) + HUD
-      const ch = Math.round((W * sh) / sw);
-      const dy = Math.round((H - ch) / 2);
-      rctx.drawImage(src, 0, dy, W, ch);
-      rctx.font = '700 26px Orbitron, monospace';
-      rctx.textAlign = 'left';
-      rctx.shadowColor = 'rgba(0, 255, 204, 0.6)';
-      rctx.shadowBlur = 12;
-      rctx.fillStyle = '#00ffcc';
-      rctx.fillText(s.chordName || '—', 24, 44);
-      rctx.shadowBlur = 0;
-      rctx.font = '500 18px Inter, system-ui, sans-serif';
-      rctx.fillStyle = '#a0a0d0';
-      rctx.fillText(modeLabel, 24, 70);
-      rctx.font = '600 16px "JetBrains Mono", monospace';
+      winW = W;
+      winH = Math.round((W * sh) / sw);
+      wy = topZone + Math.max(0, Math.round((midH - winH) / 2));
+      wx = 0;
+    }
+    rctx.drawImage(src, wx, wy, winW, winH);
+    rctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
+    rctx.lineWidth = 2;
+    rctx.strokeRect(wx, wy, winW, winH);
+
+    // Brand: static gradient wordmark, fixed glow (no breathing)
+    const grad = rctx.createLinearGradient(0, 0, 260, 0);
+    grad.addColorStop(0, '#00ffcc');
+    grad.addColorStop(1, '#ff00ff');
+    rctx.font = `800 ${L.brand}px Orbitron, monospace`;
+    rctx.textAlign = 'left';
+    rctx.shadowColor = 'rgba(0, 255, 204, 0.4)';
+    rctx.shadowBlur = 14;
+    rctx.fillStyle = grad;
+    rctx.fillText('GESTURE SYNTH WELD', 26, L.brandY);
+    rctx.shadowBlur = 0;
+
+    // Chord name: huge, centered, pops only on change
+    const chord = s.chordName || '—';
+    if (chord !== recChordRef.current) {
+      recChordRef.current = chord;
+      recChordTimeRef.current = now;
+    }
+    const chordAge = (now - recChordTimeRef.current) / 1000;
+    const popScale = chordAge < 0.25 ? 1 + 0.18 * (1 - chordAge / 0.25) : 1;
+    const chordY = ratio === '9:16' || ratio === '1:1' ? topZone + L.chordY : L.chordY;
+    rctx.save();
+    rctx.translate(W / 2, chordY);
+    rctx.scale(popScale, popScale);
+    rctx.font = `900 ${L.chord}px Orbitron, monospace`;
+    rctx.textAlign = 'center';
+    rctx.textBaseline = 'middle';
+    rctx.shadowColor = 'rgba(0, 255, 204, 0.7)';
+    rctx.shadowBlur = 22;
+    rctx.fillStyle = '#00ffcc';
+    rctx.fillText(chord, 0, 0);
+    rctx.restore();
+    rctx.textBaseline = 'alphabetic';
+
+    // Mode · key — 16:9 keeps it on the top line (right-aligned), the
+    // vertical ratios center it under the chord
+    rctx.font = `500 ${L.mode}px Inter, system-ui, sans-serif`;
+    rctx.fillStyle = '#a0a0d0';
+    if (ratio === '16:9') {
       rctx.textAlign = 'right';
-      rctx.fillStyle = 'rgba(160, 160, 208, 0.7)';
-      rctx.fillText('gesturesynthweld.com', W - 24, 44);
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W - 26, 40);
+    } else {
+      rctx.textAlign = 'center';
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 34);
+    }
+
+    // Live waveform (centered in the bottom zone)
+    const analyser = audioEngine.getAnalyser();
+    if (analyser) {
+      const wf = analyser.getValue() as Float32Array;
+      const n = wf.length;
+      const waveY = H - waveOff;
+      rctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = W * 0.08 + (i / (n - 1)) * W * 0.84;
+        const wy2 = waveY - wf[i] * L.waveH;
+        if (i === 0) rctx.moveTo(x, wy2);
+        else rctx.lineTo(x, wy2);
+      }
+      rctx.strokeStyle = 'rgba(0, 255, 204, 0.75)';
+      rctx.lineWidth = 3;
+      rctx.shadowColor = 'rgba(0, 255, 204, 0.6)';
+      rctx.shadowBlur = 8;
+      rctx.stroke();
+      rctx.shadowBlur = 0;
+
+      // Level bars: single cyan, centered directly under the waveform
+      let sumSq = 0;
+      for (let i = 0; i < n; i++) sumSq += wf[i] * wf[i];
+      const rms = Math.sqrt(sumSq / n);
+      const barCount = 10;
+      const barW = Math.max(5, Math.round(W * 0.014));
+      const gap = 3;
+      const totalW = barCount * barW + (barCount - 1) * gap;
+      const barY = H - barsOff;
+      for (let i = 0; i < barCount; i++) {
+        const hgt = Math.max(3, rms * L.barH * (0.4 + 0.6 * (i / barCount)));
+        rctx.fillStyle = 'rgba(0, 255, 204, 0.9)';
+        rctx.fillRect((W - totalW) / 2 + i * (barW + gap), barY - hgt, barW, hgt);
+      }
+
+      // URL: static, pill-backed for crisp legibility (traffic driver)
+      const url = 'gesturesynthweld.com';
+      rctx.font = `700 ${L.url}px "JetBrains Mono", monospace`;
+      const urlW = rctx.measureText(url).width;
+      const urlY = H - urlOff;
+      const pillH = L.url + 16;
+      rctx.fillStyle = 'rgba(5, 5, 15, 0.62)';
+      roundRectPath(rctx, W / 2 - urlW / 2 - 14, urlY - pillH + 4, urlW + 28, pillH, pillH / 2);
+      rctx.fill();
+      rctx.textAlign = 'center';
+      rctx.fillStyle = '#00ffcc';
+      rctx.shadowColor = 'rgba(0, 255, 204, 0.5)';
+      rctx.shadowBlur = 6;
+      rctx.fillText(url, W / 2, urlY);
+      rctx.shadowBlur = 0;
     }
   }, []);
 
@@ -1331,14 +1360,25 @@ export default function App() {
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         if (recordingAbortedRef.current) {
           recordingAbortedRef.current = false;
           recChunksRef.current = [];
           return;
         }
-        const blob = new Blob(recChunksRef.current, { type: finalMime.split(';')[0] || 'video/webm' });
+        const raw = new Blob(recChunksRef.current, { type: finalMime.split(';')[0] || 'video/webm' });
         recChunksRef.current = [];
+        // Brand the file: mp4/m4a get iTunes-style tags (title/artist/
+        // comment) so players show the site; webm keeps the branded name
+        let blob = raw;
+        if (ext === 'mp4' || ext === 'm4a') {
+          blob = await injectBrandTags(
+            raw,
+            'Gesture Synth Weld',
+            'gesturesynthweld.com',
+            'Created with Gesture Synth Weld — gesturesynthweld.com'
+          );
+        }
         setRecBlob({ blob, filename: makeRecordingFilename(ext) });
         setRecPhase('result');
       };

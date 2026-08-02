@@ -203,6 +203,7 @@ export default function App() {
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
   useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
+  useEffect(() => { audioEngine.setMicEnabled(micOn); }, [micOn]);
 
   // Live mic level while the chooser is open (diagnostic: is the mic
   // actually receiving sound?)

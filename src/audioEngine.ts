@@ -133,14 +133,16 @@ export class AudioEngine {
     if (rawCtx) {
       this.mediaStreamDest = rawCtx.createMediaStreamDestination();
       if (this.mediaStreamDest) this.masterGain.connect(this.mediaStreamDest);
-      // Mic path: mic → analyser → micGain → recording tap. Always
-      // connected (so the graph renders and the analyser level meter
-      // works); setMicEnabled gates by gain 0/0.9 instead. Never routed
+      // Mic path: mic → analyser → micGain(0.9) → recording tap. Always
+      // connected and active — Chrome does not render the graph when the
+      // gain is 0, which would starve the level analyser (the earlier
+      // gain-gating design showed a dead meter). setMicEnabled gates via
+      // track.enabled instead (silence to every consumer). Never routed
       // to the speakers (feedback).
       this.micAnalyser = rawCtx.createAnalyser();
       this.micAnalyser.fftSize = 512;
       this.micGain = rawCtx.createGain();
-      this.micGain.gain.value = 0; // off until setMicEnabled(true)
+      this.micGain.gain.value = 0.9;
       this.micAnalyser.connect(this.micGain);
       this.micGain.connect(this.mediaStreamDest);
     }
@@ -431,13 +433,13 @@ export class AudioEngine {
   }
 
   /**
-   * Enable/disable the microphone in the recording tap (gain gate —
-   * the path stays connected so the level analyser keeps rendering).
-   * The mic is never routed to the speakers (would cause feedback).
+   * Enable/disable the microphone via track.enabled (the mic path stays
+   * connected and rendering so the level analyser keeps working; a
+   * disabled track delivers silence to every consumer, so recordings get
+   * no voice when off). The mic is never routed to the speakers.
    */
   setMicEnabled(enabled: boolean): void {
-    if (!this.micGain) return;
-    this.micGain.gain.setTargetAtTime(enabled ? 0.9 : 0, this.ctx?.currentTime ?? 0, 0.02);
+    if (this.micTrack) this.micTrack.enabled = enabled;
   }
 
   /**

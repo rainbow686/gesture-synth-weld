@@ -459,17 +459,30 @@ export default function App() {
 
   // ─── Onboarding (first visit) ─────────────────────────────────────────
   // No popups on first visit — a newcomer's intent is to try, not to
-  // learn, and a popup just gets dismissed. The only nudge is a one-time
-  // breathing glow on the ? help button so it's noticed. The hands-ready
-  // badge appears once per session when both hands are first detected.
-  const [showHelpPulse, setShowHelpPulse] = useState(() => {
-    try { return !localStorage.getItem('gswHelpPulse'); } catch { return false; }
-  });
-  useEffect(() => {
-    if (showHelpPulse) {
-      try { localStorage.setItem('gswHelpPulse', '1'); } catch { /* private mode */ }
+  // learn, and a popup just gets dismissed. The only nudge: once the
+  // camera is running and the player can see themselves, the ? help
+  // button breathes for 8s — the player can then follow the demo hand by
+  // hand, raising fingers and hearing the sound. Marked done once they
+  // actually open the help. The hands-ready badge appears once per
+  // session when both hands are first detected.
+  const [showHelpPulse, setShowHelpPulse] = useState(false);
+  const helpPulseTimerRef = useRef<number | null>(null);
+  const triggerHelpPulse = useCallback(() => {
+    let done = false;
+    try { done = localStorage.getItem('gswHelpPulse') === '1'; } catch { /* private mode */ }
+    if (done) return;
+    setShowHelpPulse(true);
+    if (helpPulseTimerRef.current) window.clearTimeout(helpPulseTimerRef.current);
+    helpPulseTimerRef.current = window.setTimeout(() => setShowHelpPulse(false), 8000);
+  }, []);
+  const dismissHelpPulse = useCallback(() => {
+    setShowHelpPulse(false);
+    if (helpPulseTimerRef.current) {
+      window.clearTimeout(helpPulseTimerRef.current);
+      helpPulseTimerRef.current = null;
     }
-  }, [showHelpPulse]);
+    try { localStorage.setItem('gswHelpPulse', '1'); } catch { /* private mode */ }
+  }, []);
   const [showHandsReady, setShowHandsReady] = useState(false);
   const handsReadyTimerRef = useRef<number | null>(null);
   // Once per session: whether the hands-ready badge was already shown
@@ -1511,8 +1524,9 @@ export default function App() {
 
       setIsRunning(true);
       setIsLoading(false);
-      // Playing now — the help-button pulse has served its purpose
-      setShowHelpPulse(false);
+      // Camera is live — the player can see their hands now, so nudge
+      // them toward the hand demo (8s pulse, one-time until they open it)
+      triggerHelpPulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       setIsLoading(false);
@@ -1538,7 +1552,7 @@ export default function App() {
         }
       }
     }
-  }, [handleVisibility, restartCameraStream]);
+  }, [handleVisibility, restartCameraStream, triggerHelpPulse]);
 
   /* ─── Warm up hand tracking on button intent ───────────────────────── */
 
@@ -1582,6 +1596,11 @@ export default function App() {
     document.removeEventListener('visibilitychange', handleVisibility);
     lastVideoTimeRef.current = -1;
     frozenChecksRef.current = 0;
+    if (helpPulseTimerRef.current) {
+      window.clearTimeout(helpPulseTimerRef.current);
+      helpPulseTimerRef.current = null;
+    }
+    setShowHelpPulse(false);
 
     audioEngine.stopAll();
     audioEngine.stopMetronome();
@@ -1980,7 +1999,7 @@ export default function App() {
                 })}
               </svg>
             </button>
-            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { setShowHelpPulse(false); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
+            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown

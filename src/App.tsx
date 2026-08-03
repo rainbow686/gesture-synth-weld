@@ -2200,7 +2200,7 @@ export default function App() {
                     <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                       <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {handArt(k, 20, 'var(--neon-magenta)', true)}
+                          {handArt(k, 24, 'var(--neon-magenta)', true)}
                           <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k === 'mute' ? '✊' : k}</span>
                         </div>
                       </td>
@@ -2211,6 +2211,9 @@ export default function App() {
                   ))}
                 </tbody>
               </table>
+              <div style={{ fontSize: '0.54rem', color: '#a0a0c8', lineHeight: 1.5, marginTop: '2px' }}>
+                finger count → chord type<br/>enable in Settings · Right hand
+              </div>
             </div>
 
             <div style={{ fontSize: '0.56rem', color: '#b0b0d0', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '6px', paddingTop: '6px' }}>

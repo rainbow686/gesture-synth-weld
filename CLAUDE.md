@@ -104,13 +104,13 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 
 ## MediaPipe Self-Hosting & Version Updates
 
-**Why self-hosted**: the WASM engine and hand-landmarker model were downloaded from jsDelivr + Google's GCS bucket on every first camera start (~19 MB, Google's domain is blocked/slow in mainland China, model cache only 1 h). Since 2026-08-03 both are served from **Cloudflare Pages** (`gsw-media.pages.dev/v1.0.1/`) — unlimited bandwidth, global CDN, mainland-China-friendly — with a **1-year immutable browser cache** (via the CF `_headers` file: `Access-Control-Allow-Origin: *` + `max-age=31536000`). **Why not Vercel**: the ~19 MB model download would consume the 100 GB/month Vercel Hobby bandwidth allowance (~5,000 new camera users per month). Prefetched on Enable-Camera button hover/touch.
+**Why self-hosted**: the WASM engine and hand-landmarker model were downloaded from jsDelivr + Google's GCS bucket on every first camera start (~19 MB, Google's domain is blocked/slow in mainland China, model cache only 1 h). Since 2026-08-03 both are served from **Cloudflare Pages** (`gsw-media.rainbow686.workers.dev/v1.0.1/`) — unlimited bandwidth, global CDN, mainland-China-friendly — with a **1-year immutable browser cache** (via the CF `_headers` file: `Access-Control-Allow-Origin: *` + `max-age=31536000`). **Why not Vercel**: the ~19 MB model download would consume the 100 GB/month Vercel Hobby bandwidth allowance (~5,000 new camera users per month). Prefetched on Enable-Camera button hover/touch.
 
 **Pinned version: 1.0.1** — see `mediapipe-version.json` (version, source URLs, file hashes, update date).
 
 - WASM files are copied from `node_modules/@mediapipe/tasks-vision/wasm/` — they **must match the npm package version exactly** (package.json is pinned, not `^`)
 - Model downloaded once from the GCS URL recorded in mediapipe-version.json
-- Source files stay in `public/vX.Y.Z/` (repo = versioned source of truth); `src/handTracker.ts` points at `https://gsw-media.pages.dev/v1.0.1/...` — the versioned directory IS the cache-buster
+- Source files stay in `public/vX.Y.Z/` (repo = versioned source of truth); `src/handTracker.ts` points at `https://gsw-media.rainbow686.workers.dev/v1.0.1/...` — the versioned directory IS the cache-buster
 - Re-deploy to CF on every version bump: `wrangler pages deploy` of a folder containing `v<new>/` + `_headers` (project `gsw-media`; requires `CLOUDFLARE_API_TOKEN` env var)
 
 **CRITICAL: because of the 1-year immutable cache, updating a file at the same URL will NOT reach existing users.** Every version bump MUST change the URL (new `v<version>` directory + updated paths in `src/handTracker.ts` + re-upload to CF). Never overwrite files in an existing `v*/` directory.

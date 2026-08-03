@@ -16,8 +16,8 @@ import type { HandData, LandmarkPoint } from './types';
 // this path AND re-upload public/vX.Y.Z/ to CF — see CLAUDE.md.
 const MODEL_SOURCES = [
   {
-    wasm: 'https://gsw-media.rainbow686.workers.dev/v1.0.1/wasm',
-    task: 'https://gsw-media.rainbow686.workers.dev/v1.0.1/hand_landmarker.task',
+    wasm: 'https://assets.gesturesynthweld.com/v1.0.1/wasm',
+    task: 'https://assets.gesturesynthweld.com/v1.0.1/hand_landmarker.task',
   },
   { wasm: '/v1.0.1/wasm', task: '/v1.0.1/hand_landmarker.task' },
 ] as const;

@@ -110,7 +110,7 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 
 - WASM files are copied from `node_modules/@mediapipe/tasks-vision/wasm/` — they **must match the npm package version exactly** (package.json is pinned, not `^`)
 - Model downloaded once from the GCS URL recorded in mediapipe-version.json
-- Source files stay in `public/vX.Y.Z/` (repo = versioned source of truth); `src/handTracker.ts` tries `https://gsw-media.rainbow686.workers.dev/v1.0.1/...` first, then falls back to the same-origin `/v1.0.1/...` — workers.dev is DNS-polluted in mainland China, so CN users get the Vercel copy automatically (6s HEAD probe per source); the versioned directory IS the cache-buster
+- Source files stay in `public/vX.Y.Z/` (repo = versioned source of truth); `src/handTracker.ts` tries `https://assets.gesturesynthweld.com/v1.0.1/...` first, then falls back to the same-origin `/v1.0.1/...` — workers.dev is DNS-polluted in mainland China, so CN users get the Vercel copy automatically (6s HEAD probe per source); the versioned directory IS the cache-buster
 - Re-deploy to CF on every version bump: `wrangler pages deploy` of a folder containing `v<new>/` + `_headers` (project `gsw-media`; requires `CLOUDFLARE_API_TOKEN` env var)
 
 **CRITICAL: because of the 1-year immutable cache, updating a file at the same URL will NOT reach existing users.** Every version bump MUST change the URL (new `v<version>` directory + updated paths in `src/handTracker.ts` + re-upload to CF). Never overwrite files in an existing `v*/` directory.

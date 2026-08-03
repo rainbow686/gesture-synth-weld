@@ -497,19 +497,20 @@ export default function App() {
   // hands move together as in real play, and the matching table row
   // highlights. The left hand renders real gesture art (HAND_ART), the
   // right hand is described by finger count.
+  // Demo steps: ONLY the left hand changes — it alone picks the chord
+  // degree (matches real play: the right hand never changes the chord,
+  // default it only controls volume; finger-count → chord type is an
+  // optional mode explained under the table).
   const HELP_DEMO_STEPS = [
-    { left: '1', right: '1', row: 0 },
-    { left: '2', right: '2', row: 1 },
-    { left: '3', right: '3', row: 2 },
-    { left: '4', right: '4', row: 3 },
-    { left: '5', right: '4', row: 4 },
-    { left: 'VI', right: '1', row: 5 },
-    { left: 'VII', right: '3', row: 6 },
-    { left: 'mute', right: 'mute', row: 7 },
+    { left: '1', row: 0 },
+    { left: '2', row: 1 },
+    { left: '3', row: 2 },
+    { left: '4', row: 3 },
+    { left: '5', row: 4 },
+    { left: 'VI', row: 5 },
+    { left: 'VII', row: 6 },
+    { left: 'mute', row: 7 },
   ] as const;
-  const RIGHT_HAND_LABEL: Record<string, string> = {
-    '1': '1 finger', '2': '2 fingers', '3': '3 fingers', '4': '4 fingers', 'mute': 'fist',
-  };
   const [demoStep, setDemoStep] = useState(0);
   useEffect(() => {
     if (!showHelp) return;
@@ -2146,24 +2147,19 @@ export default function App() {
                 </div>
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px', minHeight: '58px' }}>
-                {handArt(HELP_DEMO_STEPS[demoStep].right, 52, 'var(--neon-magenta)', true)}
+                {handArt('1', 52, 'var(--neon-magenta)', true)}
                 <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — type</div>
-                  <div key={demoStep} className="demo-step-text" style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff' }}>{RIGHT_HAND_LABEL[HELP_DEMO_STEPS[demoStep].right]}</div>
+                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
+                  <div style={{ color: '#d0d0e8' }}>height = volume<br />fingers = chord type*</div>
                 </div>
               </div>
-            </div>
-
-            <div style={{ fontSize: '0.56rem', color: '#a0a0c8', marginBottom: '6px', lineHeight: 1.5 }}>
-              Right hand: <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>1</span> = 3-note chord · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>2</span> = inverted · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>3</span> = 4-note · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>4</span> = 5-note · <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>fist</span> = mute
             </div>
 
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
               <thead>
                 <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <th style={{ textAlign: 'left', padding: '3px 12px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '86px' }}>Left hand</th>
-                  <th style={{ textAlign: 'left', padding: '3px 12px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '96px' }}>Chord</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
+                  <th style={{ textAlign: 'left', padding: '3px 12px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '104px' }}>Left hand</th>
+                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Chord</th>
                 </tr>
               </thead>
               <tbody>
@@ -2183,12 +2179,16 @@ export default function App() {
                         </div>
                       </td>
                       <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.72rem' : '0.64rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
-                      <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{RIGHT_HAND_LABEL[s.right]}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+
+            <div style={{ fontSize: '0.56rem', color: '#a0a0c8', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px' }}>
+              <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand</span> — height = volume · thumb = octave down<br/>
+              * fingers = chord type (optional, Settings): <span style={{ color: 'var(--neon-magenta)' }}>1</span> = 3-note · <span style={{ color: 'var(--neon-magenta)' }}>2</span> = inverted · <span style={{ color: 'var(--neon-magenta)' }}>3</span> = 4-note · <span style={{ color: 'var(--neon-magenta)' }}>4+</span> = 5-note
+            </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
               <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor (Scale+Tilt mode)<br/>

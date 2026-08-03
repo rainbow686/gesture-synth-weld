@@ -2201,7 +2201,9 @@ export default function App() {
                       <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           {handArt(k, 24, 'var(--neon-magenta)', true)}
-                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k === 'mute' ? '✊' : k}</span>
+                          {k !== 'mute' && (
+                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k}</span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: '3px 0', fontSize: '0.6rem', whiteSpace: 'nowrap', color: '#d0d0e8' }}>

@@ -1195,6 +1195,19 @@ body {
   flex-shrink: 0;
 }
 .rec-option strong { display: block; font-size: 0.78rem; }
+.rec-default-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 255, 204, 0.14);
+  border: 1px solid rgba(0, 255, 204, 0.4);
+  color: var(--neon-cyan);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  vertical-align: 2px;
+}
 .rec-option em {
   display: block;
   font-style: normal;

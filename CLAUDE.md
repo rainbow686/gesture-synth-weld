@@ -37,8 +37,8 @@ Single sawtooth synth — intentionally minimal
 - **Filter Sweep**: Real-time wrist tilt → frequency/Q changes
 
 ### Recording (B2, 2026-08)
-- **3 modes**: Audio only / Full video (camera + neon skeleton) / Skeleton animation (no camera feed, privacy-friendly)
-- **Aspect ratios**: 9:16 (TikTok·Reels·Shorts) / 16:9 (YouTube) / 1:1 (Instagram·Discord), hidden for audio mode
+- **3 modes**: Audio only / Full video (camera + neon skeleton) / Skeleton animation (no camera feed, privacy-friendly). **Default: Skeleton** where video is supported (share-ready + privacy-friendly), audio fallback on iOS Safari (no captureStream); saved choice wins
+- **Aspect ratios**: 9:16 (TikTok·Reels·Shorts) / 16:9 (YouTube) / 1:1 (Instagram·Discord), hidden for audio mode. Default 9:16 (social-first)
 - **Flow**: Record button → mode/ratio chooser (SVG previews) → 3s countdown (cyan "Get ready" 3-2-1) → 15s recording (button counts down remaining 15→0; last 3s: magenta "Wrap up" 3-2-1 overlay, DOM-only — never in the video) → result panel
 - **Result panel**: Download (all); Share via Web Share API (mobile only) sending a branded message (title/text carry brand + gesturesynthweld.com); platform hint (WhatsApp/WeChat/Telegram direct, TikTok/IG/抖音 save-to-photos); non-cancel failure → "use Download" hint
 - **Video engine**: MediaRecorder (mp4 preferred, webm fallback) on a composited canvas. **Unified design (all ratios/modes)**: blur-fill background; OUTSIDE the window only the brand (top-left, metallic chrome gradient, static — like a broadcast bug) and the URL (bottom-right, white bold on a pill, vertically centered — channel-watermark position); INSIDE the window everything dynamic: chord name (soft static, pill-backed), mode·key, waveform + level bars (camera mode only, subtle alpha — skeleton content carries its own waveform), no flashing anywhere. Window: full-frame cover for 16:9 (matches the live view), fit-width centered for 9:16/1:1. Capture-frame overlay during countdown/recording; audio via MediaStreamAudioDestinationNode tap on masterGain

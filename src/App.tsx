@@ -354,7 +354,14 @@ export default function App() {
 
   // B2: recording flow (chooser → countdown → recording → result)
   const [recPhase, setRecPhase] = useState<RecPhase>('idle');
-  const [recMode, setRecMode] = useState<RecMode>(() => (localStorage.getItem('gsw-rec-mode') as RecMode) || 'audio');
+  // Default: skeleton video (share-ready, privacy-friendly) where the
+  // platform supports it; audio otherwise (iOS Safari lacks captureStream).
+  // A saved choice always wins.
+  const [recMode, setRecMode] = useState<RecMode>(() => {
+    const saved = localStorage.getItem('gsw-rec-mode') as RecMode | null;
+    if (saved === 'audio' || saved === 'video' || saved === 'skeleton') return saved;
+    return VIDEO_REC_SUPPORTED ? 'skeleton' : 'audio';
+  });
   const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
   const [recCount, setRecCount] = useState(3);
   const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
@@ -1897,8 +1904,13 @@ export default function App() {
       finishRecording();
       return;
     }
+    // Platforms without canvas.captureStream (iOS Safari) can't record
+    // video — fall back to audio before showing the chooser.
+    if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
+      setRecMode('audio');
+    }
     setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
-  }, [isRunning, isRecording, finishRecording]);
+  }, [isRunning, isRecording, finishRecording, recMode]);
 
   const handleStartRecording = useCallback(() => {
     localStorage.setItem('gsw-rec-mode', recMode);
@@ -2284,7 +2296,10 @@ export default function App() {
                   >
                     {REC_SVG_PREVIEWS[id]}
                     <span>
-                      <strong>{id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}</strong>
+                      <strong>
+                        {id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}
+                        {id === 'skeleton' && <span className="rec-default-tag">default</span>}
+                      </strong>
                       <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
                     </span>
                   </button>

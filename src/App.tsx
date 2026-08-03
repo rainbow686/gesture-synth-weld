@@ -498,15 +498,18 @@ export default function App() {
   // highlights. The left hand renders real gesture art (HAND_ART), the
   // right hand is described by finger count.
   const HELP_DEMO_STEPS = [
-    { left: '1', right: '1 finger', row: 0 },
-    { left: '2', right: '2 fingers', row: 1 },
-    { left: '3', right: '3 fingers', row: 2 },
-    { left: '4', right: '4 fingers', row: 3 },
-    { left: '5', right: '4 fingers', row: 4 },
-    { left: 'VI', right: '1 finger', row: 5 },
-    { left: 'VII', right: '3 fingers', row: 6 },
-    { left: 'mute', right: 'fist', row: 7 },
+    { left: '1', right: '1', row: 0 },
+    { left: '2', right: '2', row: 1 },
+    { left: '3', right: '3', row: 2 },
+    { left: '4', right: '4', row: 3 },
+    { left: '5', right: '4', row: 4 },
+    { left: 'VI', right: '1', row: 5 },
+    { left: 'VII', right: '3', row: 6 },
+    { left: 'mute', right: 'mute', row: 7 },
   ] as const;
+  const RIGHT_HAND_LABEL: Record<string, string> = {
+    '1': '1 finger', '2': '2 fingers', '3': '3 fingers', '4': '4 fingers', 'mute': 'fist',
+  };
   const [demoStep, setDemoStep] = useState(0);
   useEffect(() => {
     if (!showHelp) return;
@@ -525,18 +528,26 @@ export default function App() {
     if (c.isMajor) return rootName;
     return `${rootName}m`;
   };
+  // Uppercase degree names (I-VII) so the table matches the hand-name
+  // labels (VI = Index+Pinky, VII = +Thumb). The chord NAME column carries
+  // the musical quality (C, Dm, Em, F, G, Am, Bdim) — the strict roman
+  // analysis would be ii/iii/vi/vii°.
+  const GRADE_NAMES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
   const gradeNameFor = (chordIndex: number): string =>
     chordIndex < DIATONIC_CHORDS.length
-      ? `${DIATONIC_CHORDS[chordIndex].roman} · ${chordNameFor(chordIndex)}`
+      ? `${GRADE_NAMES[chordIndex]} · ${chordNameFor(chordIndex)}`
       : 'mute';
 
   // Renders one of the licensed hand artworks, sized by height.
-  const handArt = (key: string, size: number, color: string): ReactNode => {
+  // mirrored flips the hand horizontally (right-hand view: thumb right).
+  const handArt = (key: string, size: number, color: string, mirrored = false): ReactNode => {
     const a = HAND_ART[key];
     if (!a) return null;
     return (
-      <svg viewBox={a.vb} style={{ height: size, width: 'auto', color, flexShrink: 0, display: 'block' }}
-        dangerouslySetInnerHTML={{ __html: a.body }} />
+      <svg viewBox={a.vb} style={{
+        height: size, width: 'auto', color, flexShrink: 0, display: 'block',
+        transform: mirrored ? 'scaleX(-1)' : undefined,
+      }} dangerouslySetInnerHTML={{ __html: a.body }} />
     );
   };
 
@@ -2135,12 +2146,10 @@ export default function App() {
                 </div>
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px', minHeight: '58px' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--neon-magenta)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em', minWidth: '70px', textAlign: 'center' }}>
-                  <div key={demoStep} className="demo-step-text">{HELP_DEMO_STEPS[demoStep].right}</div>
-                </div>
+                {handArt(HELP_DEMO_STEPS[demoStep].right, 52, 'var(--neon-magenta)', true)}
                 <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
                   <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — type</div>
-                  <div style={{ color: '#d0d0e8' }}>height → volume</div>
+                  <div key={demoStep} className="demo-step-text" style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff' }}>{RIGHT_HAND_LABEL[HELP_DEMO_STEPS[demoStep].right]}</div>
                 </div>
               </div>
             </div>
@@ -2152,8 +2161,8 @@ export default function App() {
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
               <thead>
                 <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '56px' }}>Left hand</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '86px' }}>Chord</th>
+                  <th style={{ textAlign: 'left', padding: '3px 12px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '86px' }}>Left hand</th>
+                  <th style={{ textAlign: 'left', padding: '3px 12px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '96px' }}>Chord</th>
                   <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
                 </tr>
               </thead>
@@ -2174,7 +2183,7 @@ export default function App() {
                         </div>
                       </td>
                       <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.72rem' : '0.64rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
-                      <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{s.right}</td>
+                      <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{RIGHT_HAND_LABEL[s.right]}</td>
                     </tr>
                   );
                 })}

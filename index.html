@@ -504,6 +504,7 @@
 
         <!-- Left Wrist: Major/Minor -->
         <h3 style="color:#00ffcc;margin-top:1.5rem">🤚 Left Wrist Tilt — Major / Minor Toggle</h3>
+        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Default is <strong>Scale notes only (Major locked)</strong> — wrist tilt is off until you switch to <strong>Scale+Tilt</strong> in Settings.</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Wrist Action</th><th>Result</th><th>Notes</th></tr>
@@ -511,7 +512,7 @@
           <tbody>
             <tr><td>Tilt Left (tilt &lt; 0)</td><td><strong>Minor</strong></td><td>All chords become minor (I→i, IV→iv, V→v, etc.)</td></tr>
             <tr><td>Tilt Right (tilt ≥ 0)</td><td><strong>Major</strong></td><td>All chords become major (I, IV, V, etc.)</td></tr>
-            <tr><td>Locked Mode</td><td><strong>Fixed</strong></td><td>Select "Scale notes only (lock mode)" in settings — ignores wrist tilt</td></tr>
+            <tr><td>Scale notes only (lock mode)</td><td><strong>Fixed</strong></td><td>Mode locked (default: Major) — ignores wrist tilt</td></tr>
           </tbody>
         </table>
 
@@ -526,10 +527,10 @@
             <tr><td>2</td><td>Major 1st Inversion</td><td>Minor 1st Inversion</td></tr>
             <tr><td>3</td><td>Major 7th</td><td>Minor 7th</td></tr>
             <tr><td>4</td><td>Major 9th</td><td>Minor 9th</td></tr>
-            <tr><td>0 (Fist)</td><td colspan="2"><em>Octave reset</em> — sound continues, returns to normal octave when hand opens</td></tr>
+            <tr><td>0 (Fist)</td><td colspan="2"><em>Default chord type</em> — the tucked thumb also brings the octave back to normal; sound continues</td></tr>
           </tbody>
         </table>
-        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Or lock to a fixed chord style in settings — choose from 8 types: Major Triad, Major 1st Inv, Minor Triad, Diminished, Sus2, Sus4, Major 7th, Dominant 7th.</p>
+        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Finger count → chord type requires <strong>Right Hand Mode = Finger Layout</strong> in Settings — the default is <strong>Fixed Chord Style</strong> (Major Triad), where the right hand controls volume + tone instead. Or lock to a fixed chord style in Settings — choose from 8 types: Major Triad, Major 1st Inv, Minor Triad, Diminished, Sus2, Sus4, Major 7th, Dominant 7th.</p>
 
         <!-- Right Hand Position -->
         <h3 style="color:#ff00ff;margin-top:1.5rem">✋ Right Hand Position — Volume &amp; Tone</h3>
@@ -563,9 +564,48 @@
           </thead>
           <tbody>
             <tr><td><strong>Left fist</strong> (0 fingers)</td><td>Music mutes — notes held, resume when fingers return</td></tr>
-            <tr><td><strong>Right fist</strong> (0 fingers)</td><td>Octave returns to normal — sound continues, chord keeps updating</td></tr>
+            <tr><td><strong>Right fist</strong> (0 fingers)</td><td>Thumb tucks in → back to normal octave — sound continues, chord keeps updating</td></tr>
             <tr><td><strong>One hand leaves frame</strong></td><td>Music stops after 80ms grace period</td></tr>
             <tr><td><strong>Both hands leave frame</strong></td><td>Music stops after 80ms grace period</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Piano Mode -->
+        <h3 style="color:#00ffcc;margin-top:1.5rem">🎹 Piano Mode — Single-Note Melodies</h3>
+        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Both hands required — the left hand picks a single note (interval + key), the right hand triggers it and controls volume. Left fist = silence.</p>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Left Fingers</th><th>Interval</th><th>Example (Key A)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Root note</td><td>A4</td></tr>
+            <tr><td>2</td><td>Major 3rd</td><td>C#5</td></tr>
+            <tr><td>3</td><td>Perfect 5th</td><td>E5</td></tr>
+            <tr><td>4</td><td>Octave</td><td>A5</td></tr>
+            <tr><td>5</td><td>9th (octave + 2nd)</td><td>B5</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Theremin Mode -->
+        <h3 style="color:#00ffcc;margin-top:1.5rem">🪕 Theremin Mode — Pitch &amp; Volume</h3>
+        <p style="font-size:0.8rem;color:#a0a0d0;margin-top:0.3rem">Both hands required — <strong>right hand height = pitch</strong> (C3 → C6, logarithmic), <strong>left hand height = volume</strong>. Raise your right hand for higher notes; raise your left hand for a louder sound.</p>
+
+        <!-- Settings, Metronome & Shortcuts -->
+        <h3 style="color:#ffaa00;margin-top:1.5rem">⚙ Settings, Metronome &amp; Shortcuts</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Control</th><th>Options</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Key</strong></td><td>12 keys (C – B)</td><td>Toolbar dropdown — transposes every chord</td></tr>
+            <tr><td><strong>Left Hand Mode</strong></td><td>Scale+Tilt · Scale notes only</td><td>Scale+Tilt: wrist tilt flips major ↔ minor (default: Scale only, Major locked)</td></tr>
+            <tr><td><strong>Right Hand Mode</strong></td><td>Finger Layout · Fixed Chord Style</td><td>Finger Layout: 1–4 fingers = triad / 1st inv / 7th / 9th (default: Fixed, Major Triad)</td></tr>
+            <tr><td><strong>Fixed Chord Style</strong></td><td>8 types</td><td>Major Triad · Major 1st Inv · Minor Triad · Diminished · Sus2 · Sus4 · Major 7th · Dominant 7th</td></tr>
+            <tr><td><strong>Timbre</strong></td><td>Gesture (sawtooth) · Theremin (sine)</td><td>Follows the selected mode</td></tr>
+            <tr><td><strong>Arpeggiator</strong></td><td>Off · Slow · Normal · Fast</td><td>⟿ toggle — sweeps chord notes sequentially like a harp</td></tr>
+            <tr><td><strong>Auto Bass</strong></td><td>Off · On (volume slider)</td><td>∿ toggle — root note two octaves below, independent volume</td></tr>
+            <tr><td><strong>Metronome</strong></td><td>BPM 40–240 · 3/4·4/4·5/4·6/8·7/8 · 1–16 bars · Click/Wood/Beep/Hi-hat · TAP · volume</td><td>♪ toggle in Settings. <strong>Note:</strong> the metronome is audible in recordings when it's on</td></tr>
+            <tr><td><strong>Shortcuts</strong></td><td>Space = stop all notes · Esc = reset</td><td>Work at any time (browser focus)</td></tr>
           </tbody>
         </table>
 

@@ -1022,6 +1022,48 @@ body {
   color: var(--text-primary);
 }
 
+/* ─── Onboarding: help-button pulse + hands-ready badge ─────────────── */
+
+/* One-time breathing glow on the ? button so first-time visitors notice
+   the hand demo exists — no popups, nothing blocking */
+@keyframes help-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(0, 255, 204, 0.35); border-color: rgba(0, 255, 204, 0.5); }
+  50%      { box-shadow: 0 0 16px rgba(0, 255, 204, 0.75); border-color: rgba(0, 255, 204, 0.9); }
+}
+.icon-btn.help-pulse { animation: help-pulse 1.6s ease-in-out infinite; }
+
+.hands-ready-badge {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(8, 8, 20, 0.88);
+  backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(0, 255, 204, 0.35);
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-size: 0.68rem;
+  color: #e0e0f4;
+  box-shadow: 0 0 24px rgba(0, 255, 204, 0.12), var(--frost-shadow);
+  z-index: 90;
+  animation: badge-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+@keyframes badge-pop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.92); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+/* Help-panel hand demo: caption crossfade */
+.demo-step-text {
+  color: #d0d0e8;
+  animation: demo-step-in 0.4s ease;
+}
+@keyframes demo-step-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── B2: Recording UI ──────────────────────────────────────────────── */
 
 /* Countdown overlay — full screen, dimmed, big neon numbers */
@@ -1153,6 +1195,19 @@ body {
   flex-shrink: 0;
 }
 .rec-option strong { display: block; font-size: 0.78rem; }
+.rec-default-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 255, 204, 0.14);
+  border: 1px solid rgba(0, 255, 204, 0.4);
+  color: var(--neon-cyan);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  vertical-align: 2px;
+}
 .rec-option em {
   display: block;
   font-style: normal;

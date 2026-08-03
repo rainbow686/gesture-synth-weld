@@ -28,6 +28,7 @@ import {
   type RecPhase,
 } from './types';
 import { makeRecordingFilename } from './wavEncoder';
+import { HAND_ART } from './handArt';
 import { injectBrandTags } from './mp4tags';
 // Config imports removed — external scripts feature not currently active
 
@@ -353,7 +354,18 @@ export default function App() {
 
   // B2: recording flow (chooser → countdown → recording → result)
   const [recPhase, setRecPhase] = useState<RecPhase>('idle');
-  const [recMode, setRecMode] = useState<RecMode>(() => (localStorage.getItem('gsw-rec-mode') as RecMode) || 'audio');
+  // Default: skeleton video (share-ready, privacy-friendly) where the
+  // platform supports it; audio otherwise (iOS Safari lacks captureStream).
+  // A saved choice always wins.
+  const [recMode, setRecMode] = useState<RecMode>(() => {
+    const saved = localStorage.getItem('gsw-rec-mode') as RecMode | null;
+    if (saved === 'audio' || saved === 'video' || saved === 'skeleton') return saved;
+    return VIDEO_REC_SUPPORTED ? 'skeleton' : 'audio';
+  });
+  // Whether this player has ever recorded (i.e. made a choice) — the
+  // "default" tag in the chooser is only meaningful before that.
+  let savedRecModeExists = false;
+  try { savedRecModeExists = !!localStorage.getItem('gsw-rec-mode'); } catch { /* private mode */ }
   const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
   const [recCount, setRecCount] = useState(3);
   const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
@@ -456,6 +468,101 @@ export default function App() {
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  // ─── Onboarding (first visit) ─────────────────────────────────────────
+  // No popups on first visit — a newcomer's intent is to try, not to
+  // learn, and a popup just gets dismissed. The only nudge: once the
+  // camera is running and the player can see themselves, the ? help
+  // button breathes for 8s — the player can then follow the demo hand by
+  // hand, raising fingers and hearing the sound. Marked done once they
+  // actually open the help. The hands-ready badge appears once per
+  // session when both hands are first detected.
+  const [showHelpPulse, setShowHelpPulse] = useState(false);
+  const helpPulseTimerRef = useRef<number | null>(null);
+  const triggerHelpPulse = useCallback(() => {
+    let done = false;
+    try { done = localStorage.getItem('gswHelpPulse') === '1'; } catch { /* private mode */ }
+    if (done) return;
+    setShowHelpPulse(true);
+    if (helpPulseTimerRef.current) window.clearTimeout(helpPulseTimerRef.current);
+    helpPulseTimerRef.current = window.setTimeout(() => setShowHelpPulse(false), 8000);
+  }, []);
+  const dismissHelpPulse = useCallback(() => {
+    setShowHelpPulse(false);
+    if (helpPulseTimerRef.current) {
+      window.clearTimeout(helpPulseTimerRef.current);
+      helpPulseTimerRef.current = null;
+    }
+    try { localStorage.setItem('gswHelpPulse', '1'); } catch { /* private mode */ }
+  }, []);
+  const [showHandsReady, setShowHandsReady] = useState(false);
+  const handsReadyTimerRef = useRef<number | null>(null);
+  // Once per session: whether the hands-ready badge was already shown
+  // (sessionStorage survives reloads within the same tab)
+  const [handsReadyShown, setHandsReadyShown] = useState(() => {
+    try { return sessionStorage.getItem('gswHandsReady') === '1'; } catch { return false; }
+  });
+
+  // Help-panel hand demo: 8 steps — left hand picks the chord degree,
+  // right hand picks the chord type (finger count = voicing size); both
+  // hands move together as in real play, and the matching table row
+  // highlights. The left hand renders real gesture art (HAND_ART), the
+  // right hand is described by finger count.
+  // Demo steps: ONLY the left hand changes — it alone picks the chord
+  // degree (matches real play: the right hand never changes the chord,
+  // default it only controls volume; finger-count → chord type is an
+  // optional mode explained under the table).
+  const HELP_DEMO_STEPS = [
+    { left: '1', row: 0 },
+    { left: '2', row: 1 },
+    { left: '3', row: 2 },
+    { left: '4', row: 3 },
+    { left: '5', row: 4 },
+    { left: 'VI', row: 5 },
+    { left: 'VII', row: 6 },
+    { left: 'mute', row: 7 },
+  ] as const;
+  const [demoStep, setDemoStep] = useState(0);
+  useEffect(() => {
+    if (!showHelp) return;
+    const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
+    return () => window.clearInterval(t);
+  }, [showHelp]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Chord name in the currently selected key (e.g. key C → "I · C",
+  // key G → "I · G"); follows the toolbar key selector.
+  const chordNameFor = (chordIndex: number): string => {
+    const c = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
+    const rootName = (KEYS[(c.intervals[0] + synthState.keyOffset) % KEYS.length]?.name ?? '?').split('/')[0];
+    const third = c.intervals[1] - c.intervals[0];
+    const fifth = c.intervals[2] - c.intervals[1];
+    if (third === 3 && fifth === 3) return `${rootName}dim`;
+    if (c.isMajor) return rootName;
+    return `${rootName}m`;
+  };
+  // Uppercase degree names (I-VII) so the table matches the hand-name
+  // labels (VI = Index+Pinky, VII = +Thumb). The chord NAME column carries
+  // the musical quality (C, Dm, Em, F, G, Am, Bdim) — the strict roman
+  // analysis would be ii/iii/vi/vii°.
+  const GRADE_NAMES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+  const gradeNameFor = (chordIndex: number): string =>
+    chordIndex < DIATONIC_CHORDS.length
+      ? `${GRADE_NAMES[chordIndex]} · ${chordNameFor(chordIndex)}`
+      : 'mute';
+
+  // Renders one of the licensed hand artworks, sized by height.
+  // mirrored flips the hand horizontally (right-hand view: thumb right).
+  const handArt = (key: string, size: number, color: string, mirrored = false): ReactNode => {
+    const a = HAND_ART[key];
+    if (!a) return null;
+    return (
+      <svg viewBox={a.vb} style={{
+        height: size, width: 'auto', color, flexShrink: 0, display: 'block',
+        transform: mirrored ? 'scaleX(-1)' : undefined,
+      }} dangerouslySetInnerHTML={{ __html: a.body }} />
+    );
+  };
+
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const [showSettings, setShowSettings] = useState(!isMobile);
   const [showSkeleton, setShowSkeleton] = useState(true);
@@ -662,6 +769,16 @@ export default function App() {
     setGesture({ left: leftHand, right: rightHand });
     setHasLeftHand(!!leftHand);
     setHasRightHand(!!rightHand);
+
+    // Onboarding: once per session, celebrate the first stable two-hand
+    // detection — a 3s badge, never shown again in this session.
+    if (leftDetected && rightDetected && !handsReadyShown) {
+      setHandsReadyShown(true);
+      try { sessionStorage.setItem('gswHandsReady', '1'); } catch { /* private mode */ }
+      setShowHandsReady(true);
+      if (handsReadyTimerRef.current) window.clearTimeout(handsReadyTimerRef.current);
+      handsReadyTimerRef.current = window.setTimeout(() => setShowHandsReady(false), 3000);
+    }
 
     const s = synthRef.current;
 
@@ -1444,6 +1561,9 @@ export default function App() {
 
       setIsRunning(true);
       setIsLoading(false);
+      // Camera is live — the player can see their hands now, so nudge
+      // them toward the hand demo (8s pulse, one-time until they open it)
+      triggerHelpPulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       setIsLoading(false);
@@ -1469,7 +1589,7 @@ export default function App() {
         }
       }
     }
-  }, [handleVisibility, restartCameraStream]);
+  }, [handleVisibility, restartCameraStream, triggerHelpPulse]);
 
   /* ─── Warm up hand tracking on button intent ───────────────────────── */
 
@@ -1513,6 +1633,11 @@ export default function App() {
     document.removeEventListener('visibilitychange', handleVisibility);
     lastVideoTimeRef.current = -1;
     frozenChecksRef.current = 0;
+    if (helpPulseTimerRef.current) {
+      window.clearTimeout(helpPulseTimerRef.current);
+      helpPulseTimerRef.current = null;
+    }
+    setShowHelpPulse(false);
 
     audioEngine.stopAll();
     audioEngine.stopMetronome();
@@ -1783,8 +1908,13 @@ export default function App() {
       finishRecording();
       return;
     }
+    // Platforms without canvas.captureStream (iOS Safari) can't record
+    // video — fall back to audio before showing the chooser.
+    if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
+      setRecMode('audio');
+    }
     setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
-  }, [isRunning, isRecording, finishRecording]);
+  }, [isRunning, isRecording, finishRecording, recMode]);
 
   const handleStartRecording = useCallback(() => {
     localStorage.setItem('gsw-rec-mode', recMode);
@@ -1911,7 +2041,7 @@ export default function App() {
                 })}
               </svg>
             </button>
-            <button className="icon-btn" onClick={() => setShowHelp(!showHelp)} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
+            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
@@ -1998,6 +2128,14 @@ export default function App() {
           )}
         </div>
 
+        {/* ─── Onboarding: hands-ready badge (first stable two-hand
+                detection, once per session, 3s) ───────────────────── */}
+        {showHandsReady && (
+          <div className="hands-ready-badge">
+            <span style={{ color: 'var(--neon-cyan)' }}>✓</span> Both hands detected — play!
+          </div>
+        )}
+
         {/* ─── Help Modal ────────────────────────────────────────────── */}
         {showHelp && (
           <div style={{
@@ -2012,32 +2150,109 @@ export default function App() {
               <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
-              <thead>
-                <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '60px' }}>Fingers</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '40px' }}>Chord</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Gesture</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ['1', 'I', '1 finger raised'],
-                  ['2', 'II', '2 fingers raised'],
-                  ['3', 'III', '3 fingers raised'],
-                  ['4', 'IV', '4 fingers raised'],
-                  ['5', 'V', '5 fingers raised'],
-                  ['VI', 'VI', 'Index + Pinky'],
-                  ['VII', 'VII', 'Idx + Pky + Thumb'],
-                ].map(([fn, chord, gest]) => (
-                  <tr key={fn} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '3px 0', fontFamily: 'var(--font-display)', color: '#fff', fontWeight: 700, fontSize: '0.72rem' }}>{fn}</td>
-                    <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: 600 }}>{chord}</td>
-                    <td style={{ padding: '3px 0', fontSize: '0.6rem' }}>{gest}</td>
+            {/* How it works — two-hand demo: the left hand raises the
+                chord degree (real gesture art), the right hand the chord
+                type by finger count; together as in real play. The
+                matching table row highlights. */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px', minHeight: '58px' }}>
+                {handArt(HELP_DEMO_STEPS[demoStep].left, 52, 'var(--neon-cyan)')}
+                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
+                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chord</div>
+                  <div key={demoStep} className="demo-step-text" style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff' }}>{gradeNameFor(HELP_DEMO_STEPS[demoStep].row)}</div>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px', minHeight: '58px' }}>
+                {handArt('1', 52, 'var(--neon-magenta)', true)}
+                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
+                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
+                  <div style={{ color: '#d0d0e8' }}>height = volume</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '14px', marginBottom: '8px', alignItems: 'flex-start' }}>
+              {/* Left hand → chord degree (the one that picks the note) */}
+              <table style={{ borderCollapse: 'collapse', flex: 1 }}>
+                <thead>
+                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <th style={{ textAlign: 'left', padding: '3px 10px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Left hand</th>
+                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Chord</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {HELP_DEMO_STEPS.map((s, row) => {
+                    const active = row === HELP_DEMO_STEPS[demoStep].row;
+                    return (
+                      <tr key={s.left} style={{
+                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
+                        boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
+                        transition: 'background 0.25s ease',
+                      }}>
+                        <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {handArt(s.left, 24, active ? 'var(--neon-cyan)' : '#8fbfd0')}
+                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', color: 'var(--text-muted)' }}>{s.left}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.7rem' : '0.62rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Right hand → chord type (independent of the chord) */}
+              <table style={{ borderCollapse: 'collapse', flexShrink: 0 }}>
+                <thead>
+                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <th style={{ textAlign: 'left', padding: '3px 8px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
+                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(['1', '2', '3', '4', 'mute'] as const).map((k) => (
+                    <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          {handArt(k, 24, 'var(--neon-magenta)', true)}
+                          {k !== 'mute' && (
+                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '3px 0', fontSize: '0.6rem', whiteSpace: 'nowrap', color: '#d0d0e8' }}>
+                        {k === 'mute' ? 'mute' : ({ '1': '3-note', '2': 'inverted', '3': '4-note', '4': '5-note' } as Record<string, string>)[k]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ fontSize: '0.54rem', color: '#a0a0c8', lineHeight: 1.5, marginTop: '2px' }}>
+                finger count → chord type<br/>enable in Settings · Right hand
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.56rem', color: '#b0b0d0', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '6px', paddingTop: '6px' }}>
+              <div style={{ color: '#a0a0c8', fontWeight: 600, marginBottom: '4px' }}>Other gestures</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                {handArt('thumb', 24, 'var(--neon-magenta)', true)}
+                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right thumb</span> out = octave down</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
+                <span style={{ color: '#a0a0c8' }}>↔</span>
+                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
+                <span><span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left wrist tilt</span> = major ↔ minor (Settings · Scale+Tilt)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
+                <span style={{ color: '#a0a0c8' }}>↔</span>
+                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
+                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right wrist tilt</span> = tone sweep</span>
+              </div>
+            </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
               <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor (Scale+Tilt mode)<br/>
@@ -2085,7 +2300,12 @@ export default function App() {
                   >
                     {REC_SVG_PREVIEWS[id]}
                     <span>
-                      <strong>{id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}</strong>
+                      <strong>
+                        {id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}
+                        {/* "default" only makes sense for first-time choosers —
+                            returning players see their own saved choice */}
+                        {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
+                      </strong>
                       <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
                     </span>
                   </button>

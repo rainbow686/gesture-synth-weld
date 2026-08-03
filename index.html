@@ -404,13 +404,13 @@
 
       <h1>Hand Gesture Music Synthesizer — Play Music With Your Hands</h1>
       <p class="seo-intro">
-        A free, browser-based synthesizer controlled entirely by hand gestures.
-        No downloads, no plugins — just your webcam and your hands.
+        A <strong>free gesture synth</strong> that runs <strong>online</strong> in your browser —
+        no downloads, no plugins, just your webcam and your hands.
         <a href="#faq" style="display:inline-block;margin-top:0.4rem;color:#00ffcc;font-size:0.9rem;">FAQ ↓</a>
       </p>
 
       <!-- What is Gesture Synth Weld? -->
-      <div class="seo-section">
+      <div class="seo-section" id="what-is">
         <h2>📖 What is Gesture Synth Weld?</h2>
         <p>
           <strong>Gesture Synth Weld</strong> is a browser-based gesture synth — a hand gesture music synthesizer that runs entirely
@@ -455,6 +455,41 @@
           trade-off: no hardware cost, just your two hands.
         </p>
 
+        <h3 style="margin-top:1.5rem">🔄 Gesture Synth Alternatives: Browser vs Hardware vs DAW</h3>
+        <p>Three ways to play music with gestures — here's how they compare:</p>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Approach</th><th>Cost</th><th>Setup</th><th>Pros</th><th>Cons</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Browser gesture synth</strong> (webcam + hand tracking)</td>
+              <td>Free</td>
+              <td>None — open the page, allow camera</td>
+              <td>Zero install, zero cost, runs on any device</td>
+              <td>Needs light and clear hand visibility</td>
+            </tr>
+            <tr>
+              <td><strong>Hardware gesture synth</strong> (gloves, ring sensors, MIDI theremins)</td>
+              <td>$100 – $1,000+</td>
+              <td>Drivers, calibration, MIDI wiring</td>
+              <td>Precise, low latency, works in any light</td>
+              <td>Expensive, bulky, needs setup</td>
+            </tr>
+            <tr>
+              <td><strong>DAW + MIDI controller</strong></td>
+              <td>Software + hardware cost</td>
+              <td>Install DAW, configure mappings</td>
+              <td>Full production power, unlimited tracks</td>
+              <td>Steep learning curve, desk-bound, not gesture-based</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:0.8rem">
+          Prefer an instrument you can pick up in seconds? See the <a href="#gesture-guide" style="color:#00ffcc">full gesture playbook</a>
+          or the <a href="#faq" style="color:#00ffcc">FAQ</a> — or just start playing with the controls above.
+        </p>
+
         <h2>💡 How It Works</h2>
         <div class="step-grid">
           <div class="step-card">
@@ -483,9 +518,11 @@
       <div class="seo-section" id="gesture-guide">
         <h2>🖐 Gesture Guide — Complete Hand Gesture Playbook</h2>
         <p style="margin-bottom:1.2rem;font-size:0.9rem;color:#a0a0d0">All gesture combinations for Gesture mode. Both hands required — left hand sets harmony, right hand controls expression. <a href="#how-it-works" style="color:#00ffcc">Quick start ↑</a></p>
+        <p style="margin-bottom:0.6rem">Here's how to use Gesture Synth Weld as a <strong>hand gesture music synthesizer</strong> — every gesture, mapped:</p>
 
         <!-- Left Hand: Harmony -->
         <h3 style="color:#00ffcc">👈 Left Hand — Harmony (Scale Degree + Mode)</h3>
+        <p style="margin-bottom:0.4rem">Your <strong>left hand picks the chord</strong> — each finger count is a different scale degree:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Fingers</th><th>Chord</th><th>Gesture</th><th>Example (A Major)</th></tr>
@@ -518,6 +555,7 @@
 
         <!-- Right Hand: Expression -->
         <h3 style="color:#ff00ff;margin-top:1.5rem">👉 Right Hand — Expression (Chord Type, Volume, Tone)</h3>
+        <p style="margin-bottom:0.4rem">Your <strong>right hand shapes the sound</strong> — chord type, volume, tone, and octave:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Fingers</th><th>Major Chord Type</th><th>Minor Chord Type</th></tr>
@@ -534,6 +572,7 @@
 
         <!-- Right Hand Position -->
         <h3 style="color:#ff00ff;margin-top:1.5rem">✋ Right Hand Position — Volume &amp; Tone</h3>
+        <p style="margin-bottom:0.4rem"><strong>Height controls volume</strong>; wrist tilt sweeps the tone filter:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Movement</th><th>Controls</th><th>How It Works</th></tr>
@@ -546,6 +585,7 @@
 
         <!-- Right Thumb: Octave -->
         <h3 style="color:#ff00ff;margin-top:1.5rem">👍 Right Thumb — Octave Shift</h3>
+        <p style="margin-bottom:0.4rem">Thumb out drops the <strong>octave</strong> for low bass lines:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Thumb Position</th><th>Result</th><th>Status Display</th></tr>
@@ -558,6 +598,7 @@
 
         <!-- Stop / Mute -->
         <h3 style="color:#7850ff;margin-top:1.5rem">⏹ Stop &amp; Mute Conditions</h3>
+        <p style="margin-bottom:0.4rem">Ways to <strong>stop or mute</strong> the sound:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Condition</th><th>Behavior</th></tr>
@@ -592,6 +633,7 @@
 
         <!-- Settings, Metronome & Shortcuts -->
         <h3 style="color:#ffaa00;margin-top:1.5rem">⚙ Settings, Metronome &amp; Shortcuts</h3>
+        <p style="margin-bottom:0.4rem">Everything you can fine-tune in the <strong>Settings</strong> panel:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Control</th><th>Options</th><th>Notes</th></tr>
@@ -611,6 +653,7 @@
 
         <!-- Default Settings -->
         <h3 style="color:#ffaa00;margin-top:1.5rem">⚙ Default Settings</h3>
+        <p style="margin-bottom:0.4rem">The <strong>default settings</strong> out of the box:</p>
         <table class="gesture-table">
           <thead>
             <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
@@ -675,7 +718,7 @@
           Record your favorite performances — audio, full video, or skeleton animation — to share or revisit later.
         </p>
 
-        <h3>Recording and sharing</h3>
+        <h3 id="recording-tips">Recording and sharing</h3>
         <p>
           Click the red Record button to capture up to 15 seconds of your performance. A
           3-2-1 countdown gets you ready, and a magenta 3-2-1 wrap-up warns you before the
@@ -745,7 +788,7 @@
             A gesture synth (gesture synthesizer) is a tool that turns hand movements captured by
             your webcam into musical sounds — no physical instrument needed. Gesture Synth Weld is
             one such browser-based gesture synth that maps each finger to a different note, letting
-            you play music just by moving your hands in the air.
+            you play music just by moving your hands in the air. <a href="#what-is" style="color:#00ffcc">Learn what makes it different →</a>
           </p>
         </details>
 
@@ -786,6 +829,7 @@
             the recording-mix slider — headphones give the cleanest mix. After recording, download the
             file — or on mobile, share it straight to your apps from the share sheet (the share message
             carries our brand and gesturesynthweld.com). Your camera feed is never uploaded to any server.
+            <a href="#recording-tips" style="color:#00ffcc">More recording tips →</a>
           </p>
         </details>
 
@@ -797,7 +841,7 @@
             3 fingers = 7th chord, 4 fingers = 9th chord. In <strong>Fixed Chord mode</strong>,
             choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished,
             Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt in settings
-            to switch between major and minor with left-hand wrist tilt.
+            to switch between major and minor with left-hand wrist tilt. <a href="#gesture-guide" style="color:#00ffcc">See the full gesture table →</a>
           </p>
         </details>
 

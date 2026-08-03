@@ -7,13 +7,13 @@ import type { HandData, LandmarkPoint } from './types';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
-// Model sources, tried in order. Primary: Cloudflare (gsw-media.rainbow686.
-// workers.dev — unlimited bandwidth, global CDN). Fallback: Vercel same-origin
-// (/v1.0.1/) — workers.dev is DNS-polluted in mainland China, so CN users get
-// the fallback automatically (their ~19 MB still counts against Vercel's
-// bandwidth, but it keeps the camera working). Browsers cache these files for
-// 1 year (immutable, via the CF _headers file), so a version bump MUST change
-// this path AND re-upload public/vX.Y.Z/ to CF — see CLAUDE.md.
+// Model sources, raced. Primary: Cloudflare (assets.gesturesynthweld.com —
+// unlimited bandwidth, global CDN). Fallback: Vercel same-origin (/v1.0.1/).
+// Only the lightweight HEAD probes race; the ~19 MB model download happens
+// from the winner only (racing full downloads would double bandwidth).
+// Browsers cache these files for 1 year (immutable, via the CF _headers
+// file), so a version bump MUST change this path AND re-upload
+// public/vX.Y.Z/ to CF — see CLAUDE.md.
 const MODEL_SOURCES = [
   {
     wasm: 'https://assets.gesturesynthweld.com/v1.0.1/wasm',
@@ -22,17 +22,21 @@ const MODEL_SOURCES = [
   { wasm: '/v1.0.1/wasm', task: '/v1.0.1/hand_landmarker.task' },
 ] as const;
 
-/** Fast reachability probe (HEAD, 6s cap) so a blocked CDN falls back quickly. */
-async function sourceReachable(taskUrl: string, timeoutMs = 6000): Promise<boolean> {
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(taskUrl, { method: 'HEAD', signal: ctrl.signal, cache: 'no-store' });
-    clearTimeout(timer);
-    return res.ok;
-  } catch {
-    return false;
-  }
+/**
+ * Race lightweight HEAD probes across all sources — the first one that
+ * responds wins (no sequential 6s waits). Rejects only if every source is
+ * unreachable, which the caller surfaces as the init error.
+ */
+async function pickSource(): Promise<(typeof MODEL_SOURCES)[number]> {
+  const probes = MODEL_SOURCES.map((src) =>
+    fetch(src.task, { method: 'HEAD', signal: AbortSignal.timeout(6000), cache: 'no-store' }).then(
+      (res) => {
+        if (!res.ok) throw new Error(`HEAD ${res.status} for ${src.task}`);
+        return src;
+      },
+    ),
+  );
+  return Promise.any(probes);
 }
 
 let handLandmarker: HandLandmarker | null = null;
@@ -56,10 +60,16 @@ export function initHandTracking(): Promise<HandLandmarker> {
 
 async function doInit(): Promise<HandLandmarker> {
   let lastError: unknown;
-  for (const src of MODEL_SOURCES) {
-    // Skip unreachable sources quickly (6s cap) so CN users fall back to the
-    // same-origin copy instead of waiting for a workers.dev timeout.
-    if (!(await sourceReachable(src.task))) continue;
+  // Race the probes, then init from the winner; retry once with the other
+  // source if the first init fails mid-download.
+  const order = await pickSource().catch((e) => {
+    lastError = e;
+    return null;
+  });
+  const attemptSources = order
+    ? [order, ...MODEL_SOURCES.filter((s) => s !== order)]
+    : [...MODEL_SOURCES];
+  for (const src of attemptSources) {
     try {
       const vision = await FilesetResolver.forVisionTasks(src.wasm);
 

@@ -79,7 +79,7 @@ public/
 ├── sitemap.xml
 └── v1.0.1/             # Self-hosted MediaPipe (wasm/ + hand_landmarker.task)
 
-vercel.json             # Build config + immutable cache headers for /v*/assets
+vercel.json             # Build config + immutable cache headers for /v*/assets (fallback model path)
 scripts/                # check-mediapipe-version.mjs (quarterly update check)
 mediapipe-version.json  # Pinned MediaPipe version, source URLs, file hashes
 
@@ -98,13 +98,14 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 
 ## Deployment
 
-- **Platform**: Vercel (auto-deploy from GitHub)
-- **Domain**: gesturesynthweld.com (custom domain configured)
+- **Platform**: Vercel (auto-deploy from GitHub) — hosts the web app only
+- **Domain DNS**: gesturesynthweld.com nameservers → Cloudflare (maciej/priscilla.ns.cloudflare.com, Free plan) since 2026-08-03. Main-site records (A/www) are **DNS-only** (no CF proxy) so the site keeps direct Vercel routing; only `assets` is proxied
+- **Model CDN**: `assets.gesturesynthweld.com` → Cloudflare worker `gsw-media` (unlimited bandwidth, global edge) — see MediaPipe section below
 - **Env vars**: VITE_ENABLE_EXTERNAL_SCRIPTS (currently false)
 
 ## MediaPipe Self-Hosting & Version Updates
 
-**Why self-hosted**: the WASM engine and hand-landmarker model were downloaded from jsDelivr + Google's GCS bucket on every first camera start (~19 MB, Google's domain is blocked/slow in mainland China, model cache only 1 h). Since 2026-08-03 both are served from **Cloudflare Pages** (`gsw-media.rainbow686.workers.dev/v1.0.1/`) — unlimited bandwidth, global CDN, mainland-China-friendly — with a **1-year immutable browser cache** (via the CF `_headers` file: `Access-Control-Allow-Origin: *` + `max-age=31536000`). **Why not Vercel**: the ~19 MB model download would consume the 100 GB/month Vercel Hobby bandwidth allowance (~5,000 new camera users per month). Prefetched on Enable-Camera button hover/touch.
+**Why self-hosted**: the WASM engine and hand-landmarker model were downloaded from jsDelivr + Google's GCS bucket on every first camera start (~19 MB, Google's domain is blocked/slow in mainland China, model cache only 1 h). Since 2026-08-03 both are served from **Cloudflare** (`assets.gesturesynthweld.com/v1.0.1/` — custom domain on the `gsw-media` worker; the worker's own URL `gsw-media.rainbow686.workers.dev` is DNS-polluted in mainland China, which is why the custom domain exists) — unlimited bandwidth, global edge, with a **1-year immutable browser cache** (via the CF `_headers` file: `Access-Control-Allow-Origin: *` + `max-age=31536000`). **Why not Vercel**: the ~19 MB model download would consume the 100 GB/month Vercel Hobby bandwidth allowance (~5,000 new camera users per month). Prefetched on Enable-Camera button hover/touch.
 
 **Pinned version: 1.0.1** — see `mediapipe-version.json` (version, source URLs, file hashes, update date).
 

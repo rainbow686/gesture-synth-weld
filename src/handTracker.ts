@@ -7,13 +7,33 @@ import type { HandData, LandmarkPoint } from './types';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
-// Self-hosted on Cloudflare Pages (gsw-media.rainbow686.workers.dev, unlimited bandwidth,
-// global CDN) — NOT on Vercel: the ~19 MB model download would eat the
-// 100 GB/month Vercel bandwidth allowance. Browsers cache these files for
-// 1 year (immutable, via the CF _headers file), so a version bump MUST
-// change this path AND re-upload public/vX.Y.Z/ to CF — see CLAUDE.md.
-const MODEL_PATH = 'https://gsw-media.rainbow686.workers.dev/v1.0.1/wasm';
-const MODEL_ASSET_PATH = 'https://gsw-media.rainbow686.workers.dev/v1.0.1/hand_landmarker.task';
+// Model sources, tried in order. Primary: Cloudflare (gsw-media.rainbow686.
+// workers.dev — unlimited bandwidth, global CDN). Fallback: Vercel same-origin
+// (/v1.0.1/) — workers.dev is DNS-polluted in mainland China, so CN users get
+// the fallback automatically (their ~19 MB still counts against Vercel's
+// bandwidth, but it keeps the camera working). Browsers cache these files for
+// 1 year (immutable, via the CF _headers file), so a version bump MUST change
+// this path AND re-upload public/vX.Y.Z/ to CF — see CLAUDE.md.
+const MODEL_SOURCES = [
+  {
+    wasm: 'https://gsw-media.rainbow686.workers.dev/v1.0.1/wasm',
+    task: 'https://gsw-media.rainbow686.workers.dev/v1.0.1/hand_landmarker.task',
+  },
+  { wasm: '/v1.0.1/wasm', task: '/v1.0.1/hand_landmarker.task' },
+] as const;
+
+/** Fast reachability probe (HEAD, 6s cap) so a blocked CDN falls back quickly. */
+async function sourceReachable(taskUrl: string, timeoutMs = 6000): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const res = await fetch(taskUrl, { method: 'HEAD', signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 let handLandmarker: HandLandmarker | null = null;
 let initPromise: Promise<HandLandmarker> | null = null;
@@ -35,44 +55,49 @@ export function initHandTracking(): Promise<HandLandmarker> {
 }
 
 async function doInit(): Promise<HandLandmarker> {
-  let vision;
-  try {
-    vision = await FilesetResolver.forVisionTasks(MODEL_PATH);
-  } catch (e) {
-    throw new Error(
-      `Failed to load MediaPipe WASM runtime. Check your internet connection. (${e instanceof Error ? e.message : String(e)})`
-    );
-  }
+  let lastError: unknown;
+  for (const src of MODEL_SOURCES) {
+    // Skip unreachable sources quickly (6s cap) so CN users fall back to the
+    // same-origin copy instead of waiting for a workers.dev timeout.
+    if (!(await sourceReachable(src.task))) continue;
+    try {
+      const vision = await FilesetResolver.forVisionTasks(src.wasm);
 
-  // Try GPU delegate first, fall back to CPU
-  try {
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: MODEL_ASSET_PATH,
-        delegate: 'GPU',
-      },
-      runningMode: 'VIDEO',
-      numHands: 2,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
-  } catch (_gpuErr) {
-    // GPU delegate not available — try CPU
-    handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: MODEL_ASSET_PATH,
-        delegate: 'CPU',
-      },
-      runningMode: 'VIDEO',
-      numHands: 2,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
+      // Try GPU delegate first, fall back to CPU
+      try {
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: src.task,
+            delegate: 'GPU',
+          },
+          runningMode: 'VIDEO',
+          numHands: 2,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+      } catch (_gpuErr) {
+        // GPU delegate not available — try CPU
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: src.task,
+            delegate: 'CPU',
+          },
+          runningMode: 'VIDEO',
+          numHands: 2,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+      }
+      return handLandmarker;
+    } catch (e) {
+      lastError = e;
+    }
   }
-
-  return handLandmarker;
+  throw new Error(
+    `Failed to load MediaPipe WASM runtime. Check your internet connection. (${lastError instanceof Error ? lastError.message : String(lastError)})`
+  );
 }
 
 /**

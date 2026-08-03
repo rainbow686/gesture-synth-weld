@@ -362,6 +362,10 @@ export default function App() {
     if (saved === 'audio' || saved === 'video' || saved === 'skeleton') return saved;
     return VIDEO_REC_SUPPORTED ? 'skeleton' : 'audio';
   });
+  // Whether this player has ever recorded (i.e. made a choice) — the
+  // "default" tag in the chooser is only meaningful before that.
+  let savedRecModeExists = false;
+  try { savedRecModeExists = !!localStorage.getItem('gsw-rec-mode'); } catch { /* private mode */ }
   const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
   const [recCount, setRecCount] = useState(3);
   const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
@@ -2298,7 +2302,9 @@ export default function App() {
                     <span>
                       <strong>
                         {id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}
-                        {id === 'skeleton' && <span className="rec-default-tag">default</span>}
+                        {/* "default" only makes sense for first-time choosers —
+                            returning players see their own saved choice */}
+                        {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
                       </strong>
                       <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
                     </span>

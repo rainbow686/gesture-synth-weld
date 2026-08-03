@@ -7,11 +7,13 @@ import type { HandData, LandmarkPoint } from './types';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
-// Self-hosted, no third-party CDNs. The versioned directory is part of the
-// URL: browsers cache these files for 1 year (immutable, see vercel.json),
-// so a version bump MUST change this path — see CLAUDE.md update procedure.
-const MODEL_PATH = '/v1.0.1/wasm';
-const MODEL_ASSET_PATH = '/v1.0.1/hand_landmarker.task';
+// Self-hosted on Cloudflare Pages (gsw-media.pages.dev, unlimited bandwidth,
+// global CDN) — NOT on Vercel: the ~19 MB model download would eat the
+// 100 GB/month Vercel bandwidth allowance. Browsers cache these files for
+// 1 year (immutable, via the CF _headers file), so a version bump MUST
+// change this path AND re-upload public/vX.Y.Z/ to CF — see CLAUDE.md.
+const MODEL_PATH = 'https://gsw-media.pages.dev/v1.0.1/wasm';
+const MODEL_ASSET_PATH = 'https://gsw-media.pages.dev/v1.0.1/hand_landmarker.task';
 
 let handLandmarker: HandLandmarker | null = null;
 let initPromise: Promise<HandLandmarker> | null = null;

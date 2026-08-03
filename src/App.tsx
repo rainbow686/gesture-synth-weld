@@ -2150,44 +2150,87 @@ export default function App() {
                 {handArt('1', 52, 'var(--neon-magenta)', true)}
                 <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
                   <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
-                  <div style={{ color: '#d0d0e8' }}>height = volume<br />fingers = chord type*</div>
+                  <div style={{ color: '#d0d0e8' }}>height = volume</div>
                 </div>
               </div>
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
-              <thead>
-                <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <th style={{ textAlign: 'left', padding: '3px 12px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)', width: '104px' }}>Left hand</th>
-                  <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Chord</th>
-                </tr>
-              </thead>
-              <tbody>
-                {HELP_DEMO_STEPS.map((s, row) => {
-                  const active = row === HELP_DEMO_STEPS[demoStep].row;
-                  return (
-                    <tr key={s.left} style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.03)',
-                      background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
-                      boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
-                      transition: 'background 0.25s ease',
-                    }}>
+            <div style={{ display: 'flex', gap: '14px', marginBottom: '8px', alignItems: 'flex-start' }}>
+              {/* Left hand → chord degree (the one that picks the note) */}
+              <table style={{ borderCollapse: 'collapse', flex: 1 }}>
+                <thead>
+                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <th style={{ textAlign: 'left', padding: '3px 10px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Left hand</th>
+                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Chord</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {HELP_DEMO_STEPS.map((s, row) => {
+                    const active = row === HELP_DEMO_STEPS[demoStep].row;
+                    return (
+                      <tr key={s.left} style={{
+                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
+                        boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
+                        transition: 'background 0.25s ease',
+                      }}>
+                        <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {handArt(s.left, 24, active ? 'var(--neon-cyan)' : '#8fbfd0')}
+                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', color: 'var(--text-muted)' }}>{s.left}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.7rem' : '0.62rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Right hand → chord type (independent of the chord) */}
+              <table style={{ borderCollapse: 'collapse', flexShrink: 0 }}>
+                <thead>
+                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <th style={{ textAlign: 'left', padding: '3px 8px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
+                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(['1', '2', '3', '4', 'mute'] as const).map((k) => (
+                    <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                       <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {handArt(s.left, 26, active ? 'var(--neon-cyan)' : '#8fbfd0')}
-                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.62rem', color: 'var(--text-muted)' }}>{s.left}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          {handArt(k, 20, 'var(--neon-magenta)', true)}
+                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k === 'mute' ? '✊' : k}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.72rem' : '0.64rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
+                      <td style={{ padding: '3px 0', fontSize: '0.6rem', whiteSpace: 'nowrap', color: '#d0d0e8' }}>
+                        {k === 'mute' ? 'mute' : ({ '1': '3-note', '2': 'inverted', '3': '4-note', '4': '5-note' } as Record<string, string>)[k]}
+                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            <div style={{ fontSize: '0.56rem', color: '#a0a0c8', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px' }}>
-              <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand</span> — height = volume · thumb = octave down<br/>
-              * fingers = chord type (optional, Settings): <span style={{ color: 'var(--neon-magenta)' }}>1</span> = 3-note · <span style={{ color: 'var(--neon-magenta)' }}>2</span> = inverted · <span style={{ color: 'var(--neon-magenta)' }}>3</span> = 4-note · <span style={{ color: 'var(--neon-magenta)' }}>4+</span> = 5-note
+            <div style={{ fontSize: '0.56rem', color: '#b0b0d0', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '6px', paddingTop: '6px' }}>
+              <div style={{ color: '#a0a0c8', fontWeight: 600, marginBottom: '4px' }}>Other gestures</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                {handArt('thumb', 24, 'var(--neon-magenta)', true)}
+                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right thumb</span> out = octave down</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
+                <span style={{ color: '#a0a0c8' }}>↔</span>
+                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
+                <span><span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left wrist tilt</span> = major ↔ minor (Settings · Scale+Tilt)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
+                <span style={{ color: '#a0a0c8' }}>↔</span>
+                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
+                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right wrist tilt</span> = tone sweep</span>
+              </div>
             </div>
 
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>

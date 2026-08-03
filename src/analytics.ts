@@ -5,6 +5,11 @@
  * and window.gtag exist from parse time and queue calls until the real SDK
  * arrives), so calling track() at any point is safe and adds zero network
  * overhead. Only low-frequency UI events are tracked here — never hot loops.
+ *
+ * The GA4/Clarity IDs in index.html belong to THIS site's deployment. A repo
+ * fork that forgets to replace them would push its visitors' data into our
+ * reports, so events are only sent from our own hostnames — forks are
+ * silently dropped (and should swap the IDs anyway).
  */
 
 declare global {
@@ -14,8 +19,12 @@ declare global {
   }
 }
 
+/** Hostnames allowed to report: production, Vercel previews, local dev. */
+const TRACKABLE_HOST = /(^|\.)gesturesynthweld\.com$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/;
+
 /** Push one custom event to both Clarity and GA4 (guarded, no-op if absent). */
 function track(name: string, params?: Record<string, unknown>): void {
+  if (!TRACKABLE_HOST.test(window.location.hostname)) return;
   if (typeof window.clarity === 'function') {
     window.clarity('event', name, params);
   }

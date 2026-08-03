@@ -30,6 +30,7 @@ import {
 import { makeRecordingFilename } from './wavEncoder';
 import { HAND_ART } from './handArt';
 import { injectBrandTags } from './mp4tags';
+import { trackHelpButtonClicked, trackRecordingModeChanged, trackWatchdogTriggered } from './analytics';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
@@ -1386,6 +1387,7 @@ export default function App() {
             frozenChecksRef.current += 1;
             if (frozenChecksRef.current >= 2) {
               frozenChecksRef.current = 0;
+              trackWatchdogTriggered('frozen-clock');
               void restartCameraStream();
             }
           } else {
@@ -2041,7 +2043,7 @@ export default function App() {
                 })}
               </svg>
             </button>
-            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
+            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { if (!showHelp) trackHelpButtonClicked(); dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
@@ -2296,7 +2298,7 @@ export default function App() {
                   <button
                     key={id}
                     className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
-                    onClick={() => { if (id === 'audio' || VIDEO_REC_SUPPORTED) setRecMode(id); }}
+                    onClick={() => { if ((id === 'audio' || VIDEO_REC_SUPPORTED) && id !== recMode) { trackRecordingModeChanged(recMode, id); setRecMode(id); } }}
                   >
                     {REC_SVG_PREVIEWS[id]}
                     <span>

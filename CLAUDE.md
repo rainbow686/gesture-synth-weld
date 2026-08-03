@@ -59,6 +59,7 @@ Single sawtooth synth — intentionally minimal
 
 ```
 src/
+├── analytics.ts        # Clarity + GA4 custom events (low-frequency UI tracking; hostname-guarded — forks of this repo must replace the tracking IDs in index.html)
 ├── audioEngine.ts      # Tone.js wrapper, all methods idempotent
 ├── App.tsx             # Main component, two-hand logic, keyboard shortcuts
 ├── handTracker.ts      # MediaPipe integration, finger detection

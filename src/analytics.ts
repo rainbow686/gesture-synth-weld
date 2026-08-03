@@ -1,0 +1,49 @@
+/**
+ * Analytics events — Microsoft Clarity + Google Analytics 4 custom events.
+ *
+ * Both SDKs load via index.html <head> with synchronous shims (window.clarity
+ * and window.gtag exist from parse time and queue calls until the real SDK
+ * arrives), so calling track() at any point is safe and adds zero network
+ * overhead. Only low-frequency UI events are tracked here — never hot loops.
+ *
+ * The GA4/Clarity IDs in index.html belong to THIS site's deployment. A repo
+ * fork that forgets to replace them would push its visitors' data into our
+ * reports, so events are only sent from our own hostnames — forks are
+ * silently dropped (and should swap the IDs anyway).
+ */
+
+declare global {
+  interface Window {
+    clarity?: (...args: unknown[]) => void;
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+
+/** Hostnames allowed to report: production, Vercel previews, local dev. */
+const TRACKABLE_HOST = /(^|\.)gesturesynthweld\.com$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/;
+
+/** Push one custom event to both Clarity and GA4 (guarded, no-op if absent). */
+function track(name: string, params?: Record<string, unknown>): void {
+  if (!TRACKABLE_HOST.test(window.location.hostname)) return;
+  if (typeof window.clarity === 'function') {
+    window.clarity('event', name, params);
+  }
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', name, params);
+  }
+}
+
+/** User switched the recording mode in the chooser (from = previous mode). */
+export function trackRecordingModeChanged(from: string, to: string): void {
+  track('recording_mode_changed', { from, to });
+}
+
+/** Camera-freeze watchdog fired and restarted the video stream. */
+export function trackWatchdogTriggered(reason: string): void {
+  track('watchdog_triggered', { reason });
+}
+
+/** Help button pressed (opening the hand-gesture guide). */
+export function trackHelpButtonClicked(): void {
+  track('help_button_clicked');
+}

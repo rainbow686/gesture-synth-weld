@@ -98,6 +98,14 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 
 ## Deployment
 
+**Layout** (bandwidth-split, not product-split):
+
+```
+gesturesynthweld.com → Vercel (web app; DNS-only, direct routing)
+assets.gesturesynthweld.com → Cloudflare worker gsw-media (model CDN, unlimited bandwidth)
+fallback → same-origin /v1.0.1/ (Vercel; mainland-China safety net)
+```
+
 - **Platform**: Vercel (auto-deploy from GitHub) — hosts the web app only
 - **Domain DNS**: gesturesynthweld.com nameservers → Cloudflare (maciej/priscilla.ns.cloudflare.com, Free plan) since 2026-08-03. Main-site records (A/www) are **DNS-only** (no CF proxy) so the site keeps direct Vercel routing; only `assets` is proxied
 - **Model CDN**: `assets.gesturesynthweld.com` → Cloudflare worker `gsw-media` (unlimited bandwidth, global edge) — see MediaPipe section below

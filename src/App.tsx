@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   initHandTracking,
   detectHands,
@@ -388,6 +388,18 @@ export default function App() {
   const [recCount, setRecCount] = useState(3);
   const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
   const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
+  // Result preview: play the take back IN-PAGE (Blob URL — memory only, no
+  // server) so the player watches before deciding to download/share. The
+  // object URL is revoked when the preview unmounts or the blob changes.
+  const recPreviewUrl = useMemo(() => {
+    if (!recBlob || recMode === 'audio') return null;
+    return URL.createObjectURL(recBlob.blob);
+  }, [recBlob, recMode]);
+  useEffect(() => {
+    return () => {
+      if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
+    };
+  }, [recPreviewUrl]);
   const [shareFailed, setShareFailed] = useState(false);
   const [micOn, setMicOn] = useState(true);
   const [micLevel, setMicLevel] = useState(0);
@@ -2609,6 +2621,19 @@ export default function App() {
           <div className="rec-sheet">
             <div className="rec-sheet-title">✓ Recording ready</div>
             <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
+            {/* In-page playback of the take — plays immediately (muted for
+                autoplay policy; tap the controls for sound). WYSIWYG:
+                atmosphere, crop and watermarks all visible here. */}
+            {recMode !== 'audio' && recPreviewUrl && (
+              <video
+                src={recPreviewUrl}
+                className="rec-preview"
+                autoPlay
+                muted
+                playsInline
+                controls
+              />
+            )}
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
               <button className="rec-btn primary" onClick={() => { recDownloadedRef.current = true; trackDownload(); downloadRec(); }}>💾 Download</button>

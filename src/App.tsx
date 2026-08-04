@@ -2765,25 +2765,27 @@ export default function App() {
                  toolbar/status stay visible — help is reachable while
                  waiting. */
               <div className={`loading-block ${loadingFading ? 'loading-fading' : ''}`}>
-                <div className="loading-head">
-                  <span className="loading-title">Loading hand tracking model…</span>
-                </div>
+                {/* Big progress bar with the "Loading… %" label INSIDE it —
+                    the bar IS the loading semantics, no title row needed. */}
                 <div className="loading-bar-track">
                   <div className="loading-bar-fill" style={{ width: `${loadProgress}%` }} />
+                  <span className="loading-bar-label">Loading… {loadProgress}%</span>
                 </div>
-                <div className="loading-percent">{loadProgress}%</div>
 
-                {/* Gesture carousel: the wait is a learning moment (row
-                    only — the big hand duplicated the small one). */}
-                <div className="loading-demo">
-                  <div className="loading-demo-row">
-                    {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
-                    <div>
-                      <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
-                      <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint}</div>
-                    </div>
+                <div className="loading-divider" />
+
+                {/* Gesture carousel: one table row at a time (5s), framed
+                    by the dividers — color hierarchy (neon name, muted
+                    hint) replaces an inner box. */}
+                <div className="loading-demo-row">
+                  {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                  <div>
+                    <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
+                    <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint}</div>
                   </div>
                 </div>
+
+                <div className="loading-divider" />
 
                 <div className="loading-hint">
                   {loadingTimeoutShown ? (

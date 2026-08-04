@@ -1380,8 +1380,12 @@ body {
 .rec-window {
   position: absolute;
   inset: 12.5% 0;
-  border: 2px solid rgba(0, 255, 204, 0.55);
+  border: 1px solid rgba(0, 255, 204, 0.4);
   border-radius: 6px;
+  /* Dim everything OUTSIDE the window (camera-viewfinder convention:
+     dark outside = not captured, inside stays full brightness so the
+     player keeps seeing their hands clearly). */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
 /* 1:1 captures the full frame — window covers everything.
    9:16 has design bands (19% top / 16.5% bottom) — the window is the

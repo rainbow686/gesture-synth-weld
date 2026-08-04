@@ -2065,8 +2065,10 @@ export default function App() {
       finishRecording();
       return;
     }
-    // Recording = the player is about to perform — drop any open menu
+    // Recording = the player is about to perform — drop any open menus
+    // (⋯ panel and settings panel must not appear in the recording)
     setMoreOpen(false);
+    setShowSettings(false);
     // Platforms without canvas.captureStream (iOS Safari) can't record
     // video — fall back to audio before showing the chooser.
     if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {

@@ -287,18 +287,6 @@ body {
   gap: 10px;
   width: 100%;
 }
-.loading-demo-big {
-  display: none; /* mobile: row-only */
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-.loading-demo-grade {
-  color: var(--neon-cyan);
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
 .loading-demo-row {
   display: flex;
   align-items: center;
@@ -317,10 +305,6 @@ body {
   color: var(--text-muted);
   font-size: 0.62rem;
   margin-top: 1px;
-}
-@media (min-width: 769px) {
-  .loading-demo-big { display: flex; }
-  .loading-demo { flex: 1; min-height: 0; justify-content: center; }
 }
 /* Fixed hint slot — expectation text, swapped for the timeout
    reassurance at 90s (same slot, height stays constant). */
@@ -387,7 +371,7 @@ body {
   font-family: 'JetBrains Mono', monospace;
 }
 .loading-cancel {
-  margin-top: 14px;
+  align-self: center;
   padding: 5px 12px;
   border-radius: 8px;
   font-size: 0.62rem;

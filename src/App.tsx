@@ -2751,8 +2751,10 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Dimmed overlay + Enable Camera button ───────────────── */}
-        {!isRunning && !isLoading && !error && (
+        {/* ─── Dimmed overlay + Enable Camera button / loading block ──
+            The container stays rendered during loading so the brand stays
+            as the anchor and the loading block replaces the button. */}
+        {!isRunning && !error && (
           <div className="camera-placeholder">
             <div className="camera-placeholder-brand">
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
@@ -2764,7 +2766,6 @@ export default function App() {
                  waiting. */
               <div className={`loading-block ${loadingFading ? 'loading-fading' : ''}`}>
                 <div className="loading-head">
-                  <span className="spinner" />
                   <span className="loading-title">Loading hand tracking model…</span>
                 </div>
                 <div className="loading-bar-track">
@@ -2772,13 +2773,9 @@ export default function App() {
                 </div>
                 <div className="loading-percent">{loadProgress}%</div>
 
-                {/* Gesture carousel: the wait is a learning moment.
-                    Desktop shows the big animated hand too. */}
+                {/* Gesture carousel: the wait is a learning moment (row
+                    only — the big hand duplicated the small one). */}
                 <div className="loading-demo">
-                  <div className="loading-demo-big">
-                    {handArt(LOADING_STEPS[loadingDemoStep].art, 56, 'var(--neon-cyan)')}
-                    <div className="loading-demo-grade">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
-                  </div>
                   <div className="loading-demo-row">
                     {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
                     <div>
@@ -2841,14 +2838,9 @@ export default function App() {
               <span className="loading-percent">{loadProgress}%</span>
             </div>
 
-            {/* Gesture carousel: the wait is a learning moment. Desktop
-                shows the big animated hand + the row; mobile keeps just
-                the row (one at a time, 5s each). */}
+            {/* Gesture carousel: the wait is a learning moment — one
+                table row at a time (5s each), row-only on all sizes. */}
             <div className="loading-demo">
-              <div className="loading-demo-big">
-                {handArt(LOADING_STEPS[loadingDemoStep].art, 64, 'var(--neon-cyan)')}
-                <div className="loading-demo-grade">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
-              </div>
               <div className="loading-demo-row">
                 {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
                 <div>

@@ -1388,15 +1388,15 @@ export default function App() {
     if (theme === 'vignette') {
       const cx = W / 2;
       const cy = wy + winH / 2;
-      const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.32, cx, cy, Math.max(W, winH) * 0.72);
+      const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
       g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, 'rgba(0,0,0,0.28)');
+      g.addColorStop(1, 'rgba(0,0,0,0.45)');
       rctx.fillStyle = g;
       rctx.fillRect(0, wy, W, winH);
     } else if (theme === 'scanlines') {
-      rctx.fillStyle = 'rgba(255,255,255,0.04)';
+      rctx.fillStyle = 'rgba(255,255,255,0.09)';
       for (let y = wy; y < wy + winH; y += 4) {
-        rctx.fillRect(0, y, W, 1);
+        rctx.fillRect(0, y, W, 2);
       }
     }
   }, []);

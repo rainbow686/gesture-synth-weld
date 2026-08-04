@@ -2864,6 +2864,13 @@ export default function App() {
                 </div>
               </div>
             )}
+            {/* Full step-by-step guide lives in the SEO section below the
+                fold — link it for users who need more detail than the
+                short hints (per-OS × per-browser × mobile/desktop). */}
+            <a
+              href="#troubleshooting"
+              style={{ color: 'var(--neon-cyan)', fontSize: '0.68rem', textDecoration: 'underline', marginTop: '8px', display: 'inline-block' }}
+            >📖 View the full troubleshooting guide →</a>
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
           </div>
         )}

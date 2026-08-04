@@ -743,21 +743,58 @@
 
       <!-- Troubleshooting -->
       <div class="seo-section">
-        <h2>🔧 Troubleshooting</h2>
+        <h2 id="troubleshooting">🔧 Troubleshooting — step by step</h2>
 
-        <h3>Camera not detected</h3>
-        <p>
-          If you see "No camera found", make sure your webcam is connected and not
-          being used by another application (Zoom, Teams, etc.). On Mac, check
-          System Preferences → Security &amp; Privacy → Camera to ensure your browser
-          has permission. On Windows, check Settings → Privacy → Camera.
-        </p>
+        <h3>Camera not detected ("No camera found")</h3>
 
-        <h3>"Camera access was denied"</h3>
+        <h4>💻 Windows (Chrome / Edge)</h4>
+        <ol>
+          <li>Make sure the webcam is plugged in and the cable isn't damaged</li>
+          <li>Close other apps using the camera (Zoom, Teams, Meet) — a camera can only be used by one app at a time</li>
+          <li>Open Windows <strong>Settings → Privacy &amp; Security → Camera</strong> and make sure "Camera access" is <strong>On</strong></li>
+          <li>In the same screen, make sure your browser (Chrome/Edge) is listed and allowed</li>
+          <li>Return here and click <strong>Enable Camera</strong> again</li>
+        </ol>
+
+        <h4>🍎 Mac (Safari / Chrome)</h4>
+        <ol>
+          <li>Check that the webcam is connected (and the built-in camera isn't covered)</li>
+          <li>Close other apps using the camera (FaceTime, Zoom)</li>
+          <li>Open <strong>System Settings → Privacy &amp; Security → Camera</strong> and make sure your browser has a checkmark</li>
+          <li>Return here and click <strong>Enable Camera</strong> again</li>
+        </ol>
+
+        <h4>📱 iPhone / iPad (Safari)</h4>
+        <ol>
+          <li>Open <strong>Settings → Privacy &amp; Security → Camera</strong> on your device</li>
+          <li>Make sure <strong>Safari</strong> is enabled in the list</li>
+          <li>Go back to the browser, reload the page, and click <strong>Enable Camera</strong> again</li>
+        </ol>
+
+        <h4>🤖 Android (Chrome)</h4>
+        <ol>
+          <li>Open <strong>Settings → Apps → Chrome → Permissions</strong></li>
+          <li>Make sure <strong>Camera</strong> is set to <strong>Allow</strong></li>
+          <li>Return here, reload the page, and click <strong>Enable Camera</strong> again</li>
+        </ol>
+
+        <h3>Camera access was denied</h3>
+        <p>You may have previously blocked this site's camera access. Allow it per browser:</p>
+        <ul>
+          <li><strong>Chrome / Edge</strong>: click the 🔒 (or ⓘ) icon in the address bar → <strong>Camera</strong> → <strong>Allow</strong> → reload → try again</li>
+          <li><strong>Safari (Mac)</strong>: click the camera icon in the address bar (or Safari → Settings → Websites → Camera) → <strong>Allow</strong></li>
+          <li><strong>Safari (iPhone/iPad)</strong>: Settings → Privacy &amp; Security → Camera → enable Safari, then reload</li>
+          <li><strong>Firefox</strong>: click the 🧩 puzzle icon in the address bar → Permissions → Camera → Allow</li>
+        </ul>
+        <p>Then reload the page and click "Enable Camera" again.</p>
+
+        <h3>Model loading is slow or fails</h3>
         <p>
-          You may have previously blocked camera access for this site. Click the
-          lock icon (🔒) in your browser's address bar, find Camera permissions,
-          and change it to "Allow". Then reload the page and click "Enable Camera" again.
+          The hand-tracking model (~20 MB) downloads on first use — on slow
+          connections this can take several minutes. The progress bar keeps
+          moving; you can cancel and the download continues in the background
+          (the next click starts instantly). If loading fails, check your
+          internet connection and click <strong>Retry</strong>.
         </p>
 
         <h3>Hand tracking feels laggy or inaccurate</h3>
@@ -776,6 +813,19 @@
           Also make sure both hands are visible to the camera — sound only plays
           when both hands are detected with at least one finger raised.
         </p>
+
+        <h3>Error codes quick reference</h3>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Error</th><th>Meaning</th><th>Fix</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>NotAllowedError</strong></td><td>Camera permission was denied</td><td>Allow camera access (see "Camera access was denied" above)</td></tr>
+            <tr><td><strong>NotFoundError</strong></td><td>No camera was found on this device</td><td>Connect a webcam / close apps using it (see "Camera not detected")</td></tr>
+            <tr><td><strong>NotReadableError</strong></td><td>The camera is busy or hardware-locked</td><td>Close other apps using the camera, then Retry</td></tr>
+            <tr><td><strong>NotSupportedError / security</strong></td><td>Camera requires a secure context (HTTPS)</td><td>Use the site over HTTPS (gesturesynthweld.com)</td></tr>
+          </tbody>
+        </table>
 
       </div>
 

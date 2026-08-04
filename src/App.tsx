@@ -2198,16 +2198,15 @@ export default function App() {
               <div className="mobile-more-backdrop" onClick={() => setMoreOpen(false)} />
               <div className="frost-panel mobile-more-panel">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.62rem' }}>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
                     <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'gesture'); setSynthState(prev => ({ ...prev, appMode: 'gesture' })); setMoreOpen(false); }}>Gesture</button>
                     <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'theremin'); setSynthState(prev => ({ ...prev, appMode: 'theremin' })); setMoreOpen(false); }}>Theremin</button>
                     <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'monoPiano'); setSynthState(prev => ({ ...prev, appMode: 'monoPiano' })); setMoreOpen(false); }}>Piano</button>
                   </div>
+                  {/* One row of icon buttons — same glyphs as the landscape/desktop toolbar */}
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator">⟿</button>
                     <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass">∿</button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
                     <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
                       {/* Same 21-landmark skeleton glyph as the desktop toolbar */}
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -2218,8 +2217,31 @@ export default function App() {
                         </g>
                       </svg>
                     </button>
-                    <button className="icon-btn" onClick={() => { setMoreOpen(false); setShowSettings(!showSettings); }} data-tip="Settings" style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
-                    <button className="icon-btn" onClick={() => { setMoreOpen(false); stopCamera(); }} data-tip="Stop camera">⏹</button>
+                    <button className="icon-btn" onClick={() => { setMoreOpen(false); setShowSettings(!showSettings); }} data-tip="Settings" style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+                      {/* Same iOS-Settings cog as the desktop toolbar */}
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="5.7" stroke="currentColor" strokeWidth="2.7" />
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const a = (i * 30 * Math.PI) / 180;
+                          return (
+                            <line key={i}
+                              x1={12 + 5.7 * Math.cos(a)} y1={12 + 5.7 * Math.sin(a)}
+                              x2={12 + 8.4 * Math.cos(a)} y2={12 + 8.4 * Math.sin(a)}
+                              stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" />
+                          );
+                        })}
+                      </svg>
+                    </button>
+                    <button className="icon-btn" onClick={() => { setMoreOpen(false); stopCamera(); }} data-tip="Stop camera">
+                      {/* Same video.slash glyph as the desktop toolbar (NOT a ✕ —
+                          ✕ is reserved for closing the ⋯ panel itself) */}
+                      <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                        <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                        <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                        <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                        <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>

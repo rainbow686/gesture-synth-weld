@@ -82,8 +82,33 @@ export function trackFirstGesture(secondsSinceLoad: number): void {
   track('first_gesture_detected', { seconds_since_load: Math.round(secondsSinceLoad) });
 }
 
-export function trackRecording(event: 'started' | 'completed', durationSec?: number): void {
-  track('recording_' + event, durationSec !== undefined ? { duration_seconds: Math.round(durationSec) } : undefined);
+export function trackRecording(
+  event: 'started' | 'completed',
+  durationSec?: number,
+  ended?: 'timeout' | 'user',
+): void {
+  track(
+    'recording_' + event,
+    durationSec !== undefined
+      ? { duration_seconds: Math.round(durationSec), ...(ended ? { ended } : {}) }
+      : undefined,
+  );
+}
+
+const settingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Settings-panel interaction (Freemium paywall signal — which advanced
+ * controls get used). Debounced 500ms per setting so range sliders log
+ * their final value once instead of firing per drag tick.
+ */
+export function trackSettingChanged(setting: string, value: string): void {
+  const t = settingTimers.get(setting);
+  if (t) clearTimeout(t);
+  settingTimers.set(
+    setting,
+    setTimeout(() => track('setting_changed', { setting, value }), 500),
+  );
 }
 
 /** Download button pressed in the result panel. */

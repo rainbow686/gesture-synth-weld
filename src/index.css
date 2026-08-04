@@ -416,16 +416,37 @@ body {
   gap: 8px;
 }
 /* Landscape phones are short (375px): the visual guide is the biggest
-   block — hide it there, keep the text steps + link + Retry. */
-@media (orientation: landscape) and (max-height: 520px) {
+   block — hide it there, and compress everything so brand + Retry fit on
+   one screen without scrolling. */
+@media (orientation: landscape) and (max-height: 560px) {
   .err-visual { display: none; }
-}
-/* Short screens: the error state scrolls instead of pushing the brand
-   off-screen and Retry past the fold. */
-@media (max-height: 560px) {
   .camera-placeholder.error-state {
     justify-content: flex-start;
-    padding-top: 10vh;
+    padding-top: 8vh;
+    gap: 0.5rem;
+    overflow-y: auto;
+  }
+  .camera-placeholder.error-state .camera-placeholder-brand-text {
+    font-size: 1.1rem;
+  }
+  .camera-placeholder.error-state .camera-error-message {
+    font-size: 0.72rem;
+    padding: 0.5rem 0.9rem;
+  }
+  .camera-error-guide-item {
+    font-size: 0.66rem;
+    padding: 5px 10px;
+  }
+  .camera-placeholder.error-state .enable-camera-btn {
+    padding: 7px 18px;
+    font-size: 0.72rem;
+  }
+}
+/* Short screens (portrait too): scroll as a safety net. */
+@media (max-height: 560px) and (orientation: portrait) {
+  .camera-placeholder.error-state {
+    justify-content: flex-start;
+    padding-top: 8vh;
     overflow-y: auto;
   }
 }
@@ -472,6 +493,44 @@ body {
 .err-steps b {
   color: var(--neon-cyan);
 }
+/* Full typographic hierarchy for the SEO content (headings were browser
+   defaults — h4 was the same size as body text, so the Troubleshooting
+   chapter read as one block). */
+.seo-content h2 {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  margin: 2.2em 0 0.9em;
+  color: #f0f0ff;
+  letter-spacing: 0.02em;
+}
+.seo-content h3 {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  margin: 1.8em 0 0.6em;
+  color: #e0e0f8;
+}
+.seo-content h4 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin: 1.3em 0 0.4em;
+  color: #c8c8e8;
+}
+.seo-content p {
+  font-size: 0.85rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+  margin: 0.4em 0 1em;
+}
+.seo-content ul {
+  margin: 0.4em 0 1em;
+  padding-left: 1.4em;
+}
+.seo-content ul li {
+  font-size: 0.85rem;
+  line-height: 1.75;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
 /* Hanging indent for the step lists: wrapped lines align under the text,
    not under the number (the numbers used to stick out). */
 .seo-content ol {
@@ -481,6 +540,9 @@ body {
   text-indent: -1.4em;
   padding-left: 1.4em;
   margin-bottom: 3px;
+  font-size: 0.85rem;
+  line-height: 1.75;
+  color: var(--text-muted);
 }
 .loading-cancel {
   align-self: center;

@@ -1243,6 +1243,11 @@ body {
 }
 .rec-preview {
   width: 100%;
+  /* Height-capped so a 9:16 portrait take can't blow up the panel past
+     its max-height (which hid the action buttons); object-fit contain
+     letterboxes the video inside the box, keeping the full frame. */
+  max-height: 42vh;
+  object-fit: contain;
   border-radius: 10px;
   margin-top: 10px;
   background: #000;

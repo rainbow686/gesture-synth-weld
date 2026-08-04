@@ -2756,9 +2756,12 @@ export default function App() {
             as the anchor and the loading block replaces the button. */}
         {!isRunning && !error && (
           <div className="camera-placeholder">
+            {/* Brand anchored at a FIXED top position — it never moves
+                when the content below switches between button and block. */}
             <div className="camera-placeholder-brand">
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
+            <div className="camera-placeholder-content">
             {loadingVisible ? (
               /* Loading = the Enable Camera spot turns into a compact,
                  centered block (brand stays above as the anchor). The
@@ -2827,6 +2830,7 @@ export default function App() {
                 <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
               </>
             )}
+            </div>
           </div>
         )}
 

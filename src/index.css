@@ -283,11 +283,11 @@ body {
   font-size: 0.72rem !important;
   line-height: 1.5;
 }
-/* Indeterminate progress bar — honest "transfer in progress" feedback:
-   the ~20MB model download can take 20s-8min and MediaPipe's internal
-   fetch doesn't expose real byte progress, so a percentage would be a
-   lie. A sliding bar keeps moving no matter how long the wait. */
-.loading-bar {
+/* Loading progress: honest-anchored fake bar. Creeps to ~45% fast, then
+   crawls; jumps to 100% ONLY when the real download resolves (MediaPipe's
+   internal fetch exposes no byte progress, so the percent is approximate
+   but the completion anchor is real). */
+.loading-bar-track {
   width: 220px;
   height: 4px;
   margin-top: 14px;
@@ -295,18 +295,32 @@ body {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.08);
 }
-.loading-bar::after {
-  content: '';
-  display: block;
+.loading-bar-fill {
   height: 100%;
-  width: 40%;
   border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-  animation: loading-bar-slide 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--neon-cyan), #7fd8ff);
+  transition: width 0.7s ease;
 }
-@keyframes loading-bar-slide {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(350%); }
+.loading-percent {
+  margin-top: 6px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.loading-cancel {
+  margin-top: 14px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.62rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.loading-cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0e0f0;
 }
 
 .error-screen {

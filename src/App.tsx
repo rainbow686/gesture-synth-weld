@@ -635,6 +635,16 @@ export default function App() {
   const cameraStartRef = useRef(0);
   const firstGestureSentRef = useRef(false);
   const loadingStartRef = useRef(0);
+  // Loading progress: honest-anchored fake bar — creeps quickly to ~45%,
+  // crawls after, and jumps to 100% ONLY when the real download resolves.
+  // (Real byte progress is unavailable inside MediaPipe's loader, so a
+  // percent is inherently approximate — the completion anchor is real.)
+  const [loadProgress, setLoadProgress] = useState(0);
+  const loadProgTimerRef = useRef<number | null>(null);
+  // Cancel = back to idle; the model download keeps running in the
+  // background (initPromise is reused), so the next Enable Camera is
+  // instant. The startCamera flow checks this flag after the awaits.
+  const loadCancelledRef = useRef(false);
   const recordingActiveRef = useRef(false);
 
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
@@ -1537,6 +1547,15 @@ export default function App() {
     trackCameraClicked();
     setIsLoading(true);
     loadingStartRef.current = performance.now();
+    loadCancelledRef.current = false;
+    setLoadProgress(4);
+    if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+    loadProgTimerRef.current = window.setInterval(() => {
+      setLoadProgress((p) => {
+        if (p >= 90) return p;            // never cross 90% until real done
+        return p < 45 ? p + 4 : p + 1;    // quick start, then crawl
+      });
+    }, 700);
     setError(null);
     firstGestureSentRef.current = false;
 
@@ -1600,6 +1619,15 @@ export default function App() {
 
       // Wait for hand tracking before starting the detection loop
       await trackingPromise;
+      // Real completion anchor: the fake bar jumps to 100% only here.
+      if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+      setLoadProgress(100);
+      if (loadCancelledRef.current) {
+        // User cancelled mid-download — the model is now cached (initPromise
+        // reused), so just return to idle; next Enable Camera is instant.
+        setIsLoading(false);
+        return;
+      }
       await audioEngine.init();
       // Attach the mic AFTER init — the engine's mic gain node only exists
       // once initialized
@@ -1615,6 +1643,7 @@ export default function App() {
       triggerMorePulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
+      if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
       trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
@@ -2703,11 +2732,23 @@ export default function App() {
           <div className="loading-screen">
             <div className="spinner" />
             <p>Loading hand tracking model…</p>
-            <div className="loading-bar" />
+            <div className="loading-bar-track">
+              <div className="loading-bar-fill" style={{ width: `${loadProgress}%` }} />
+            </div>
+            <div className="loading-percent">{loadProgress}%</div>
             <p className="loading-hint">
               Downloading the hand-tracking model (~20 MB) — the first load
               takes a moment on slow connections. Please wait.
             </p>
+            <button
+              className="loading-cancel"
+              onClick={() => {
+                loadCancelledRef.current = true;
+                if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+                setIsLoading(false);
+              }}
+              data-tip="Cancel — the download continues in the background, next start is instant"
+            >✕ Cancel (keeps downloading)</button>
             {/* Affiliate card — off until loading-window exposure data proves
                 the wait is long enough (config.ENABLE_AFFILIATE_CARD). */}
             {ENABLE_AFFILIATE_CARD && (

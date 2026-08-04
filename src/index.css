@@ -332,10 +332,6 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.loading-screen p {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
 .loading-hint {
   margin-top: 10px;
   max-width: 320px;

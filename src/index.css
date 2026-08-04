@@ -134,6 +134,7 @@ body {
   flex-direction: column;
   gap: 8px;
   max-width: 440px;
+  width: 100%;
   text-align: left;
 }
 
@@ -426,6 +427,14 @@ body {
     justify-content: flex-start;
     padding-top: 10vh;
     overflow-y: auto;
+  }
+}
+/* White space around the error content on mobile — the red guide boxes
+   used to touch the screen edges. */
+@media (max-width: 767px) {
+  .camera-placeholder.error-state {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
 .err-addressbar {

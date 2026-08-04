@@ -1264,27 +1264,23 @@ export default function App() {
     let wy = 0;
     let winH = H;
     if (ratio === '16:9') {
+      // 16:9 canvas, landscape source: fit fills the frame exactly.
       const ch = Math.round((W * sh) / sw);
       const dy = Math.round((H - ch) / 2);
       rctx.drawImage(src, 0, dy, W, ch);
     } else {
-      const fitH = Math.round((W * sh) / sw);
-      if (fitH > H) {
-        // Portrait source: cover-crop into the full frame (centered).
-        const scale = Math.max(W / sw, H / sh);
-        const dw = Math.round(sw * scale);
-        const dh = Math.round(sh * scale);
-        const dx = Math.round((W - dw) / 2);
-        const dy = Math.round((H - dh) / 2);
-        rctx.drawImage(src, dx, dy, dw, dh);
-        wy = 0;
-        winH = H;
-      } else {
-        // Landscape/square source: fit-width, centered.
-        wy = Math.round((H - fitH) / 2);
-        winH = fitH;
-        rctx.drawImage(src, 0, wy, W, winH);
-      }
+      // 1:1 / 9:16 canvases: cover-crop the source to FILL the frame —
+      // always. (A fit-width landscape source would leave letterbox
+      // strips, i.e. the old poster look; immersive vertical/square
+      // video covers instead — TikTok/IG convention.)
+      const scale = Math.max(W / sw, H / sh);
+      const dw = Math.round(sw * scale);
+      const dh = Math.round(sh * scale);
+      const dx = Math.round((W - dw) / 2);
+      const dy = Math.round((H - dh) / 2);
+      rctx.drawImage(src, dx, dy, dw, dh);
+      wy = 0;
+      winH = H;
       rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
       rctx.lineWidth = 2;
       rctx.strokeRect(0, wy, W, winH);

@@ -2540,9 +2540,10 @@ export default function App() {
                             returning players see their own saved choice */}
                         {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
                       </strong>
-                      {/* Intent labels — help players choose deliberately
-                          instead of accepting the default blind. */}
-                      <em>{id === 'video' ? 'Real you + camera — best for sharing' : id === 'skeleton' ? 'Privacy-friendly — no camera feed' : 'Just the sound'}</em>
+                      {/* Intent labels — kept short enough to fit ONE line
+                          on mobile buttons (~160px), so the chooser doesn't
+                          grow rows. */}
+                      <em>{id === 'video' ? 'Real you — best for sharing' : id === 'skeleton' ? 'Privacy-friendly' : 'Just the sound'}</em>
                     </span>
                   </button>
                 ))}

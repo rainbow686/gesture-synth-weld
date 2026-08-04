@@ -1286,17 +1286,13 @@ export default function App() {
       rctx.strokeRect(0, wy, W, winH);
     }
 
-    // ── Inside the window (1:1 + 16:9): chord, mode, waveform, bars ──
+    // ── Inside the window: chord name (the green note) + live waveform.
+    //    Immersive video keeps the performance, chord, waveform and the
+    //    brand/URL badges — the mode·key line was removed per user
+    //    feedback 2026-08-04. ──
     const chordSize = ratio === '16:9' ? 46 : 48;
     const chordY = ratio === '16:9' ? 84 : wy + 64;
     drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
-
-    if (ratio !== '16:9') {
-      rctx.font = '500 16px Inter, system-ui, sans-serif';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 28);
-    }
 
     if (mode !== 'skeleton') {
       const analyser = audioEngine.getAnalyser();

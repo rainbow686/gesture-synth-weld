@@ -1026,6 +1026,33 @@ body {
 
 /* One-time breathing glow on the ? button so first-time visitors notice
    the hand demo exists — no popups, nothing blocking */
+/* ─── Mobile ⋯ more panel (portrait phones) ────────────────────────────
+   Portrait phones collapse the toolbar to [brand · record · help · ⋯];
+   the rest lives in the ⋯ panel. Desktop and landscape keep the full
+   toolbar (see media query at the end of this block). */
+.mobile-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: transparent;
+}
+.mobile-more-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 10px 12px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+@media (max-width: 767px) and (orientation: portrait) {
+  .mobile-collapse { display: none !important; }
+}
+@media (min-width: 768px), (orientation: landscape) {
+  .mobile-more-btn, .mobile-more-backdrop, .mobile-more-panel { display: none !important; }
+}
+
 @keyframes help-pulse {
   0%, 100% { box-shadow: 0 0 4px rgba(0, 255, 204, 0.35); border-color: rgba(0, 255, 204, 0.5); }
   50%      { box-shadow: 0 0 16px rgba(0, 255, 204, 0.75); border-color: rgba(0, 255, 204, 0.9); }

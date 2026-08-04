@@ -414,6 +414,20 @@ body {
   align-items: center;
   gap: 8px;
 }
+/* Landscape phones are short (375px): the visual guide is the biggest
+   block — hide it there, keep the text steps + link + Retry. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .err-visual { display: none; }
+}
+/* Short screens: the error state scrolls instead of pushing the brand
+   off-screen and Retry past the fold. */
+@media (max-height: 560px) {
+  .camera-placeholder.error-state {
+    justify-content: flex-start;
+    padding-top: 10vh;
+    overflow-y: auto;
+  }
+}
 .err-addressbar {
   display: flex;
   align-items: center;
@@ -448,6 +462,16 @@ body {
 }
 .err-steps b {
   color: var(--neon-cyan);
+}
+/* Hanging indent for the step lists: wrapped lines align under the text,
+   not under the number (the numbers used to stick out). */
+.seo-content ol {
+  padding-left: 1.4em;
+}
+.seo-content ol li {
+  text-indent: -1.4em;
+  padding-left: 1.4em;
+  margin-bottom: 3px;
 }
 .loading-cancel {
   align-self: center;

@@ -2851,9 +2851,10 @@ export default function App() {
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
             <div className="camera-error-message">{error}</div>
-            {/* Personalized single path — only the user's own device
-                shows (no hunting through four options). */}
-            {isCameraError && (
+            {/* Personalized single path — camera-related errors only
+                (network/model failures shouldn't suggest camera
+                permissions). */}
+            {cameraErrorType && cameraErrorType !== 'other' && (
               <div className="camera-error-guide">
                 <div className="camera-error-guide-item">
                   <span className="camera-error-guide-label">

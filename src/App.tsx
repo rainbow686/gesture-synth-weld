@@ -33,6 +33,7 @@ import { injectBrandTags } from './mp4tags';
 import {
   trackCameraClicked,
   trackCameraPermission,
+  trackCameraStartFailed,
   trackDownload,
   trackFirstGesture,
   trackHelpButtonClicked,
@@ -1592,27 +1593,33 @@ export default function App() {
       console.error('Failed to start:', err);
       setIsLoading(false);
 
+      let errorType: string;
       if (isDomError(err, 'NotAllowedError')) {
+        errorType = 'permission_denied';
         trackCameraPermission('denied');
         setError(isMobile
           ? 'Camera access was denied. On mobile, check your browser app permissions or system Settings > Privacy > Camera.'
           : 'Camera access was denied. Click the lock icon in the address bar to allow camera access.');
       } else if (isDomError(err, 'NotFoundError')) {
+        errorType = 'no_camera';
         setError(isMobile
           ? 'No camera found. Make sure your device has a front-facing camera and it is not in use by another app.'
           : 'No camera found. Connect a webcam and try again.');
       } else {
         const msg = getErrorMessage(err);
         if (msg.includes('support') || msg.includes('not supported')) {
+          errorType = 'unsupported_browser';
           setError(isMobile
             ? 'Your browser does not support camera access. Try Chrome or Edge on Android, or Safari on iOS.'
             : 'Your browser does not support camera access. Try Chrome, Edge, or Firefox.');
         } else {
+          errorType = 'other';
           setError(isMobile
             ? `Camera error: ${msg}. Try a different browser like Chrome or Safari.`
             : `Camera error: ${msg}. Check that your webcam is connected and not in use.`);
         }
       }
+      trackCameraStartFailed(errorType, getErrorMessage(err));
     }
   }, [handleVisibility, restartCameraStream, triggerHelpPulse]);
 

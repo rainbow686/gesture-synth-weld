@@ -60,6 +60,11 @@ export function trackCameraPermission(result: 'granted' | 'denied'): void {
   track('camera_permission_' + result);
 }
 
+/** startCamera threw — classifies why users end up on the Retry screen. */
+export function trackCameraStartFailed(errorType: string, message: string): void {
+  track('camera_start_failed', { error_type: errorType, message: message.slice(0, 80) });
+}
+
 /** Model source label used in load events: 'cf' or 'vercel'. */
 export function modelSourceLabel(wasmUrl: string): string {
   return wasmUrl.startsWith('https://') ? 'cf' : 'vercel';

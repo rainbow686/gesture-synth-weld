@@ -392,9 +392,9 @@ export default function App() {
   // server) so the player watches before deciding to download/share. The
   // object URL is revoked when the preview unmounts or the blob changes.
   const recPreviewUrl = useMemo(() => {
-    if (!recBlob || recMode === 'audio') return null;
+    if (!recBlob) return null;
     return URL.createObjectURL(recBlob.blob);
-  }, [recBlob, recMode]);
+  }, [recBlob]);
   useEffect(() => {
     return () => {
       if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
@@ -2625,10 +2625,14 @@ export default function App() {
           <div className="rec-sheet">
             <div className="rec-sheet-title">✓ Recording ready</div>
             <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
-            {/* In-page playback of the take — plays immediately (muted for
-                autoplay policy; tap the controls for sound). WYSIWYG:
-                atmosphere, crop and watermarks all visible here. */}
-            {recMode !== 'audio' && recPreviewUrl && (
+            {/* In-page playback of the take — video plays immediately
+                (muted for autoplay policy; tap the controls for sound).
+                WYSIWYG: atmosphere, crop and watermarks all visible here.
+                Audio-only takes get an <audio> player (no autoplay —
+                playing sound unprompted is rude). */}
+            {recPreviewUrl && (recMode === 'audio' ? (
+              <audio src={recPreviewUrl} className="rec-preview rec-preview-audio" controls />
+            ) : (
               <video
                 src={recPreviewUrl}
                 className="rec-preview"
@@ -2637,7 +2641,7 @@ export default function App() {
                 playsInline
                 controls
               />
-            )}
+            ))}
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
               <button className="rec-btn primary" onClick={() => { recDownloadedRef.current = true; trackDownload(); downloadRec(); }}>💾 Download</button>

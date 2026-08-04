@@ -256,8 +256,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 28px 20px 18px;
+  /* Compact centered stack (mobile) — never space-between: it scatters
+     the elements across the whole screen. Desktop can breathe. */
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 20px;
   opacity: 1;
   transition: opacity 0.25s ease;
 }
@@ -265,22 +268,22 @@ body {
   opacity: 0;
   pointer-events: none;
 }
-/* Head: title + progress on one compact row. */
+/* Head: title + progress stacked (one per line, no wrap mess). */
 .loading-head {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
 }
 .loading-title {
   color: var(--text-secondary);
   font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-/* Gesture carousel: the elastic middle area. */
+/* Gesture carousel: natural height, centered. */
 .loading-demo {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -321,6 +324,7 @@ body {
 }
 @media (min-width: 769px) {
   .loading-demo-big { display: flex; }
+  .loading-demo { flex: 1; min-height: 0; justify-content: center; }
 }
 /* Fixed hint slot — expectation text, swapped for the timeout
    reassurance at 90s (same slot, height stays constant). */

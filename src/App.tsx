@@ -2208,7 +2208,16 @@ export default function App() {
                     <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass">∿</button>
                   </div>
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>Skeleton</button>
+                    <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+                      {/* Same 21-landmark skeleton glyph as the desktop toolbar */}
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 21.2 L9.4 17.6 L7.1 15.6 L5.4 13.1 L4.7 11.3 M11 21.2 L9.7 14.9 L9.5 10.6 L9.5 7.6 L9.6 5.3 M9.7 14.9 L11.3 14.9 L11.5 9.9 L11.6 6.5 L11.7 3.9 M11.3 14.9 L12.9 14.9 L13.3 10.6 L13.6 7.6 L13.9 5.3 M12.9 14.9 L14.5 15.5 L15.5 12.1 L16.2 9.6 L16.9 7.5 M11 21.2 L14.5 15.5"
+                          stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        <g fill="currentColor">
+                          {[[11,21.2],[9.4,17.6],[7.1,15.6],[5.4,13.1],[4.7,11.3],[9.7,14.9],[9.5,10.6],[9.5,7.6],[9.6,5.3],[11.3,14.9],[11.5,9.9],[11.6,6.5],[11.7,3.9],[12.9,14.9],[13.3,10.6],[13.6,7.6],[13.9,5.3],[14.5,15.5],[15.5,12.1],[16.2,9.6],[16.9,7.5]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="0.85" />)}
+                        </g>
+                      </svg>
+                    </button>
                     <button className="icon-btn" onClick={() => { setMoreOpen(false); setShowSettings(!showSettings); }} data-tip="Settings" style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
                     <button className="icon-btn" onClick={() => { setMoreOpen(false); stopCamera(); }} data-tip="Stop camera">⏹</button>
                   </div>

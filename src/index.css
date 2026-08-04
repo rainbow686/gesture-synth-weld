@@ -1046,8 +1046,52 @@ body {
   border-radius: 12px;
   white-space: nowrap;
 }
+/* ⋯ panel buttons — same frosted language as the toolbar buttons (the
+   toolbar styles are scoped to .frost-toolbar, so the panel needs its
+   own copies or it falls back to browser-default light buttons). */
+.mobile-more-panel button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-body);
+}
+.mobile-more-panel button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.mobile-more-panel button.active {
+  background: rgba(0, 255, 204, 0.12);
+  border-color: rgba(0, 255, 204, 0.3);
+  color: var(--neon-cyan);
+}
+.mobile-more-panel button.icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 @media (max-width: 767px) and (orientation: portrait) {
   .mobile-collapse { display: none !important; }
+  /* Collapsed toolbar: brand + 3 buttons fit on ONE row (the old
+     two-row design had brand on flex-basis:100%; with only 4 elements
+     left there's no reason to keep the brand row). */
+  .frost-toolbar { flex-wrap: nowrap; }
+  .frost-toolbar .brand {
+    flex-basis: auto;
+    text-align: left;
+    margin-right: 6px;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+    font-size: 0.5rem;
+  }
 }
 @media (min-width: 768px), (orientation: landscape) {
   .mobile-more-btn, .mobile-more-backdrop, .mobile-more-panel { display: none !important; }

@@ -4,6 +4,7 @@ import {
   type HandLandmarkerResult,
 } from '@mediapipe/tasks-vision';
 import type { HandData, LandmarkPoint } from './types';
+import { modelSourceLabel, trackModelLoad } from './analytics';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
@@ -69,7 +70,9 @@ async function doInit(): Promise<HandLandmarker> {
   const attemptSources = order
     ? [order, ...MODEL_SOURCES.filter((s) => s !== order)]
     : [...MODEL_SOURCES];
+  const startTime = performance.now();
   for (const src of attemptSources) {
+    trackModelLoad('started', { source: modelSourceLabel(src.wasm) });
     try {
       const vision = await FilesetResolver.forVisionTasks(src.wasm);
 
@@ -100,11 +103,19 @@ async function doInit(): Promise<HandLandmarker> {
           minTrackingConfidence: 0.5,
         });
       }
+      trackModelLoad('completed', {
+        source: modelSourceLabel(src.wasm),
+        duration_ms: Math.round(performance.now() - startTime),
+      });
       return handLandmarker;
     } catch (e) {
       lastError = e;
     }
   }
+  trackModelLoad('failed', {
+    source: 'all',
+    reason: lastError instanceof Error ? lastError.message.slice(0, 80) : String(lastError),
+  });
   throw new Error(
     `Failed to load MediaPipe WASM runtime. Check your internet connection. (${lastError instanceof Error ? lastError.message : String(lastError)})`
   );

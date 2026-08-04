@@ -47,3 +47,50 @@ export function trackWatchdogTriggered(reason: string): void {
 export function trackHelpButtonClicked(): void {
   track('help_button_clicked');
 }
+
+/* ─── Activation funnel (added 2026-08-04, see docs/sessions) ─────────── */
+
+/** Enable Camera button pressed. */
+export function trackCameraClicked(): void {
+  track('camera_button_clicked', { device: isMobileDevice() ? 'mobile' : 'desktop' });
+}
+
+/** getUserMedia outcome for the camera permission prompt. */
+export function trackCameraPermission(result: 'granted' | 'denied'): void {
+  track('camera_permission_' + result);
+}
+
+/** Model source label used in load events: 'cf' or 'vercel'. */
+export function modelSourceLabel(wasmUrl: string): string {
+  return wasmUrl.startsWith('https://') ? 'cf' : 'vercel';
+}
+
+export function trackModelLoad(
+  event: 'started' | 'completed' | 'failed',
+  params: { source: string; duration_ms?: number; reason?: string },
+): void {
+  track('model_load_' + event, params);
+}
+
+/** First hand detected after the camera starts (real activation moment). */
+export function trackFirstGesture(secondsSinceLoad: number): void {
+  track('first_gesture_detected', { seconds_since_load: Math.round(secondsSinceLoad) });
+}
+
+export function trackRecording(event: 'started' | 'completed', durationSec?: number): void {
+  track('recording_' + event, durationSec !== undefined ? { duration_seconds: Math.round(durationSec) } : undefined);
+}
+
+/** Download button pressed in the result panel. */
+export function trackDownload(): void {
+  track('download_clicked');
+}
+
+/** User scrolled the SEO content (Playbook) into view — ad placement signal. */
+export function trackScrollToPlaybook(): void {
+  track('scroll_to_playbook');
+}
+
+function isMobileDevice(): boolean {
+  return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+}

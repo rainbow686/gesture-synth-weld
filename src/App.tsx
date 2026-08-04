@@ -30,7 +30,17 @@ import {
 import { makeRecordingFilename } from './wavEncoder';
 import { HAND_ART } from './handArt';
 import { injectBrandTags } from './mp4tags';
-import { trackHelpButtonClicked, trackRecordingModeChanged, trackWatchdogTriggered } from './analytics';
+import {
+  trackCameraClicked,
+  trackCameraPermission,
+  trackDownload,
+  trackFirstGesture,
+  trackHelpButtonClicked,
+  trackRecording,
+  trackRecordingModeChanged,
+  trackScrollToPlaybook,
+  trackWatchdogTriggered,
+} from './analytics';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
@@ -569,6 +579,8 @@ export default function App() {
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
+  const cameraStartRef = useRef(0);
+  const firstGestureSentRef = useRef(false);
   const recordingActiveRef = useRef(false);
 
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
@@ -737,6 +749,12 @@ export default function App() {
 
   const processHandsRef = useRef<(hands: HandData[]) => void>();
   processHandsRef.current = (hands: HandData[]) => {
+    // First hand detected = the activation moment (funnel event, once per run)
+    if (hands.length > 0 && !firstGestureSentRef.current) {
+      firstGestureSentRef.current = true;
+      trackFirstGesture(cameraStartRef.current ? (Date.now() - cameraStartRef.current) / 1000 : 0);
+    }
+
     let leftHand: HandData | null = null;
     let rightHand: HandData | null = null;
 
@@ -1495,8 +1513,10 @@ export default function App() {
   }, [restartCameraStream]);
 
   const startCamera = useCallback(async () => {
+    trackCameraClicked();
     setIsLoading(true);
     setError(null);
+    firstGestureSentRef.current = false;
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1512,6 +1532,8 @@ export default function App() {
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
         audio: false,
       });
+      trackCameraPermission('granted');
+      cameraStartRef.current = Date.now();
       streamRef.current = stream;
 
       // If the OS reclaims the camera while the page is backgrounded
@@ -1571,6 +1593,7 @@ export default function App() {
       setIsLoading(false);
 
       if (isDomError(err, 'NotAllowedError')) {
+        trackCameraPermission('denied');
         setError(isMobile
           ? 'Camera access was denied. On mobile, check your browser app permissions or system Settings > Privacy > Camera.'
           : 'Camera access was denied. Click the lock icon in the address bar to allow camera access.');
@@ -1894,6 +1917,9 @@ export default function App() {
     } else {
       setRecPhase('idle');
     }
+    if (recordingStartRef.current) {
+      trackRecording('completed', Math.floor((Date.now() - recordingStartRef.current) / 1000));
+    }
     setIsRecording(false);
     setRecordingTime(0);
     recordingStartRef.current = null;
@@ -1901,6 +1927,26 @@ export default function App() {
 
   const finishRecordingRef = useRef<() => void>(() => {});
   finishRecordingRef.current = finishRecording;
+
+  // Funnel: did the user scroll the SEO content (Playbook) into view? Fires
+  // once per session — decides whether below-fold ad placements are viable.
+  useEffect(() => {
+    const target = document.querySelector('.seo-content');
+    if (!target || typeof IntersectionObserver === 'undefined') return;
+    let sent = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!sent && entries.some((e) => e.isIntersecting)) {
+          sent = true;
+          trackScrollToPlaybook();
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
 
   // Record button: idle → open chooser; recording → stop;
   // countdown/result phases ignore the button (use the panel buttons)
@@ -1922,6 +1968,7 @@ export default function App() {
     localStorage.setItem('gsw-rec-mode', recMode);
     localStorage.setItem('gsw-rec-ratio', recRatio);
     setRecPhase('idle'); // close the chooser
+    trackRecording('started');
     startCountdown();
   }, [recMode, recRatio, startCountdown]);
 
@@ -2392,7 +2439,7 @@ export default function App() {
             <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
-              <button className="rec-btn primary" onClick={downloadRec}>💾 Download</button>
+              <button className="rec-btn primary" onClick={() => { trackDownload(); downloadRec(); }}>💾 Download</button>
               {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
             </div>
             {canFileShare && (

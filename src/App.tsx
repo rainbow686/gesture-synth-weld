@@ -2982,8 +2982,10 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Status bar — always visible ──────────────────────────── */}
-        {!isLoading && (
+        {/* ─── Status bar — always visible (the old !isLoading guard was
+                from the full-screen-loading era; the block-style loading
+                doesn't cover it, so the bar must stay) ─────────────── */}
+        {(
           <>
             {/* Bottom status bar */}
             <div className="status-bar-bottom">

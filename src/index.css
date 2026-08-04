@@ -87,6 +87,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* Content shifted up ~4vh: with the tall loading block, dead-center
+     makes the stack feel bottom-heavy (and leaves room below for the
+     future ad banner). */
+  transform: translateY(-4vh);
   gap: 1.5rem;
   text-align: center;
   /* Dark vignette: edges dimmed, center clear around the button */

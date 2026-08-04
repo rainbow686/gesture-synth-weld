@@ -1294,6 +1294,13 @@ export default function App() {
     const chordY = ratio === '16:9' ? 84 : wy + 64;
     drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
 
+    if (ratio !== '16:9') {
+      rctx.font = '500 16px Inter, system-ui, sans-serif';
+      rctx.textAlign = 'center';
+      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
+      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 28);
+    }
+
     if (mode !== 'skeleton') {
       const analyser = audioEngine.getAnalyser();
       if (analyser) {

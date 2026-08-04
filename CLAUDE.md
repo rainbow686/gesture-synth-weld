@@ -98,6 +98,14 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 
 ## Deployment
 
+**Layout** (bandwidth-split, not product-split):
+
+```
+gesturesynthweld.com → Vercel (web app; DNS-only, direct routing)
+assets.gesturesynthweld.com → Cloudflare worker gsw-media (model CDN, unlimited bandwidth)
+fallback → same-origin /v1.0.1/ (Vercel; mainland-China safety net)
+```
+
 - **Platform**: Vercel (auto-deploy from GitHub) — hosts the web app only
 - **Domain DNS**: gesturesynthweld.com nameservers → Cloudflare (maciej/priscilla.ns.cloudflare.com, Free plan) since 2026-08-03. Main-site records (A/www) are **DNS-only** (no CF proxy) so the site keeps direct Vercel routing; only `assets` is proxied
 - **Model CDN**: `assets.gesturesynthweld.com` → Cloudflare worker `gsw-media` (unlimited bandwidth, global edge) — see MediaPipe section below
@@ -138,6 +146,13 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 - **Smooth transitions**: All parameter changes use Tone.js ramping methods
 - **UI sync**: Help panel and FAQ JSON-LD updated to match actual implementation
 - **Testing**: No test framework yet; manual testing required
+
+## Known Gotchas
+
+- **vercel.json redirects**: destination params (`:path*`) must be NAMED in the source too — `/(.*)` + `:path*` fails Vercel's build validation (invalid-route-destination-segment) and silently kills ALL deployments. Use `/:path*` as source. Symptom: GitHub commit status shows `Vercel | failure` with target_url `vercel.link/invalid-route-destination-segment`; the failed deployment does NOT appear in the Vercel Deployments list.
+- **mainland-China reachability**: never rely on third-party domains (`*.workers.dev`, `*.vercel.app`, Google CDN are all DNS-polluted/blocked in CN). Model CDN uses our own `assets.gesturesynthweld.com` (CF worker) with a same-origin fallback.
+- **Local DNS queries with a TUN proxy**: `dig` results are unreliable (UDP 53 hijacked, fake-ip `198.18.x.x` answers). Verify DNS state via HTTPS DoH (dns.google / alidns.com) instead.
+- **New Cloudflare deployments** land on `*.workers.dev` (Pages merged into Workers); the dashboard "Upload assets" flow no longer exists. Confirm actual resource URLs via the API after deploying.
 
 ## Current Version
 

@@ -1291,7 +1291,9 @@ export default function App() {
     //    brand/URL badges — the mode·key line was removed per user
     //    feedback 2026-08-04. ──
     const chordSize = ratio === '16:9' ? 46 : 48;
-    const chordY = ratio === '16:9' ? 84 : wy + 64;
+    // 1:1 / 9:16: push the chord down by ~a note-height so it never crowds
+    // the top-left brand wordmark (16:9 keeps its tighter 84px slot).
+    const chordY = ratio === '16:9' ? 84 : wy + 114;
     drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
 
     if (ratio !== '16:9') {

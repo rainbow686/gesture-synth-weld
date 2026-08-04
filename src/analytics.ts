@@ -104,11 +104,24 @@ export function initTrafficSource(): void {
     : /twitter|x\.com|reddit|youtube|tiktok|facebook|instagram|weibo|wechat/i.test(ref)
       ? 'social'
       : ref
-        ? 'other'
+        ? 'referral'
         : 'direct';
   if (typeof window.clarity === 'function') {
     window.clarity('set', 'traffic_source', source);
   }
+}
+
+/**
+ * Loading screen exposure: how long users actually stared at the loading
+ * UI (cache hits skip it entirely, so model_load duration alone overstates
+ * the ad window). Fired at the end of every camera start, success or not.
+ */
+export function trackLoadingScreenVisible(durationMs: number, result: 'success' | 'failed'): void {
+  track('loading_screen_visible', {
+    duration_ms: Math.round(durationMs),
+    result,
+    cached: durationMs < 300, // sub-300ms ≈ browser-cached model, screen barely shows
+  });
 }
 
 /** User stayed on the page ≥10s (funnel start: "came but never touched the

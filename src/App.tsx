@@ -33,6 +33,7 @@ import { injectBrandTags } from './mp4tags';
 import {
   initTrafficSource,
   trackCameraClicked,
+  trackLoadingScreenVisible,
   trackCameraPermission,
   trackCameraStartFailed,
   trackDownload,
@@ -46,6 +47,7 @@ import {
   trackSettingChanged,
   trackWatchdogTriggered,
 } from './analytics';
+import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
@@ -586,6 +588,7 @@ export default function App() {
   const recordingStartRef = useRef<number | null>(null);
   const cameraStartRef = useRef(0);
   const firstGestureSentRef = useRef(false);
+  const loadingStartRef = useRef(0);
   const recordingActiveRef = useRef(false);
 
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
@@ -1520,6 +1523,7 @@ export default function App() {
   const startCamera = useCallback(async () => {
     trackCameraClicked();
     setIsLoading(true);
+    loadingStartRef.current = performance.now();
     setError(null);
     firstGestureSentRef.current = false;
 
@@ -1589,12 +1593,14 @@ export default function App() {
       audioEngine.setMicStream(micStreamRef.current);
 
       setIsRunning(true);
+      trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'success');
       setIsLoading(false);
       // Camera is live — the player can see their hands now, so nudge
       // them toward the hand demo (8s pulse, one-time until they open it)
       triggerHelpPulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
+      trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
       let errorType: string;
@@ -2541,6 +2547,23 @@ export default function App() {
           <div className="loading-screen">
             <div className="spinner" />
             <p>Loading hand tracking model…</p>
+            {/* Affiliate card — off until loading-window exposure data proves
+                the wait is long enough (config.ENABLE_AFFILIATE_CARD). */}
+            {ENABLE_AFFILIATE_CARD && (
+              <a
+                href={AFFILIATE_CARD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block', marginTop: '14px', padding: '10px 14px',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.65rem',
+                  textDecoration: 'none', textAlign: 'center',
+                }}
+              >
+                While you wait: try a free online music studio →
+              </a>
+            )}
           </div>
         )}
 

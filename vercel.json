@@ -5,6 +5,20 @@
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "gesturesynthweld.studio" }],
+      "destination": "https://gesturesynthweld.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "gesturesynthweld.app" }],
+      "destination": "https://gesturesynthweld.com/:path*",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

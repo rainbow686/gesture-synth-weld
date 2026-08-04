@@ -1387,11 +1387,10 @@ body {
      player keeps seeing their hands clearly). */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
-/* 1:1 captures the full frame — window covers everything.
-   9:16 has design bands (19% top / 16.5% bottom) — the window is the
-   mid zone, matching the composited video's strokeRect exactly. */
+/* 1:1 and 9:16 both capture the full frame (9:16 went immersive 2026-08-04
+   — no more poster bands; window covers everything, brand/URL float). */
 .rec-frame-overlay.ratio-1x1 .rec-window { inset: 0; }
-.rec-frame-overlay.ratio-916 .rec-window { top: 19%; bottom: 16.5%; left: 0; right: 0; }
+.rec-frame-overlay.ratio-916 .rec-window { inset: 0; }
 .rec-tag {
   position: absolute;
   top: 10px;

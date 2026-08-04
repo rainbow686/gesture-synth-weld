@@ -1254,22 +1254,13 @@ export default function App() {
     //   Brand = cyan-cool metal (top-left, static); URL = white bold on
     //   pill (bottom-right, clarity first). Everything else is placed per
     //   ratio:
-    //   9:16 — poster: top band (brand → chord → mode), window, bottom
-    //     band (waveform → level bars → URL) — the bands are the design
-    //     space and stay filled
-    //   1:1 — the window fills the frame with small margins; chord, mode,
-    //     waveform and bars live INSIDE the window
-    //   16:9 — full-frame cover-crop (matches the live view); chord and
-    //     waveform live inside the frame
-    const isPoster = ratio === '9:16';
-
-    // ── Content window ──
-    // The window area is FIXED per ratio (9:16 = the mid zone between the
-    // design bands; 1:1 = the full frame). A landscape source fits by width
-    // inside it; a PORTRAIT source (phone camera) would overflow the area —
-    // the fit-width height exceeds the area, eating the bands (brand/URL
-    // land inside the video, waveform vanishes). So portrait sources are
-    // cover-cropped into the window area instead (same rule as 16:9).
+    //   All ratios are now FULL-FRAME (immersive, like 16:9): the content
+    //   cover-crops or fits to fill the entire canvas; brand/URL float on
+    //   top as small badges. (9:16 used to be a "poster" with design bands —
+    //   removed 2026-08-04 after real-user feedback: vertical video should
+    //   be full-bleed like TikTok/Reels, not a letterboxed strip.)
+    //   1:1 and 9:16 — full frame; portrait sources cover-crop (a fit-width
+    //   portrait would overflow the frame), landscape sources fit by width.
     let wy = 0;
     let winH = H;
     if (ratio === '16:9') {
@@ -1277,75 +1268,26 @@ export default function App() {
       const dy = Math.round((H - ch) / 2);
       rctx.drawImage(src, 0, dy, W, ch);
     } else {
-      const topZone = isPoster ? Math.round(H * 0.19) : 0;
-      const bottomZone = isPoster ? Math.round(H * 0.165) : 0;
-      const midH = H - topZone - bottomZone;
-      const winAreaH = isPoster ? midH : H;
       const fitH = Math.round((W * sh) / sw);
-      if (fitH > winAreaH) {
-        // Portrait source: cover-crop into the window area (centered).
-        // The cover rect is larger than the window — clip it so the video
-        // never bleeds into the design bands (chord / waveform / URL zone).
-        const scale = Math.max(W / sw, winAreaH / sh);
+      if (fitH > H) {
+        // Portrait source: cover-crop into the full frame (centered).
+        const scale = Math.max(W / sw, H / sh);
         const dw = Math.round(sw * scale);
         const dh = Math.round(sh * scale);
         const dx = Math.round((W - dw) / 2);
-        const dy = topZone + Math.round((winAreaH - dh) / 2);
-        rctx.save();
-        rctx.beginPath();
-        rctx.rect(0, topZone, W, winAreaH);
-        rctx.clip();
+        const dy = Math.round((H - dh) / 2);
         rctx.drawImage(src, dx, dy, dw, dh);
-        rctx.restore();
-        wy = topZone;
-        winH = winAreaH;
+        wy = 0;
+        winH = H;
       } else {
-        // Landscape/square source: fit-width, centered (unchanged).
-        wy = isPoster ? topZone + Math.max(0, Math.round((midH - fitH) / 2)) : Math.round((H - fitH) / 2);
+        // Landscape/square source: fit-width, centered.
+        wy = Math.round((H - fitH) / 2);
         winH = fitH;
         rctx.drawImage(src, 0, wy, W, winH);
       }
       rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
       rctx.lineWidth = 2;
       rctx.strokeRect(0, wy, W, winH);
-    }
-
-    if (isPoster) {
-      // ── Poster top band: metal brand + soft chord + mode ──
-      drawMetalBrand(rctx, 24, 52, 28);
-      const topZone = Math.round(H * 0.19);
-      drawChordText(rctx, W / 2, topZone - 42, 76, s.chordName || '—');
-      rctx.font = '500 17px Inter, system-ui, sans-serif';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 22);
-
-      // ── Poster bottom band: big waveform (mirrors the chord zone) + URL ──
-      if (mode !== 'skeleton') {
-        const analyser = audioEngine.getAnalyser();
-        if (analyser) {
-          const wf = analyser.getValue() as Float32Array;
-          const n = wf.length;
-          // amplitude ~48 so the waveform fills the band like the chord
-          // fills the top zone (visual symmetry)
-          const waveBase = H - 150;
-          rctx.beginPath();
-          for (let i = 0; i < n; i++) {
-            const x = W * 0.08 + (i / (n - 1)) * W * 0.84;
-            const wy2 = waveBase - wf[i] * 48;
-            if (i === 0) rctx.moveTo(x, wy2);
-            else rctx.lineTo(x, wy2);
-          }
-          rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-          rctx.lineWidth = 2.5;
-          rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-          rctx.shadowBlur = 6;
-          rctx.stroke();
-          rctx.shadowBlur = 0;
-        }
-      }
-      drawUrlPill(rctx, W - 26, H - 24, 22, false);
-      return;
     }
 
     // ── Inside the window (1:1 + 16:9): chord, mode, waveform, bars ──

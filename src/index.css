@@ -283,6 +283,31 @@ body {
   font-size: 0.72rem !important;
   line-height: 1.5;
 }
+/* Indeterminate progress bar — honest "transfer in progress" feedback:
+   the ~20MB model download can take 20s-8min and MediaPipe's internal
+   fetch doesn't expose real byte progress, so a percentage would be a
+   lie. A sliding bar keeps moving no matter how long the wait. */
+.loading-bar {
+  width: 220px;
+  height: 4px;
+  margin-top: 14px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+.loading-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+  animation: loading-bar-slide 1.4s ease-in-out infinite;
+}
+@keyframes loading-bar-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
 
 .error-screen {
   position: relative;

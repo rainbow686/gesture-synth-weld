@@ -2703,6 +2703,7 @@ export default function App() {
           <div className="loading-screen">
             <div className="spinner" />
             <p>Loading hand tracking model…</p>
+            <div className="loading-bar" />
             <p className="loading-hint">
               Downloading the hand-tracking model (~20 MB) — the first load
               takes a moment on slow connections. Please wait.

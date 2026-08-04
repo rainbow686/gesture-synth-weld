@@ -608,6 +608,16 @@ export default function App() {
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+  // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
+  // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
+  // toggle needed, and each effect adjusts independently. Stackable.
+  // WYSIWYG between live view and recording window.
+  const [vignetteStrength, setVignetteStrength] = useState(0);
+  const [scanlinesStrength, setScanlinesStrength] = useState(0);
+  const vignetteStrengthRef = useRef(vignetteStrength);
+  const scanlinesStrengthRef = useRef(scanlinesStrength);
+  useEffect(() => { vignetteStrengthRef.current = vignetteStrength; }, [vignetteStrength]);
+  useEffect(() => { scanlinesStrengthRef.current = scanlinesStrength; }, [scanlinesStrength]);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
   const cameraStartRef = useRef(0);
@@ -1244,103 +1254,46 @@ export default function App() {
     //   Brand = cyan-cool metal (top-left, static); URL = white bold on
     //   pill (bottom-right, clarity first). Everything else is placed per
     //   ratio:
-    //   9:16 — poster: top band (brand → chord → mode), window, bottom
-    //     band (waveform → level bars → URL) — the bands are the design
-    //     space and stay filled
-    //   1:1 — the window fills the frame with small margins; chord, mode,
-    //     waveform and bars live INSIDE the window
-    //   16:9 — full-frame cover-crop (matches the live view); chord and
-    //     waveform live inside the frame
-    const isPoster = ratio === '9:16';
-
-    // ── Content window ──
-    // The window area is FIXED per ratio (9:16 = the mid zone between the
-    // design bands; 1:1 = the full frame). A landscape source fits by width
-    // inside it; a PORTRAIT source (phone camera) would overflow the area —
-    // the fit-width height exceeds the area, eating the bands (brand/URL
-    // land inside the video, waveform vanishes). So portrait sources are
-    // cover-cropped into the window area instead (same rule as 16:9).
+    //   All ratios are now FULL-FRAME (immersive, like 16:9): the content
+    //   cover-crops or fits to fill the entire canvas; brand/URL float on
+    //   top as small badges. (9:16 used to be a "poster" with design bands —
+    //   removed 2026-08-04 after real-user feedback: vertical video should
+    //   be full-bleed like TikTok/Reels, not a letterboxed strip.)
+    //   1:1 and 9:16 — full frame; portrait sources cover-crop (a fit-width
+    //   portrait would overflow the frame), landscape sources fit by width.
     let wy = 0;
     let winH = H;
     if (ratio === '16:9') {
+      // 16:9 canvas, landscape source: fit fills the frame exactly.
       const ch = Math.round((W * sh) / sw);
       const dy = Math.round((H - ch) / 2);
       rctx.drawImage(src, 0, dy, W, ch);
     } else {
-      const topZone = isPoster ? Math.round(H * 0.19) : 0;
-      const bottomZone = isPoster ? Math.round(H * 0.165) : 0;
-      const midH = H - topZone - bottomZone;
-      const winAreaH = isPoster ? midH : H;
-      const fitH = Math.round((W * sh) / sw);
-      if (fitH > winAreaH) {
-        // Portrait source: cover-crop into the window area (centered).
-        // The cover rect is larger than the window — clip it so the video
-        // never bleeds into the design bands (chord / waveform / URL zone).
-        const scale = Math.max(W / sw, winAreaH / sh);
-        const dw = Math.round(sw * scale);
-        const dh = Math.round(sh * scale);
-        const dx = Math.round((W - dw) / 2);
-        const dy = topZone + Math.round((winAreaH - dh) / 2);
-        rctx.save();
-        rctx.beginPath();
-        rctx.rect(0, topZone, W, winAreaH);
-        rctx.clip();
-        rctx.drawImage(src, dx, dy, dw, dh);
-        rctx.restore();
-        wy = topZone;
-        winH = winAreaH;
-      } else {
-        // Landscape/square source: fit-width, centered (unchanged).
-        wy = isPoster ? topZone + Math.max(0, Math.round((midH - fitH) / 2)) : Math.round((H - fitH) / 2);
-        winH = fitH;
-        rctx.drawImage(src, 0, wy, W, winH);
-      }
+      // 1:1 / 9:16 canvases: cover-crop the source to FILL the frame —
+      // always. (A fit-width landscape source would leave letterbox
+      // strips, i.e. the old poster look; immersive vertical/square
+      // video covers instead — TikTok/IG convention.)
+      const scale = Math.max(W / sw, H / sh);
+      const dw = Math.round(sw * scale);
+      const dh = Math.round(sh * scale);
+      const dx = Math.round((W - dw) / 2);
+      const dy = Math.round((H - dh) / 2);
+      rctx.drawImage(src, dx, dy, dw, dh);
+      wy = 0;
+      winH = H;
       rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
       rctx.lineWidth = 2;
       rctx.strokeRect(0, wy, W, winH);
     }
 
-    if (isPoster) {
-      // ── Poster top band: metal brand + soft chord + mode ──
-      drawMetalBrand(rctx, 24, 52, 28);
-      const topZone = Math.round(H * 0.19);
-      drawChordText(rctx, W / 2, topZone - 42, 76, s.chordName || '—');
-      rctx.font = '500 17px Inter, system-ui, sans-serif';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, topZone + 22);
-
-      // ── Poster bottom band: big waveform (mirrors the chord zone) + URL ──
-      if (mode !== 'skeleton') {
-        const analyser = audioEngine.getAnalyser();
-        if (analyser) {
-          const wf = analyser.getValue() as Float32Array;
-          const n = wf.length;
-          // amplitude ~48 so the waveform fills the band like the chord
-          // fills the top zone (visual symmetry)
-          const waveBase = H - 150;
-          rctx.beginPath();
-          for (let i = 0; i < n; i++) {
-            const x = W * 0.08 + (i / (n - 1)) * W * 0.84;
-            const wy2 = waveBase - wf[i] * 48;
-            if (i === 0) rctx.moveTo(x, wy2);
-            else rctx.lineTo(x, wy2);
-          }
-          rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-          rctx.lineWidth = 2.5;
-          rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-          rctx.shadowBlur = 6;
-          rctx.stroke();
-          rctx.shadowBlur = 0;
-        }
-      }
-      drawUrlPill(rctx, W - 26, H - 24, 22, false);
-      return;
-    }
-
-    // ── Inside the window (1:1 + 16:9): chord, mode, waveform, bars ──
+    // ── Inside the window: chord name (the green note) + live waveform.
+    //    Immersive video keeps the performance, chord, waveform and the
+    //    brand/URL badges — the mode·key line was removed per user
+    //    feedback 2026-08-04. ──
     const chordSize = ratio === '16:9' ? 46 : 48;
-    const chordY = ratio === '16:9' ? 84 : wy + 64;
+    // 1:1 / 9:16: push the chord down by ~a note-height so it never crowds
+    // the top-left brand wordmark (16:9 keeps its tighter 84px slot).
+    const chordY = ratio === '16:9' ? 84 : wy + 114;
     drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
 
     if (ratio !== '16:9') {
@@ -1375,6 +1328,30 @@ export default function App() {
 
     drawMetalBrand(rctx, 24, 40, 26);
     drawUrlPill(rctx, W - 26, H - 24, 22, false);
+
+    // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
+    //    clean so brand/URL keep full clarity. Matches the live overlay
+    //    (base effect × user strength/100); both effects can stack. ──
+    // Base effect × strength: base 1.0 (vignette) / 0.3 (scanlines) makes
+    // 100% deliberately "too much" — users settle around 40-70%, where 50%
+    // ≈ the old 100% look. Mirrors the live CSS overlay.
+    const vStrength = vignetteStrengthRef.current / 100;
+    const sStrength = scanlinesStrengthRef.current / 100;
+    if (vStrength > 0) {
+      const cx = W / 2;
+      const cy = wy + winH / 2;
+      const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, `rgba(0,0,0,${1.0 * vStrength})`);
+      rctx.fillStyle = g;
+      rctx.fillRect(0, wy, W, winH);
+    }
+    if (sStrength > 0) {
+      rctx.fillStyle = `rgba(255,255,255,${0.3 * sStrength})`;
+      for (let y = wy; y < wy + winH; y += 4) {
+        rctx.fillRect(0, y, W, 2);
+      }
+    }
   }, []);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */
@@ -2031,8 +2008,10 @@ export default function App() {
       finishRecording();
       return;
     }
-    // Recording = the player is about to perform — drop any open menu
+    // Recording = the player is about to perform — drop any open menus
+    // (⋯ panel and settings panel must not appear in the recording)
     setMoreOpen(false);
+    setShowSettings(false);
     // Platforms without canvas.captureStream (iOS Safari) can't record
     // video — fall back to audio before showing the chooser.
     if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
@@ -2106,6 +2085,13 @@ export default function App() {
       <section className="camera-stage">
         <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
         <canvas ref={canvasRef} className="camera-canvas" />
+
+        {/* Visual atmosphere — stage lighting over the live view (display
+            layer only, never touches the gesture pipeline). WYSIWYG with
+            the recording window (drawn in drawRecFrame). Opacity = the
+            user's strength slider (base gradient × strength/100). */}
+        {vignetteStrength > 0 && <div className="theme-overlay theme-vignette" style={{ opacity: vignetteStrength / 100 }} />}
+        {scanlinesStrength > 0 && <div className="theme-overlay theme-scanlines" style={{ opacity: scanlinesStrength / 100 }} />}
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
         {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
@@ -2258,12 +2244,14 @@ export default function App() {
               (the gear that opened it may be folded away on portrait
               phones — never leave the panel without a close path). */}
           {showSettings && synthState.appMode === 'gesture' && (
-            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
               <button
                 onClick={() => setShowSettings(false)}
                 style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}
                 data-tip="Close settings"
               >✕</button>
+              {/* Performance settings (wraps on narrow screens) */}
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', flexWrap: 'wrap' }}>
               {/* Left Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                 <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
@@ -2329,6 +2317,34 @@ export default function App() {
                   )}
                 </div>
               )}
+              </div>
+
+              {/* Visual atmosphere — stage lighting, WYSIWYG with the live
+                  view and the recording window (window only; design bands
+                  stay clean). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', flexWrap: 'wrap' }}>
+                <label style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Visual — Atmosphere</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: vignetteStrength > 0 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '0.6rem', width: '62px' }}>Vignette</span>
+                    <input
+                      type="range" min="0" max="100" step="5" value={vignetteStrength}
+                      onChange={(e) => { trackSettingChanged('vignette', e.target.value); setVignetteStrength(Number(e.target.value)); }}
+                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
+                    />
+                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{vignetteStrength}%</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: scanlinesStrength > 0 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '0.6rem', width: '62px' }}>Scanlines</span>
+                    <input
+                      type="range" min="0" max="100" step="5" value={scanlinesStrength}
+                      onChange={(e) => { trackSettingChanged('scanlines', e.target.value); setScanlinesStrength(Number(e.target.value)); }}
+                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
+                    />
+                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{scanlinesStrength}%</span>
+                  </label>
+                </div>
+              </div>
             </div>
           )}
         </div>

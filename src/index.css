@@ -1241,6 +1241,19 @@ body {
     to   { opacity: 1; transform: translate(-50%, -50%); }
   }
 }
+.rec-preview {
+  width: 100%;
+  /* Height-capped so a 9:16 portrait take can't blow up the panel past
+     its max-height (which hid the action buttons); object-fit contain
+     letterboxes the video inside the box, keeping the full frame. */
+  max-height: 42vh;
+  object-fit: contain;
+  border-radius: 10px;
+  margin-top: 10px;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .rec-sheet-title {
   font-family: var(--font-display);
   font-size: 1rem;

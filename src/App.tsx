@@ -1700,7 +1700,7 @@ export default function App() {
       trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
-      let errorType: string;
+      let errorType: 'permission_denied' | 'no_camera' | 'unsupported_browser' | 'other';
       if (isDomError(err, 'NotAllowedError')) {
         errorType = 'permission_denied';
         trackCameraPermission('denied');
@@ -2851,9 +2851,9 @@ export default function App() {
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
             <div className="camera-error-message">{error}</div>
+            {/* Personalized single path — only the user's own device
+                shows (no hunting through four options). */}
             {isCameraError && (
-              {/* Personalized single path — only the user's own device
-                  shows (no hunting through four options). */}
               <div className="camera-error-guide">
                 <div className="camera-error-guide-item">
                   <span className="camera-error-guide-label">

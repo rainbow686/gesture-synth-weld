@@ -86,12 +86,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Brand anchored at a FIXED top position — it never moves when the
-     content below switches between button and loading block. 15vh keeps
-     it clear of the toolbar (bottom ~56px) with breathing room, instead
-     of hugging it at 8vh. */
+  /* Brand + content are ONE continuous stack flowing from a fixed top
+     offset — the brand never moves, and the content sits right below it
+     (no dead zone between them, unlike centering the content). The stack
+     lands in the comfortable upper zone of the screen. */
   justify-content: flex-start;
-  padding-top: 15vh;
+  padding-top: 18vh;
   text-align: center;
   /* Dark vignette: edges dimmed, center clear around the button */
   background: radial-gradient(
@@ -250,16 +250,14 @@ body {
 
 /* ─── Loading / Error Screens ────────────────────────────────────────── */
 
-/* Content area: takes the rest of the screen and centers the
-   button / loading block within it (independent of the brand). */
+/* Content flows right below the brand (continuous stack — no dead zone).
+   Width is capped so the loading block stays compact on wide screens. */
 .camera-placeholder-content {
-  flex: 1;
   width: 100%;
-  min-height: 0;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 1.5rem;
 }
 @keyframes loading-fade-in {

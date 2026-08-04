@@ -608,15 +608,18 @@ export default function App() {
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
-  // Visual atmosphere: 'none' | 'vignette' | 'scanlines' — stage-lighting
-  // overlay on the live view (full-frame) and inside the recording window
-  // (design bands stay clean). Off by default; WYSIWYG between live/record.
-  // Strength 0-100 (default 75 = the pre-slider look); user-adjustable.
-  const [visualTheme, setVisualTheme] = useState<'none' | 'vignette' | 'scanlines'>('none');
+  // Visual atmosphere: independent Vignette + Scanlines toggles (stackable,
+  // like gesture.live's composite look) + one shared strength slider
+  // (0-100, default 75 ≈ gesture.live's default punch). Off by default;
+  // WYSIWYG between live view and recording window.
+  const [vignetteOn, setVignetteOn] = useState(false);
+  const [scanlinesOn, setScanlinesOn] = useState(false);
   const [visualThemeStrength, setVisualThemeStrength] = useState(75);
-  const visualThemeRef = useRef(visualTheme);
+  const vignetteOnRef = useRef(vignetteOn);
+  const scanlinesOnRef = useRef(scanlinesOn);
   const visualThemeStrengthRef = useRef(visualThemeStrength);
-  useEffect(() => { visualThemeRef.current = visualTheme; }, [visualTheme]);
+  useEffect(() => { vignetteOnRef.current = vignetteOn; }, [vignetteOn]);
+  useEffect(() => { scanlinesOnRef.current = scanlinesOn; }, [scanlinesOn]);
   useEffect(() => { visualThemeStrengthRef.current = visualThemeStrength; }, [visualThemeStrength]);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
@@ -1388,19 +1391,19 @@ export default function App() {
 
     // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
     //    clean so brand/URL keep full clarity. Matches the live overlay
-    //    (base effect × user strength/100). ──
-    const theme = visualThemeRef.current;
+    //    (base effect × user strength/100); both effects can stack. ──
     const strength = visualThemeStrengthRef.current / 100;
-    if (theme === 'vignette' && strength > 0) {
+    if (vignetteOnRef.current && strength > 0) {
       const cx = W / 2;
       const cy = wy + winH / 2;
       const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
       g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, `rgba(0,0,0,${0.6 * strength})`);
+      g.addColorStop(1, `rgba(0,0,0,${0.75 * strength})`);
       rctx.fillStyle = g;
       rctx.fillRect(0, wy, W, winH);
-    } else if (theme === 'scanlines' && strength > 0) {
-      rctx.fillStyle = `rgba(255,255,255,${0.12 * strength})`;
+    }
+    if (scanlinesOnRef.current && strength > 0) {
+      rctx.fillStyle = `rgba(255,255,255,${0.16 * strength})`;
       for (let y = wy; y < wy + winH; y += 4) {
         rctx.fillRect(0, y, W, 2);
       }
@@ -2141,8 +2144,8 @@ export default function App() {
             layer only, never touches the gesture pipeline). WYSIWYG with
             the recording window (drawn in drawRecFrame). Opacity = the
             user's strength slider (base gradient × strength/100). */}
-        {visualTheme === 'vignette' && <div className="theme-overlay theme-vignette" style={{ opacity: visualThemeStrength / 100 }} />}
-        {visualTheme === 'scanlines' && <div className="theme-overlay theme-scanlines" style={{ opacity: visualThemeStrength / 100 }} />}
+        {vignetteOn && <div className="theme-overlay theme-vignette" style={{ opacity: visualThemeStrength / 100 }} />}
+        {scanlinesOn && <div className="theme-overlay theme-scanlines" style={{ opacity: visualThemeStrength / 100 }} />}
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
         {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
@@ -2375,18 +2378,23 @@ export default function App() {
                   stay clean). */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', flexWrap: 'wrap' }}>
                 <label style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Visual — Atmosphere</label>
-                {(['none', 'vignette', 'scanlines'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => { trackSettingChanged('visual_theme', t); setVisualTheme(t); }}
-                    style={{
-                      padding: '3px 10px', borderRadius: '7px', fontSize: '0.6rem', cursor: 'pointer', outline: 'none',
-                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)',
-                      ...(visualTheme === t ? { background: 'rgba(0,255,204,0.12)', borderColor: 'rgba(0,255,204,0.3)', color: 'var(--neon-cyan)' } : {}),
-                    }}
-                  >{t === 'none' ? 'None' : t === 'vignette' ? 'Vignette' : 'Scanlines'}</button>
-                ))}
-                {visualTheme !== 'none' && (
+                <button
+                  onClick={() => { trackSettingChanged('vignette', vignetteOn ? 'off' : 'on'); setVignetteOn(!vignetteOn); }}
+                  style={{
+                    padding: '3px 10px', borderRadius: '7px', fontSize: '0.6rem', cursor: 'pointer', outline: 'none',
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)',
+                    ...(vignetteOn ? { background: 'rgba(0,255,204,0.12)', borderColor: 'rgba(0,255,204,0.3)', color: 'var(--neon-cyan)' } : {}),
+                  }}
+                >Vignette</button>
+                <button
+                  onClick={() => { trackSettingChanged('scanlines', scanlinesOn ? 'off' : 'on'); setScanlinesOn(!scanlinesOn); }}
+                  style={{
+                    padding: '3px 10px', borderRadius: '7px', fontSize: '0.6rem', cursor: 'pointer', outline: 'none',
+                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)',
+                    ...(scanlinesOn ? { background: 'rgba(0,255,204,0.12)', borderColor: 'rgba(0,255,204,0.3)', color: 'var(--neon-cyan)' } : {}),
+                  }}
+                >Scanlines</button>
+                {(vignetteOn || scanlinesOn) && (
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>Strength</span>
                     <input

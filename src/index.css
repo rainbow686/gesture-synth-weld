@@ -1026,6 +1026,24 @@ body {
 
 /* One-time breathing glow on the ? button so first-time visitors notice
    the hand demo exists — no popups, nothing blocking */
+/* ─── Visual atmosphere overlay (live view) ─────────────────────────────
+   Stage lighting over the camera canvas. Display layer only — the gesture
+   pipeline reads the raw video, never this. Opacity kept subtle: ≤15%
+   vignette, ≤4% scanlines (the recording window draws the same themes in
+   drawRecFrame — WYSIWYG). */
+.theme-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.theme-vignette {
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.28) 100%);
+}
+.theme-scanlines {
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 4px);
+}
+
 /* ─── Mobile ⋯ more panel (portrait phones) ────────────────────────────
    Portrait phones collapse the toolbar to [brand · record · help · ⋯];
    the rest lives in the ⋯ panel. Desktop and landscape keep the full

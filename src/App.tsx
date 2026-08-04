@@ -608,6 +608,12 @@ export default function App() {
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+  // Visual atmosphere: 'none' | 'vignette' | 'scanlines' — stage-lighting
+  // overlay on the live view (full-frame) and inside the recording window
+  // (design bands stay clean). Off by default; WYSIWYG between live/record.
+  const [visualTheme, setVisualTheme] = useState<'none' | 'vignette' | 'scanlines'>('none');
+  const visualThemeRef = useRef(visualTheme);
+  useEffect(() => { visualThemeRef.current = visualTheme; }, [visualTheme]);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
   const cameraStartRef = useRef(0);
@@ -1375,6 +1381,24 @@ export default function App() {
 
     drawMetalBrand(rctx, 24, 40, 26);
     drawUrlPill(rctx, W - 26, H - 24, 22, false);
+
+    // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
+    //    clean so brand/URL keep full clarity. Matches the live overlay. ──
+    const theme = visualThemeRef.current;
+    if (theme === 'vignette') {
+      const cx = W / 2;
+      const cy = wy + winH / 2;
+      const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.32, cx, cy, Math.max(W, winH) * 0.72);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(0,0,0,0.28)');
+      rctx.fillStyle = g;
+      rctx.fillRect(0, wy, W, winH);
+    } else if (theme === 'scanlines') {
+      rctx.fillStyle = 'rgba(255,255,255,0.04)';
+      for (let y = wy; y < wy + winH; y += 4) {
+        rctx.fillRect(0, y, W, 1);
+      }
+    }
   }, []);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */
@@ -2107,6 +2131,12 @@ export default function App() {
         <video ref={videoRef} playsInline muted style={{ display: 'none' }} />
         <canvas ref={canvasRef} className="camera-canvas" />
 
+        {/* Visual atmosphere — stage lighting over the live view (display
+            layer only, never touches the gesture pipeline). WYSIWYG with
+            the recording window (drawn in drawRecFrame). */}
+        {visualTheme === 'vignette' && <div className="theme-overlay theme-vignette" />}
+        {visualTheme === 'scanlines' && <div className="theme-overlay theme-scanlines" />}
+
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
         {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
           <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}>
@@ -2258,12 +2288,14 @@ export default function App() {
               (the gear that opened it may be folded away on portrait
               phones — never leave the panel without a close path). */}
           {showSettings && synthState.appMode === 'gesture' && (
-            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
               <button
                 onClick={() => setShowSettings(false)}
                 style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}
                 data-tip="Close settings"
               >✕</button>
+              {/* Performance settings (wraps on narrow screens) */}
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', flexWrap: 'wrap' }}>
               {/* Left Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                 <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
@@ -2329,6 +2361,25 @@ export default function App() {
                   )}
                 </div>
               )}
+              </div>
+
+              {/* Visual atmosphere — stage lighting, WYSIWYG with the live
+                  view and the recording window (window only; design bands
+                  stay clean). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', flexWrap: 'wrap' }}>
+                <label style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Visual — Atmosphere</label>
+                {(['none', 'vignette', 'scanlines'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => { trackSettingChanged('visual_theme', t); setVisualTheme(t); }}
+                    style={{
+                      padding: '3px 10px', borderRadius: '7px', fontSize: '0.6rem', cursor: 'pointer',
+                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)',
+                      ...(visualTheme === t ? { background: 'rgba(0,255,204,0.12)', borderColor: 'rgba(0,255,204,0.3)', color: 'var(--neon-cyan)' } : {}),
+                    }}
+                  >{t === 'none' ? 'None' : t === 'vignette' ? 'Vignette' : 'Scanlines'}</button>
+                ))}
+              </div>
             </div>
           )}
         </div>

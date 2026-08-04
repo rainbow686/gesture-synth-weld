@@ -95,6 +95,39 @@ export function trackRecording(
   );
 }
 
+/** Per-session traffic-source tag (Clarity custom tag — attaches to every
+ *  event of the session, so no event needs its own source param). */
+export function initTrafficSource(): void {
+  const ref = document.referrer || '';
+  const source = /google|bing|yahoo|baidu|duckduckgo/i.test(ref)
+    ? 'search'
+    : /twitter|x\.com|reddit|youtube|tiktok|facebook|instagram|weibo|wechat/i.test(ref)
+      ? 'social'
+      : ref
+        ? 'other'
+        : 'direct';
+  if (typeof window.clarity === 'function') {
+    window.clarity('set', 'traffic_source', source);
+  }
+}
+
+/** User stayed on the page ≥10s (funnel start: "came but never touched the
+ *  camera"). Fires once per page load. */
+export function trackPageEngaged(): void {
+  const ref = document.referrer || '';
+  const referrerType = /google|bing|yahoo|baidu|duckduckgo/i.test(ref)
+    ? 'search'
+    : /twitter|x\.com|reddit|youtube|tiktok/i.test(ref)
+      ? 'social'
+      : 'other';
+  track('page_engaged', { seconds_on_page: 10, referrer_type: referrerType });
+}
+
+/** User previewed the recording result ≥5s without downloading. */
+export function trackRecordingViewed(): void {
+  track('recording_viewed', { preview_seconds: 5, downloaded: false });
+}
+
 const settingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**

@@ -31,14 +31,17 @@ import { makeRecordingFilename } from './wavEncoder';
 import { HAND_ART } from './handArt';
 import { injectBrandTags } from './mp4tags';
 import {
+  initTrafficSource,
   trackCameraClicked,
   trackCameraPermission,
   trackCameraStartFailed,
   trackDownload,
   trackFirstGesture,
   trackHelpButtonClicked,
+  trackPageEngaged,
   trackRecording,
   trackRecordingModeChanged,
+  trackRecordingViewed,
   trackScrollToPlaybook,
   trackSettingChanged,
   trackWatchdogTriggered,
@@ -1937,25 +1940,56 @@ export default function App() {
   const finishRecordingRef = useRef<() => void>(() => {});
   finishRecordingRef.current = finishRecording;
 
-  // Funnel: did the user scroll the SEO content (Playbook) into view? Fires
-  // once per session — decides whether below-fold ad placements are viable.
+  // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
+  // after the section stays ≥50% visible for 3s (a quick scroll-through does
+  // not count) — decides whether below-fold ad placements are viable.
   useEffect(() => {
     const target = document.querySelector('.seo-content');
     if (!target || typeof IntersectionObserver === 'undefined') return;
     let sent = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!sent && entries.some((e) => e.isIntersecting)) {
-          sent = true;
-          trackScrollToPlaybook();
-          observer.disconnect();
+        const visible = entries.some((e) => e.isIntersecting);
+        if (visible && !sent) {
+          timer = setTimeout(() => {
+            sent = true;
+            trackScrollToPlaybook();
+            observer.disconnect();
+          }, 3000);
+        } else if (!visible && timer) {
+          clearTimeout(timer);
+          timer = undefined;
         }
       },
-      { threshold: 0.3 },
+      { threshold: 0.5 },
     );
     observer.observe(target);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
   }, []);
+
+  // Funnel start: traffic-source tag (Clarity session tag) + "came but never
+  // touched the camera" detection (10s stay).
+  useEffect(() => {
+    initTrafficSource();
+    const t = setTimeout(() => trackPageEngaged(), 10000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Paywall signal: user previewed the result ≥5s without downloading.
+  const recDownloadedRef = useRef(false);
+  useEffect(() => {
+    if (recPhase === 'result' && recBlob) {
+      recDownloadedRef.current = false;
+      const t = setTimeout(() => {
+        if (!recDownloadedRef.current) trackRecordingViewed();
+      }, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [recPhase, recBlob]);
 
   // Record button: idle → open chooser; recording → stop;
   // countdown/result phases ignore the button (use the panel buttons)
@@ -2448,7 +2482,7 @@ export default function App() {
             <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
-              <button className="rec-btn primary" onClick={() => { trackDownload(); downloadRec(); }}>💾 Download</button>
+              <button className="rec-btn primary" onClick={() => { recDownloadedRef.current = true; trackDownload(); downloadRec(); }}>💾 Download</button>
               {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
             </div>
             {canFileShare && (

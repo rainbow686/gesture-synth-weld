@@ -87,9 +87,11 @@ body {
   flex-direction: column;
   align-items: center;
   /* Brand anchored at a FIXED top position — it never moves when the
-     content below switches between button and loading block. */
+     content below switches between button and loading block. 15vh keeps
+     it clear of the toolbar (bottom ~56px) with breathing room, instead
+     of hugging it at 8vh. */
   justify-content: flex-start;
-  padding-top: 8vh;
+  padding-top: 15vh;
   text-align: center;
   /* Dark vignette: edges dimmed, center clear around the button */
   background: radial-gradient(

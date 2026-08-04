@@ -2703,6 +2703,10 @@ export default function App() {
           <div className="loading-screen">
             <div className="spinner" />
             <p>Loading hand tracking model…</p>
+            <p className="loading-hint">
+              Downloading the hand-tracking model (~20 MB) — the first load
+              takes a moment on slow connections. Please wait.
+            </p>
             {/* Affiliate card — off until loading-window exposure data proves
                 the wait is long enough (config.ENABLE_AFFILIATE_CARD). */}
             {ENABLE_AFFILIATE_CARD && (

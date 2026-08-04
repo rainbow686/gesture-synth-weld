@@ -247,8 +247,12 @@ body {
 /* ─── Loading / Error Screens ────────────────────────────────────────── */
 
 .loading-screen {
-  position: relative;
-  z-index: 5;
+  /* Full-screen during model download: blocks stray clicks (players
+     "tap everywhere" while the ~20 MB model loads on slow networks) —
+     the wait is unbounded so nothing else should be clickable. */
+  position: fixed;
+  inset: 0;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -271,6 +275,13 @@ body {
 .loading-screen p {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+.loading-hint {
+  margin-top: 10px;
+  max-width: 320px;
+  text-align: center;
+  font-size: 0.72rem !important;
+  line-height: 1.5;
 }
 
 .error-screen {

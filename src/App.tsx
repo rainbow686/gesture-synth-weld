@@ -2184,7 +2184,13 @@ export default function App() {
                 desktop/landscape). Opens the collapsed controls panel. */}
             <button
               className={`icon-btn mobile-more-btn ${showMorePulse ? 'help-pulse' : ''}`}
-              onClick={() => { if (moreOpen) dismissMorePulse(); setMoreOpen(!moreOpen); }}
+              onClick={() => {
+                if (moreOpen) dismissMorePulse();
+                // Mutual exclusion: only one floating layer at a time —
+                // opening ⋯ closes the settings panel (and vice versa).
+                if (!moreOpen) setShowSettings(false);
+                setMoreOpen(!moreOpen);
+              }}
               data-tip={moreOpen ? 'Close more options' : 'More options'}
               style={moreOpen ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}
             >{moreOpen ? '✕' : '⋯'}</button>
@@ -2198,28 +2204,66 @@ export default function App() {
               <div className="mobile-more-backdrop" onClick={() => setMoreOpen(false)} />
               <div className="frost-panel mobile-more-panel">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.62rem' }}>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
                     <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'gesture'); setSynthState(prev => ({ ...prev, appMode: 'gesture' })); setMoreOpen(false); }}>Gesture</button>
                     <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'theremin'); setSynthState(prev => ({ ...prev, appMode: 'theremin' })); setMoreOpen(false); }}>Theremin</button>
                     <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'monoPiano'); setSynthState(prev => ({ ...prev, appMode: 'monoPiano' })); setMoreOpen(false); }}>Piano</button>
                   </div>
+                  {/* One row of icon buttons — same glyphs as the landscape/desktop toolbar */}
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator">⟿</button>
                     <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass">∿</button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>Skeleton</button>
-                    <button className="icon-btn" onClick={() => { setMoreOpen(false); setShowSettings(!showSettings); }} data-tip="Settings" style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
-                    <button className="icon-btn" onClick={() => { setMoreOpen(false); stopCamera(); }} data-tip="Stop camera">⏹</button>
+                    <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+                      {/* Same 21-landmark skeleton glyph as the desktop toolbar */}
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 21.2 L9.4 17.6 L7.1 15.6 L5.4 13.1 L4.7 11.3 M11 21.2 L9.7 14.9 L9.5 10.6 L9.5 7.6 L9.6 5.3 M9.7 14.9 L11.3 14.9 L11.5 9.9 L11.6 6.5 L11.7 3.9 M11.3 14.9 L12.9 14.9 L13.3 10.6 L13.6 7.6 L13.9 5.3 M12.9 14.9 L14.5 15.5 L15.5 12.1 L16.2 9.6 L16.9 7.5 M11 21.2 L14.5 15.5"
+                          stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                        <g fill="currentColor">
+                          {[[11,21.2],[9.4,17.6],[7.1,15.6],[5.4,13.1],[4.7,11.3],[9.7,14.9],[9.5,10.6],[9.5,7.6],[9.6,5.3],[11.3,14.9],[11.5,9.9],[11.6,6.5],[11.7,3.9],[12.9,14.9],[13.3,10.6],[13.6,7.6],[13.9,5.3],[14.5,15.5],[15.5,12.1],[16.2,9.6],[16.9,7.5]].map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="0.85" />)}
+                        </g>
+                      </svg>
+                    </button>
+                    <button className="icon-btn" onClick={() => { setMoreOpen(false); setShowSettings(!showSettings); }} data-tip="Settings" style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+                      {/* Same iOS-Settings cog as the desktop toolbar */}
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="5.7" stroke="currentColor" strokeWidth="2.7" />
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const a = (i * 30 * Math.PI) / 180;
+                          return (
+                            <line key={i}
+                              x1={12 + 5.7 * Math.cos(a)} y1={12 + 5.7 * Math.sin(a)}
+                              x2={12 + 8.4 * Math.cos(a)} y2={12 + 8.4 * Math.sin(a)}
+                              stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" />
+                          );
+                        })}
+                      </svg>
+                    </button>
+                    <button className="icon-btn" onClick={() => { setMoreOpen(false); stopCamera(); }} data-tip="Stop camera">
+                      {/* Same video.slash glyph as the desktop toolbar (NOT a ✕ —
+                          ✕ is reserved for closing the ⋯ panel itself) */}
+                      <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                        <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                        <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                        <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                        <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
             </>
           )}
 
-          {/* Settings panel — only for Gesture mode */}
+          {/* Settings panel — only for Gesture mode. Has its own ✕ close
+              (the gear that opened it may be folded away on portrait
+              phones — never leave the panel without a close path). */}
           {showSettings && synthState.appMode === 'gesture' && (
             <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}
+                data-tip="Close settings"
+              >✕</button>
               {/* Left Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                 <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>

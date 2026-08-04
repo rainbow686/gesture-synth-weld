@@ -1038,10 +1038,12 @@ body {
   pointer-events: none;
 }
 .theme-vignette {
-  background: radial-gradient(ellipse at center, transparent 48%, rgba(0, 0, 0, 0.75) 100%);
+  /* base 1.0: 100% strength = fully black edges (deliberately "too much",
+     so users settle around 40-70%); 50% ≈ the old 100% look. */
+  background: radial-gradient(ellipse at center, transparent 48%, rgba(0, 0, 0, 1) 100%);
 }
 .theme-scanlines {
-  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 4px);
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.3) 0 2px, transparent 2px 4px);
 }
 
 /* ─── Mobile ⋯ more panel (portrait phones) ────────────────────────────

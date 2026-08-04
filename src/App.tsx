@@ -1389,6 +1389,9 @@ export default function App() {
     // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
     //    clean so brand/URL keep full clarity. Matches the live overlay
     //    (base effect × user strength/100); both effects can stack. ──
+    // Base effect × strength: base 1.0 (vignette) / 0.3 (scanlines) makes
+    // 100% deliberately "too much" — users settle around 40-70%, where 50%
+    // ≈ the old 100% look. Mirrors the live CSS overlay.
     const vStrength = vignetteStrengthRef.current / 100;
     const sStrength = scanlinesStrengthRef.current / 100;
     if (vStrength > 0) {
@@ -1396,12 +1399,12 @@ export default function App() {
       const cy = wy + winH / 2;
       const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
       g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, `rgba(0,0,0,${0.75 * vStrength})`);
+      g.addColorStop(1, `rgba(0,0,0,${1.0 * vStrength})`);
       rctx.fillStyle = g;
       rctx.fillRect(0, wy, W, winH);
     }
     if (sStrength > 0) {
-      rctx.fillStyle = `rgba(255,255,255,${0.16 * sStrength})`;
+      rctx.fillStyle = `rgba(255,255,255,${0.3 * sStrength})`;
       for (let y = wy; y < wy + winH; y += 4) {
         rctx.fillRect(0, y, W, 2);
       }

@@ -611,9 +611,13 @@ export default function App() {
   // Visual atmosphere: 'none' | 'vignette' | 'scanlines' — stage-lighting
   // overlay on the live view (full-frame) and inside the recording window
   // (design bands stay clean). Off by default; WYSIWYG between live/record.
+  // Strength 0-100 (default 75 = the pre-slider look); user-adjustable.
   const [visualTheme, setVisualTheme] = useState<'none' | 'vignette' | 'scanlines'>('none');
+  const [visualThemeStrength, setVisualThemeStrength] = useState(75);
   const visualThemeRef = useRef(visualTheme);
+  const visualThemeStrengthRef = useRef(visualThemeStrength);
   useEffect(() => { visualThemeRef.current = visualTheme; }, [visualTheme]);
+  useEffect(() => { visualThemeStrengthRef.current = visualThemeStrength; }, [visualThemeStrength]);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
   const cameraStartRef = useRef(0);
@@ -1383,18 +1387,20 @@ export default function App() {
     drawUrlPill(rctx, W - 26, H - 24, 22, false);
 
     // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
-    //    clean so brand/URL keep full clarity. Matches the live overlay. ──
+    //    clean so brand/URL keep full clarity. Matches the live overlay
+    //    (base effect × user strength/100). ──
     const theme = visualThemeRef.current;
-    if (theme === 'vignette') {
+    const strength = visualThemeStrengthRef.current / 100;
+    if (theme === 'vignette' && strength > 0) {
       const cx = W / 2;
       const cy = wy + winH / 2;
       const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
       g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, 'rgba(0,0,0,0.45)');
+      g.addColorStop(1, `rgba(0,0,0,${0.6 * strength})`);
       rctx.fillStyle = g;
       rctx.fillRect(0, wy, W, winH);
-    } else if (theme === 'scanlines') {
-      rctx.fillStyle = 'rgba(255,255,255,0.09)';
+    } else if (theme === 'scanlines' && strength > 0) {
+      rctx.fillStyle = `rgba(255,255,255,${0.12 * strength})`;
       for (let y = wy; y < wy + winH; y += 4) {
         rctx.fillRect(0, y, W, 2);
       }
@@ -2133,9 +2139,10 @@ export default function App() {
 
         {/* Visual atmosphere — stage lighting over the live view (display
             layer only, never touches the gesture pipeline). WYSIWYG with
-            the recording window (drawn in drawRecFrame). */}
-        {visualTheme === 'vignette' && <div className="theme-overlay theme-vignette" />}
-        {visualTheme === 'scanlines' && <div className="theme-overlay theme-scanlines" />}
+            the recording window (drawn in drawRecFrame). Opacity = the
+            user's strength slider (base gradient × strength/100). */}
+        {visualTheme === 'vignette' && <div className="theme-overlay theme-vignette" style={{ opacity: visualThemeStrength / 100 }} />}
+        {visualTheme === 'scanlines' && <div className="theme-overlay theme-scanlines" style={{ opacity: visualThemeStrength / 100 }} />}
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
         {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
@@ -2373,12 +2380,23 @@ export default function App() {
                     key={t}
                     onClick={() => { trackSettingChanged('visual_theme', t); setVisualTheme(t); }}
                     style={{
-                      padding: '3px 10px', borderRadius: '7px', fontSize: '0.6rem', cursor: 'pointer',
+                      padding: '3px 10px', borderRadius: '7px', fontSize: '0.6rem', cursor: 'pointer', outline: 'none',
                       background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)',
                       ...(visualTheme === t ? { background: 'rgba(0,255,204,0.12)', borderColor: 'rgba(0,255,204,0.3)', color: 'var(--neon-cyan)' } : {}),
                     }}
                   >{t === 'none' ? 'None' : t === 'vignette' ? 'Vignette' : 'Scanlines'}</button>
                 ))}
+                {visualTheme !== 'none' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>Strength</span>
+                    <input
+                      type="range" min="0" max="100" step="5" value={visualThemeStrength}
+                      onChange={(e) => { trackSettingChanged('visual_theme_strength', e.target.value); setVisualThemeStrength(Number(e.target.value)); }}
+                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
+                    />
+                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{visualThemeStrength}%</span>
+                  </label>
+                )}
               </div>
             </div>
           )}

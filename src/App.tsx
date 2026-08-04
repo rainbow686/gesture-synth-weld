@@ -627,6 +627,11 @@ export default function App() {
   };
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  // Which camera error is showing (for the personalized guide + visual
+  // address-bar hint on permission denial).
+  const [cameraErrorType, setCameraErrorType] = useState<'permission_denied' | 'no_camera' | 'unsupported_browser' | 'other' | null>(null);
   // Settings panel hidden by default on all platforms (it covers the camera
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
@@ -1600,6 +1605,7 @@ export default function App() {
     if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
     loadTimeoutTimerRef.current = window.setTimeout(() => setLoadingTimeoutShown(true), 90000);
     setError(null);
+    setCameraErrorType(null);
     firstGestureSentRef.current = false;
 
     try {
@@ -1694,7 +1700,7 @@ export default function App() {
       trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
-      let errorType: string;
+      let errorType: 'permission_denied' | 'no_camera' | 'unsupported_browser' | 'other';
       if (isDomError(err, 'NotAllowedError')) {
         errorType = 'permission_denied';
         trackCameraPermission('denied');
@@ -1721,6 +1727,7 @@ export default function App() {
         }
       }
       trackCameraStartFailed(errorType, getErrorMessage(err));
+      setCameraErrorType(errorType);
     }
   }, [handleVisibility, restartCameraStream, triggerHelpPulse, triggerMorePulse]);
 
@@ -2844,26 +2851,62 @@ export default function App() {
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
             <div className="camera-error-message">{error}</div>
-            {isCameraError && (
+            {/* Personalized single path — camera-related errors only
+                (network/model failures shouldn't suggest camera
+                permissions). */}
+            {cameraErrorType && cameraErrorType !== 'other' && (
               <div className="camera-error-guide">
                 <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">iPhone / iPad</span>
-                  Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
-                </div>
-                <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Android</span>
-                  Settings → Apps → your browser → Permissions → <strong>Camera</strong> → Allow. Then reload.
-                </div>
-                <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Mac</span>
-                  System Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
-                </div>
-                <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Windows</span>
-                  Settings → Privacy &amp; Security → <strong>Camera</strong> → Camera access: On → make sure your browser is allowed. Then reload.
+                  <span className="camera-error-guide-label">
+                    {isIOS ? 'iPhone / iPad' : isAndroid ? 'Android' : /Mac/i.test(navigator.userAgent) ? 'Mac' : 'Windows'}
+                  </span>
+                  {isIOS ? (
+                    <>Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.</>
+                  ) : isAndroid ? (
+                    <>Settings → Apps → your browser → Permissions → <strong>Camera</strong> → Allow. Then reload.</>
+                  ) : /Mac/i.test(navigator.userAgent) ? (
+                    <>System Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.</>
+                  ) : (
+                    <>Settings → Privacy &amp; Security → <strong>Camera</strong> → Camera access: On → make sure your browser is allowed. Then reload.</>
+                  )}
                 </div>
               </div>
             )}
+            {/* Permission denial: VISUAL hint — a mini address bar with the
+                lock icon, language-independent (users who can't follow the
+                text still find the lock). Feather lock icon (MIT). */}
+            {cameraErrorType === 'permission_denied' && (
+              <div className="err-visual">
+                <div className="err-addressbar">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span className="err-url">gesturesynthweld.com</span>
+                  <span className="err-dots">⋯</span>
+                </div>
+                <div className="err-steps">
+                  <span><b>①</b> Click the lock</span>
+                  <span><b>②</b> Camera: Allow</span>
+                  <span><b>③</b> Reload &amp; retry</span>
+                </div>
+              </div>
+            )}
+            {/* Full step-by-step guide lives in the SEO section below the
+                fold — link it for users who need more detail than the
+                short hints (per-OS × per-browser × mobile/desktop). */}
+            <a
+              href="#troubleshooting"
+              style={{ color: 'var(--neon-cyan)', fontSize: '0.68rem', textDecoration: 'underline', marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+            >
+              {/* Feather book icon (MIT) — consistent with the lock icon,
+                  no stray emoji in the first screen. */}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              View the full troubleshooting guide →
+            </a>
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
           </div>
         )}

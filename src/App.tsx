@@ -30,7 +30,24 @@ import {
 import { makeRecordingFilename } from './wavEncoder';
 import { HAND_ART } from './handArt';
 import { injectBrandTags } from './mp4tags';
-import { trackHelpButtonClicked, trackRecordingModeChanged, trackWatchdogTriggered } from './analytics';
+import {
+  initTrafficSource,
+  trackCameraClicked,
+  trackLoadingScreenVisible,
+  trackCameraPermission,
+  trackCameraStartFailed,
+  trackDownload,
+  trackFirstGesture,
+  trackHelpButtonClicked,
+  trackPageEngaged,
+  trackRecording,
+  trackRecordingModeChanged,
+  trackRecordingViewed,
+  trackScrollToPlaybook,
+  trackSettingChanged,
+  trackWatchdogTriggered,
+} from './analytics';
+import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
@@ -569,6 +586,9 @@ export default function App() {
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
+  const cameraStartRef = useRef(0);
+  const firstGestureSentRef = useRef(false);
+  const loadingStartRef = useRef(0);
   const recordingActiveRef = useRef(false);
 
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
@@ -737,6 +757,12 @@ export default function App() {
 
   const processHandsRef = useRef<(hands: HandData[]) => void>();
   processHandsRef.current = (hands: HandData[]) => {
+    // First hand detected = the activation moment (funnel event, once per run)
+    if (hands.length > 0 && !firstGestureSentRef.current) {
+      firstGestureSentRef.current = true;
+      trackFirstGesture(cameraStartRef.current ? (Date.now() - cameraStartRef.current) / 1000 : 0);
+    }
+
     let leftHand: HandData | null = null;
     let rightHand: HandData | null = null;
 
@@ -1495,8 +1521,11 @@ export default function App() {
   }, [restartCameraStream]);
 
   const startCamera = useCallback(async () => {
+    trackCameraClicked();
     setIsLoading(true);
+    loadingStartRef.current = performance.now();
     setError(null);
+    firstGestureSentRef.current = false;
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1512,6 +1541,8 @@ export default function App() {
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
         audio: false,
       });
+      trackCameraPermission('granted');
+      cameraStartRef.current = Date.now();
       streamRef.current = stream;
 
       // If the OS reclaims the camera while the page is backgrounded
@@ -1562,34 +1593,43 @@ export default function App() {
       audioEngine.setMicStream(micStreamRef.current);
 
       setIsRunning(true);
+      trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'success');
       setIsLoading(false);
       // Camera is live — the player can see their hands now, so nudge
       // them toward the hand demo (8s pulse, one-time until they open it)
       triggerHelpPulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
+      trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
+      let errorType: string;
       if (isDomError(err, 'NotAllowedError')) {
+        errorType = 'permission_denied';
+        trackCameraPermission('denied');
         setError(isMobile
           ? 'Camera access was denied. On mobile, check your browser app permissions or system Settings > Privacy > Camera.'
           : 'Camera access was denied. Click the lock icon in the address bar to allow camera access.');
       } else if (isDomError(err, 'NotFoundError')) {
+        errorType = 'no_camera';
         setError(isMobile
           ? 'No camera found. Make sure your device has a front-facing camera and it is not in use by another app.'
           : 'No camera found. Connect a webcam and try again.');
       } else {
         const msg = getErrorMessage(err);
         if (msg.includes('support') || msg.includes('not supported')) {
+          errorType = 'unsupported_browser';
           setError(isMobile
             ? 'Your browser does not support camera access. Try Chrome or Edge on Android, or Safari on iOS.'
             : 'Your browser does not support camera access. Try Chrome, Edge, or Firefox.');
         } else {
+          errorType = 'other';
           setError(isMobile
             ? `Camera error: ${msg}. Try a different browser like Chrome or Safari.`
             : `Camera error: ${msg}. Check that your webcam is connected and not in use.`);
         }
       }
+      trackCameraStartFailed(errorType, getErrorMessage(err));
     }
   }, [handleVisibility, restartCameraStream, triggerHelpPulse]);
 
@@ -1894,6 +1934,10 @@ export default function App() {
     } else {
       setRecPhase('idle');
     }
+    if (recordingStartRef.current) {
+      const dur = Math.floor((Date.now() - recordingStartRef.current) / 1000);
+      trackRecording('completed', dur, dur >= 15 ? 'timeout' : 'user');
+    }
     setIsRecording(false);
     setRecordingTime(0);
     recordingStartRef.current = null;
@@ -1901,6 +1945,57 @@ export default function App() {
 
   const finishRecordingRef = useRef<() => void>(() => {});
   finishRecordingRef.current = finishRecording;
+
+  // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
+  // after the section stays ≥50% visible for 3s (a quick scroll-through does
+  // not count) — decides whether below-fold ad placements are viable.
+  useEffect(() => {
+    const target = document.querySelector('.seo-content');
+    if (!target || typeof IntersectionObserver === 'undefined') return;
+    let sent = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((e) => e.isIntersecting);
+        if (visible && !sent) {
+          timer = setTimeout(() => {
+            sent = true;
+            trackScrollToPlaybook();
+            observer.disconnect();
+          }, 3000);
+        } else if (!visible && timer) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  // Funnel start: traffic-source tag (Clarity session tag) + "came but never
+  // touched the camera" detection (10s stay).
+  useEffect(() => {
+    initTrafficSource();
+    const t = setTimeout(() => trackPageEngaged(), 10000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Paywall signal: user previewed the result ≥5s without downloading.
+  const recDownloadedRef = useRef(false);
+  useEffect(() => {
+    if (recPhase === 'result' && recBlob) {
+      recDownloadedRef.current = false;
+      const t = setTimeout(() => {
+        if (!recDownloadedRef.current) trackRecordingViewed();
+      }, 5000);
+      return () => clearTimeout(t);
+    }
+  }, [recPhase, recBlob]);
 
   // Record button: idle → open chooser; recording → stop;
   // countdown/result phases ignore the button (use the panel buttons)
@@ -1922,6 +2017,7 @@ export default function App() {
     localStorage.setItem('gsw-rec-mode', recMode);
     localStorage.setItem('gsw-rec-ratio', recRatio);
     setRecPhase('idle'); // close the chooser
+    trackRecording('started');
     startCountdown();
   }, [recMode, recRatio, startCountdown]);
 
@@ -1996,16 +2092,16 @@ export default function App() {
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
           <div className="frost-toolbar" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
             <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
-            <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'gesture' }))} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
-            <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'theremin' }))} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
-            <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => setSynthState(prev => ({ ...prev, appMode: 'monoPiano' }))} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
+            <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'gesture'); setSynthState(prev => ({ ...prev, appMode: 'gesture' })); }} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
+            <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'theremin'); setSynthState(prev => ({ ...prev, appMode: 'theremin' })); }} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
+            <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'monoPiano'); setSynthState(prev => ({ ...prev, appMode: 'monoPiano' })); }} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
             <span className="divider" />
             <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
               {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
             </select>
             <span className="divider" />
-            <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate }))} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
-            <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass }))} data-tip="Auto Bass — root note two octaves below">∿</button>
+            <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
+            <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass — root note two octaves below">∿</button>
             <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
               {/* Hand-tracking skeleton: the MediaPipe 21-landmark graph
                   (this IS what the toggle shows over the hands) */}
@@ -2064,7 +2160,7 @@ export default function App() {
               {/* Left Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                 <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
-                <select value={synthState.leftHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode }))}>
+                <select value={synthState.leftHandMode} onChange={(e) => { trackSettingChanged('left_hand_mode', e.target.value); setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode })); }}>
                   <option value="scaleTilt">Scale notes + tilt major/minor</option>
                   <option value="scaleLocked">Scale notes only (lock mode)</option>
                 </select>
@@ -2072,7 +2168,7 @@ export default function App() {
                   <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
                 ) : (
                   <>
-                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' }))}>
+                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => { trackSettingChanged('locked_mode', e.target.value); setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' })); }}>
                       <option value="major">Major</option>
                       <option value="minor">Minor</option>
                     </select>
@@ -2086,7 +2182,7 @@ export default function App() {
               {/* Right Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
                 <label style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand — Expression</label>
-                <select value={synthState.rightHandMode} onChange={(e) => setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode }))}>
+                <select value={synthState.rightHandMode} onChange={(e) => { trackSettingChanged('right_hand_mode', e.target.value); setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode })); }}>
                   <option value="fingerLayout">Finger layout = chord style</option>
                   <option value="fixedChordStyle">Fixed chord style</option>
                 </select>
@@ -2094,7 +2190,7 @@ export default function App() {
                   <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
                 ) : (
                   <>
-                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle }))}>
+                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => { trackSettingChanged('chord_style', e.target.value); setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle })); }}>
                       {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
                     </select>
                     <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
@@ -2108,7 +2204,7 @@ export default function App() {
                   {synthState.arpeggiate && (
                     <div>
                       <label style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Arpeggiator</label>
-                      <select value={synthState.arpSpeed} onChange={(e) => setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed }))} style={{ width: '100%' }}>
+                      <select value={synthState.arpSpeed} onChange={(e) => { trackSettingChanged('arp_speed', e.target.value); setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed })); }} style={{ width: '100%' }}>
                         <option value="slow">Slow (120ms)</option>
                         <option value="normal">Normal (80ms)</option>
                         <option value="fast">Fast (50ms)</option>
@@ -2119,7 +2215,7 @@ export default function App() {
                     <div>
                       <label style={{ color: 'var(--neon-amber)', fontWeight: 600 }}>Bass Volume</label>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) }))} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
+                        <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => { trackSettingChanged('bass_volume', e.target.value); setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) })); }} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
                         <span style={{ fontSize: '0.6rem', width: '24px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
                       </div>
                     </div>
@@ -2392,7 +2488,7 @@ export default function App() {
             <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
             <div className="rec-actions">
               <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
-              <button className="rec-btn primary" onClick={downloadRec}>💾 Download</button>
+              <button className="rec-btn primary" onClick={() => { recDownloadedRef.current = true; trackDownload(); downloadRec(); }}>💾 Download</button>
               {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
             </div>
             {canFileShare && (
@@ -2451,6 +2547,23 @@ export default function App() {
           <div className="loading-screen">
             <div className="spinner" />
             <p>Loading hand tracking model…</p>
+            {/* Affiliate card — off until loading-window exposure data proves
+                the wait is long enough (config.ENABLE_AFFILIATE_CARD). */}
+            {ENABLE_AFFILIATE_CARD && (
+              <a
+                href={AFFILIATE_CARD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'block', marginTop: '14px', padding: '10px 14px',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.65rem',
+                  textDecoration: 'none', textAlign: 'center',
+                }}
+              >
+                While you wait: try a free online music studio →
+              </a>
+            )}
           </div>
         )}
 
@@ -2628,7 +2741,7 @@ export default function App() {
               <input
                 type="number"
                 value={metronomeBpm}
-                onChange={(e) => setMetronomeBpm(Number(e.target.value))}
+                onChange={(e) => { trackSettingChanged('metronome_bpm', e.target.value); setMetronomeBpm(Number(e.target.value)); }}
                 style={{ width: '36px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', textAlign: 'center', padding: '1px' }}
               />
               <span style={{ fontSize: '0.6rem' }}>BPM</span>
@@ -2648,17 +2761,17 @@ export default function App() {
               >
                 TAP
               </button>
-              <select value={metronomeTimeSig} onChange={(e) => setMetronomeTimeSig(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+              <select value={metronomeTimeSig} onChange={(e) => { trackSettingChanged('metronome_time_sig', e.target.value); setMetronomeTimeSig(e.target.value); }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
                 <option>3/4</option><option>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option>
               </select>
-              <select value={metronomeBars} onChange={(e) => setMetronomeBars(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+              <select value={metronomeBars} onChange={(e) => { trackSettingChanged('metronome_bars', e.target.value); setMetronomeBars(e.target.value); }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
                 <option value="1">1 bar</option><option value="2">2 bars</option><option value="4">4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option>
               </select>
-              <select value={metronomeSound} onChange={(e) => setMetronomeSound(e.target.value)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
+              <select value={metronomeSound} onChange={(e) => { trackSettingChanged('metronome_sound', e.target.value); setMetronomeSound(e.target.value); }} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', color: 'var(--text-secondary)', fontSize: '0.6rem', padding: '1px' }}>
                 <option value="click">Click</option><option value="wood">Wood</option><option value="beep">Beep</option><option value="hihat">Hi-hat</option>
               </select>
               <button
-                onClick={() => setMetronomeOn(!metronomeOn)}
+                onClick={() => { trackSettingChanged('metronome', metronomeOn ? 'off' : 'on'); setMetronomeOn(!metronomeOn); }}
                 style={{
                   background: metronomeOn ? 'rgba(0,255,204,0.15)' : 'transparent',
                   border: `1px solid ${metronomeOn ? 'rgba(0,255,204,0.3)' : 'rgba(255,255,255,0.08)'}`,
@@ -2668,7 +2781,7 @@ export default function App() {
               >
                 ♪
               </button>
-              <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => setMetronomeVolume(Number(e.target.value))} style={{ width: '50px', accentColor: 'var(--neon-cyan)' }} />
+              <input type="range" min="0" max="1" step="0.05" value={metronomeVolume} onChange={(e) => { trackSettingChanged('metronome_volume', e.target.value); setMetronomeVolume(Number(e.target.value)); }} style={{ width: '50px', accentColor: 'var(--neon-cyan)' }} />
               <span style={{ fontSize: '0.6rem', width: '26px' }}>{Math.round(metronomeVolume * 100)}%</span>
 
               <span style={{ flex: 1 }} />

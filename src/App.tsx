@@ -2540,7 +2540,9 @@ export default function App() {
                             returning players see their own saved choice */}
                         {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
                       </strong>
-                      <em>{id === 'video' ? 'Camera + neon skeleton — includes your face' : id === 'skeleton' ? 'Neon skeleton + waveform — no camera feed, privacy-friendly' : 'Music without any visuals'}</em>
+                      {/* Intent labels — help players choose deliberately
+                          instead of accepting the default blind. */}
+                      <em>{id === 'video' ? 'Real you + camera — best for sharing' : id === 'skeleton' ? 'Privacy-friendly — no camera feed' : 'Just the sound'}</em>
                     </span>
                   </button>
                 ))}

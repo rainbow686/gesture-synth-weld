@@ -86,12 +86,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Brand + content are ONE continuous stack flowing from a fixed top
-     offset — the brand never moves, and the content sits right below it
-     (no dead zone between them, unlike centering the content). The stack
-     lands in the comfortable upper zone of the screen. */
-  justify-content: flex-start;
-  padding-top: 18vh;
+  /* Original layout: the whole stack (brand + content) centers together
+     — the brand moves naturally with content height. Deliberate: the
+     fixed-brand variants all created dead zones or cramped gaps. */
+  justify-content: center;
+  gap: 1.5rem;
   text-align: center;
   /* Dark vignette: edges dimmed, center clear around the button */
   background: radial-gradient(
@@ -250,11 +249,9 @@ body {
 
 /* ─── Loading / Error Screens ────────────────────────────────────────── */
 
-/* Content flows right below the brand (continuous stack — no dead zone).
-   Width is capped so the loading block stays compact on wide screens. */
+/* Content (button / loading block) — natural size, centered with the
+   brand above it (original layout). */
 .camera-placeholder-content {
-  width: 100%;
-  max-width: 360px;
   display: flex;
   flex-direction: column;
   align-items: center;

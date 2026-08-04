@@ -139,6 +139,13 @@ Space: Stop | Esc: Reset — playing shortcuts (1-7, ↑/↓, T/Y, A, B) were re
 - **UI sync**: Help panel and FAQ JSON-LD updated to match actual implementation
 - **Testing**: No test framework yet; manual testing required
 
+## Known Gotchas
+
+- **vercel.json redirects**: destination params (`:path*`) must be NAMED in the source too — `/(.*)` + `:path*` fails Vercel's build validation (invalid-route-destination-segment) and silently kills ALL deployments. Use `/:path*` as source. Symptom: GitHub commit status shows `Vercel | failure` with target_url `vercel.link/invalid-route-destination-segment`; the failed deployment does NOT appear in the Vercel Deployments list.
+- **mainland-China reachability**: never rely on third-party domains (`*.workers.dev`, `*.vercel.app`, Google CDN are all DNS-polluted/blocked in CN). Model CDN uses our own `assets.gesturesynthweld.com` (CF worker) with a same-origin fallback.
+- **Local DNS queries with a TUN proxy**: `dig` results are unreliable (UDP 53 hijacked, fake-ip `198.18.x.x` answers). Verify DNS state via HTTPS DoH (dns.google / alidns.com) instead.
+- **New Cloudflare deployments** land on `*.workers.dev` (Pages merged into Workers); the dashboard "Upload assets" flow no longer exists. Confirm actual resource URLs via the API after deploying.
+
 ## Current Version
 
 **v2.0 (B2)** - Two-hand division + full recording suite (3 modes, 3 ratios, mic sing-along, branded cover art & share)

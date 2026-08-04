@@ -1417,7 +1417,10 @@ body {
   top: 0;
   bottom: 0;
   transform: translateX(-50%);
-  width: calc(100vh * 9 / 16);
+  /* A 9:16 frame is 9/16 of the viewport HEIGHT wide — but never wider
+     than the screen itself (portrait phones are already ~9:16, so the
+     strip becomes ≈ full-width there). */
+  width: min(100vw, calc(100vh * 9 / 16));
 }
 .rec-tag {
   position: absolute;

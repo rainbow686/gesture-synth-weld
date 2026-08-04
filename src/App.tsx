@@ -564,6 +564,17 @@ export default function App() {
   // degree (matches real play: the right hand never changes the chord,
   // default it only controls volume; finger-count → chord type is an
   // optional mode explained under the table).
+  // Loading-screen carousel rows (one table row per step, 5s each).
+  const LOADING_STEPS = [
+    { art: '1', row: 0, hint: 'Any 1 finger raised' },
+    { art: '2', row: 1, hint: 'Any 2 fingers' },
+    { art: '3', row: 2, hint: 'Any 3 fingers' },
+    { art: '4', row: 3, hint: 'Any 4 fingers' },
+    { art: '5', row: 4, hint: 'All 5 fingers' },
+    { art: 'VI', row: 5, hint: 'Index + Pinky ONLY' },
+    { art: 'VII', row: 6, hint: 'Index + Pinky + Thumb' },
+    { art: 'mute', row: 7, hint: 'Fist = mute — notes held' },
+  ] as const;
   const HELP_DEMO_STEPS = [
     { left: '1', row: 0 },
     { left: '2', row: 1 },
@@ -635,6 +646,37 @@ export default function App() {
   const cameraStartRef = useRef(0);
   const firstGestureSentRef = useRef(false);
   const loadingStartRef = useRef(0);
+  // Loading progress: honest-anchored fake bar — creeps quickly to ~45%,
+  // crawls after, and jumps to 100% ONLY when the real download resolves.
+  // (Real byte progress is unavailable inside MediaPipe's loader, so a
+  // percent is inherently approximate — the completion anchor is real.)
+  const [loadProgress, setLoadProgress] = useState(0);
+  const loadProgTimerRef = useRef<number | null>(null);
+  // Loading-screen gesture carousel: one table row at a time (5s/row),
+  // same data as the Help demo — the wait becomes a learning moment.
+  // Desktop also shows the big animated hand above the row.
+  const [loadingDemoStep, setLoadingDemoStep] = useState(0);
+  const [loadingTimeoutShown, setLoadingTimeoutShown] = useState(false);
+  const [loadingVisible, setLoadingVisible] = useState(false);
+  const [loadingFading, setLoadingFading] = useState(false);
+  const loadDemoTimerRef = useRef<number | null>(null);
+  const loadTimeoutTimerRef = useRef<number | null>(null);
+  // Fade-out: render continues 250ms after isLoading drops, fading the
+  // screen before the camera view appears.
+  useEffect(() => {
+    if (isLoading) {
+      setLoadingVisible(true);
+      setLoadingFading(false);
+    } else if (loadingVisible) {
+      setLoadingFading(true);
+      const t = setTimeout(() => setLoadingVisible(false), 250);
+      return () => clearTimeout(t);
+    }
+  }, [isLoading, loadingVisible]);
+  // Cancel = back to idle; the model download keeps running in the
+  // background (initPromise is reused), so the next Enable Camera is
+  // instant. The startCamera flow checks this flag after the awaits.
+  const loadCancelledRef = useRef(false);
   const recordingActiveRef = useRef(false);
 
   useEffect(() => { recModeRef.current = recMode; }, [recMode]);
@@ -1537,6 +1579,26 @@ export default function App() {
     trackCameraClicked();
     setIsLoading(true);
     loadingStartRef.current = performance.now();
+    loadCancelledRef.current = false;
+    setLoadProgress(4);
+    setLoadingDemoStep(0);
+    setLoadingTimeoutShown(false);
+    if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+    loadProgTimerRef.current = window.setInterval(() => {
+      setLoadProgress((p) => {
+        if (p >= 90) return p;            // never cross 90% until real done
+        return p < 45 ? p + 4 : p + 1;    // quick start, then crawl
+      });
+    }, 700);
+    // Gesture carousel: 5s per row (enough to read the long VI/VII hints).
+    if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+    loadDemoTimerRef.current = window.setInterval(() => {
+      setLoadingDemoStep((s) => (s + 1) % LOADING_STEPS.length);
+    }, 5000);
+    // Timeout nudge: after 90s swap the hint text for a reassurance
+    // (same slot — the cancel button already guarantees no wasted download).
+    if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
+    loadTimeoutTimerRef.current = window.setTimeout(() => setLoadingTimeoutShown(true), 90000);
     setError(null);
     firstGestureSentRef.current = false;
 
@@ -1600,6 +1662,17 @@ export default function App() {
 
       // Wait for hand tracking before starting the detection loop
       await trackingPromise;
+      // Real completion anchor: the fake bar jumps to 100% only here.
+      if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+      if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+      if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
+      setLoadProgress(100);
+      if (loadCancelledRef.current) {
+        // User cancelled mid-download — the model is now cached (initPromise
+        // reused), so just return to idle; next Enable Camera is instant.
+        setIsLoading(false);
+        return;
+      }
       await audioEngine.init();
       // Attach the mic AFTER init — the engine's mic gain node only exists
       // once initialized
@@ -1615,6 +1688,9 @@ export default function App() {
       triggerMorePulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
+      if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+      if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+      if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
       trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
@@ -2675,51 +2751,89 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Dimmed overlay + Enable Camera button ───────────────── */}
-        {!isRunning && !isLoading && !error && (
+        {/* ─── Dimmed overlay + Enable Camera button / loading block ──
+            The container stays rendered during loading so the brand stays
+            as the anchor and the loading block replaces the button. */}
+        {!isRunning && !error && (
           <div className="camera-placeholder">
+            {/* Brand anchored at a FIXED top position — it never moves
+                when the content below switches between button and block. */}
             <div className="camera-placeholder-brand">
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
-            <button
-              className="enable-camera-btn"
-              onClick={startCamera}
-              disabled={isLoading}
-              onMouseEnter={prefetchTracking}
-              onFocus={prefetchTracking}
-              onTouchStart={prefetchTracking}
-            >
-              <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
-              </svg>
-              <span>Enable Camera</span>
-            </button>
-            <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
-          </div>
-        )}
+            <div className="camera-placeholder-content">
+            {loadingVisible ? (
+              /* Loading = the Enable Camera spot turns into a compact,
+                 centered block (brand stays above as the anchor). The
+                 toolbar/status stay visible — help is reachable while
+                 waiting. */
+              <div className={`loading-block ${loadingFading ? 'loading-fading' : ''}`}>
+                {/* Big progress bar with the "Loading… %" label INSIDE it —
+                    the bar IS the loading semantics, no title row needed. */}
+                <div className="loading-bar-track">
+                  <div className="loading-bar-fill" style={{ width: `${loadProgress}%` }} />
+                  <span className="loading-bar-label">Loading… {loadProgress}%</span>
+                </div>
 
-        {/* ─── Loading ───────────────────────────────────────────────── */}
-        {isLoading && (
-          <div className="loading-screen">
-            <div className="spinner" />
-            <p>Loading hand tracking model…</p>
-            {/* Affiliate card — off until loading-window exposure data proves
-                the wait is long enough (config.ENABLE_AFFILIATE_CARD). */}
-            {ENABLE_AFFILIATE_CARD && (
-              <a
-                href={AFFILIATE_CARD_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block', marginTop: '14px', padding: '10px 14px',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.65rem',
-                  textDecoration: 'none', textAlign: 'center',
-                }}
-              >
-                While you wait: try a free online music studio →
-              </a>
+                <div className="loading-divider" />
+
+                {/* Gesture carousel: one table row at a time (5s), framed
+                    by the dividers — color hierarchy (neon name, muted
+                    hint) replaces an inner box. Both hands shown: left =
+                    the changing chord gesture (cyan), right = fixed 1-finger
+                    posture (magenta, mirrored — same color code as the Help
+                    panel), since the right hand plays volume by height. */}
+                <div className="loading-zone-label">How to play</div>
+                <div className="loading-demo-row">
+                  {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                  {handArt('1', 26, 'var(--neon-magenta)', true)}
+                  <div>
+                    <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
+                    <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint} · Right: height = volume</div>
+                  </div>
+                </div>
+
+                <div className="loading-divider" />
+
+                <div className="loading-hint">
+                  {loadingTimeoutShown ? (
+                    <span>Still downloading — it continues in the background either way, so your next start will be instant.</span>
+                  ) : (
+                    <span>Downloading the hand-tracking model (~20 MB) — the first load takes a moment on slow connections.</span>
+                  )}
+                </div>
+
+                <button
+                  className="loading-cancel"
+                  onClick={() => {
+                    loadCancelledRef.current = true;
+                    if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+                    if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+                    if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
+                    setIsLoading(false);
+                  }}
+                  data-tip="Cancel — the download continues in the background, next start is instant"
+                >✕ Cancel</button>
+              </div>
+            ) : (
+              <>
+                <button
+                  className="enable-camera-btn"
+                  onClick={startCamera}
+                  disabled={isLoading}
+                  onMouseEnter={prefetchTracking}
+                  onFocus={prefetchTracking}
+                  onTouchStart={prefetchTracking}
+                >
+                  <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+                    <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                  </svg>
+                  <span>Enable Camera</span>
+                </button>
+                <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
+              </>
             )}
+            </div>
           </div>
         )}
 
@@ -2875,8 +2989,10 @@ export default function App() {
           </>
         )}
 
-        {/* ─── Status bar — always visible ──────────────────────────── */}
-        {!isLoading && (
+        {/* ─── Status bar — always visible (the old !isLoading guard was
+                from the full-screen-loading era; the block-style loading
+                doesn't cover it, so the bar must stay) ─────────────── */}
+        {(
           <>
             {/* Bottom status bar */}
             <div className="status-bar-bottom">

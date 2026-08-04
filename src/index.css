@@ -86,6 +86,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Original layout: the whole stack (brand + content) centers together
+     — the brand moves naturally with content height. Deliberate: the
+     fixed-brand variants all created dead zones or cramped gaps. */
   justify-content: center;
   gap: 1.5rem;
   text-align: center;
@@ -246,15 +249,107 @@ body {
 
 /* ─── Loading / Error Screens ────────────────────────────────────────── */
 
-.loading-screen {
-  position: relative;
-  z-index: 5;
+/* Content (button / loading block) — natural size, centered with the
+   brand above it (original layout). */
+.camera-placeholder-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
 }
-
+@keyframes loading-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.loading-block {
+  animation: loading-fade-in 0.15s ease;
+  /* Compact centered block that REPLACES the Enable Camera spot (brand
+     stays above as the anchor). Toolbar/status remain visible — waiting
+     users can still open Help. Whitespace around the block is kept.
+     Material: dark solid panel (same family as the Help/record sheets —
+     the content-layer language), with a liquid-glass neon top edge. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  max-width: 340px;
+  padding: 16px 18px;
+  background: rgba(10, 10, 24, 0.85);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: var(--frost-shadow);
+  position: relative;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+/* Liquid-glass neon top edge (the "light catching the glass" line). */
+.loading-block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14%;
+  right: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.45), transparent);
+}
+.loading-block.loading-fading {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Static hairline divider framing the carousel zone. */
+.loading-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Gesture carousel: natural height, centered. */
+.loading-demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+.loading-zone-label {
+  font-size: 0.56rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(160, 160, 208, 0.55);
+  font-family: var(--font-display);
+}
+.loading-demo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* No inner frame — the loading block itself is the frame. */
+}
+.loading-demo-name {
+  color: var(--neon-cyan);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+.loading-demo-hint {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  margin-top: 1px;
+}
+/* Fixed hint slot — expectation text, swapped for the timeout
+   reassurance at 90s (same slot, height stays constant). */
+.loading-hint {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 340px;
+  font-size: 0.7rem !important;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
 .spinner {
   width: 50px;
   height: 50px;
@@ -268,9 +363,60 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.loading-screen p {
+.loading-hint {
+  margin-top: 10px;
+  max-width: 320px;
+  text-align: center;
+  font-size: 0.72rem !important;
+  line-height: 1.5;
+}
+/* Loading progress: honest-anchored fake bar. Creeps to ~45% fast, then
+   crawls; jumps to 100% ONLY when the real download resolves (MediaPipe's
+   internal fetch exposes no byte progress, so the percent is approximate
+   but the completion anchor is real). */
+.loading-bar-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  /* overflow visible — hidden clipped the fill's neon glow */
+  overflow: visible;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.loading-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--neon-cyan), #7fd8ff);
+  box-shadow: 0 0 10px rgba(0, 255, 204, 0.35);
+  transition: width 0.5s ease;
+}
+/* "Loading… 42%" label centered INSIDE the bar (mono digits = instrument
+   readout language). */
+.loading-bar-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.02em;
+}
+.loading-cancel {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  font-size: 0.62rem;
+  cursor: pointer;
   color: var(--text-muted);
-  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+.loading-cancel:hover {
+  color: #e0e0f0;
 }
 
 .error-screen {

@@ -2757,20 +2757,75 @@ export default function App() {
             <div className="camera-placeholder-brand">
               <span className="camera-placeholder-brand-text">Gesture Synth Weld</span>
             </div>
-            <button
-              className="enable-camera-btn"
-              onClick={startCamera}
-              disabled={isLoading}
-              onMouseEnter={prefetchTracking}
-              onFocus={prefetchTracking}
-              onTouchStart={prefetchTracking}
-            >
-              <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
-              </svg>
-              <span>Enable Camera</span>
-            </button>
-            <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
+            {loadingVisible ? (
+              /* Loading = the Enable Camera spot turns into a compact,
+                 centered block (brand stays above as the anchor). The
+                 toolbar/status stay visible — help is reachable while
+                 waiting. */
+              <div className={`loading-block ${loadingFading ? 'loading-fading' : ''}`}>
+                <div className="loading-head">
+                  <span className="spinner" />
+                  <span className="loading-title">Loading hand tracking model…</span>
+                </div>
+                <div className="loading-bar-track">
+                  <div className="loading-bar-fill" style={{ width: `${loadProgress}%` }} />
+                </div>
+                <div className="loading-percent">{loadProgress}%</div>
+
+                {/* Gesture carousel: the wait is a learning moment.
+                    Desktop shows the big animated hand too. */}
+                <div className="loading-demo">
+                  <div className="loading-demo-big">
+                    {handArt(LOADING_STEPS[loadingDemoStep].art, 56, 'var(--neon-cyan)')}
+                    <div className="loading-demo-grade">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
+                  </div>
+                  <div className="loading-demo-row">
+                    {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                    <div>
+                      <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
+                      <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="loading-hint">
+                  {loadingTimeoutShown ? (
+                    <span>Still downloading — it continues in the background either way, so your next start will be instant.</span>
+                  ) : (
+                    <span>Downloading the hand-tracking model (~20 MB) — the first load takes a moment on slow connections.</span>
+                  )}
+                </div>
+
+                <button
+                  className="loading-cancel"
+                  onClick={() => {
+                    loadCancelledRef.current = true;
+                    if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+                    if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+                    if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
+                    setIsLoading(false);
+                  }}
+                  data-tip="Cancel — the download continues in the background, next start is instant"
+                >✕ Cancel</button>
+              </div>
+            ) : (
+              <>
+                <button
+                  className="enable-camera-btn"
+                  onClick={startCamera}
+                  disabled={isLoading}
+                  onMouseEnter={prefetchTracking}
+                  onFocus={prefetchTracking}
+                  onTouchStart={prefetchTracking}
+                >
+                  <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+                    <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                  </svg>
+                  <span>Enable Camera</span>
+                </button>
+                <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
+              </>
+            )}
           </div>
         )}
 

@@ -2897,8 +2897,16 @@ export default function App() {
                 short hints (per-OS × per-browser × mobile/desktop). */}
             <a
               href="#troubleshooting"
-              style={{ color: 'var(--neon-cyan)', fontSize: '0.68rem', textDecoration: 'underline', marginTop: '8px', display: 'inline-block' }}
-            >📖 View the full troubleshooting guide →</a>
+              style={{ color: 'var(--neon-cyan)', fontSize: '0.68rem', textDecoration: 'underline', marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+            >
+              {/* Feather book icon (MIT) — consistent with the lock icon,
+                  no stray emoji in the first screen. */}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+              View the full troubleshooting guide →
+            </a>
             <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
           </div>
         )}

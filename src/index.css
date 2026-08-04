@@ -421,8 +421,10 @@ body {
 @media (orientation: landscape) and (max-height: 560px) {
   .err-visual { display: none; }
   .camera-placeholder.error-state {
-    justify-content: flex-start;
-    padding-top: 8vh;
+    /* Compressed content fits one screen → center the whole stack
+       (brand + message + guide + Retry) on the viewport center. */
+    justify-content: center;
+    padding-top: 0;
     gap: 0.5rem;
     overflow-y: auto;
   }

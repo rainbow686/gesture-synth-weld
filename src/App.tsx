@@ -2184,7 +2184,13 @@ export default function App() {
                 desktop/landscape). Opens the collapsed controls panel. */}
             <button
               className={`icon-btn mobile-more-btn ${showMorePulse ? 'help-pulse' : ''}`}
-              onClick={() => { if (moreOpen) dismissMorePulse(); setMoreOpen(!moreOpen); }}
+              onClick={() => {
+                if (moreOpen) dismissMorePulse();
+                // Mutual exclusion: only one floating layer at a time —
+                // opening ⋯ closes the settings panel (and vice versa).
+                if (!moreOpen) setShowSettings(false);
+                setMoreOpen(!moreOpen);
+              }}
               data-tip={moreOpen ? 'Close more options' : 'More options'}
               style={moreOpen ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}
             >{moreOpen ? '✕' : '⋯'}</button>
@@ -2248,9 +2254,16 @@ export default function App() {
             </>
           )}
 
-          {/* Settings panel — only for Gesture mode */}
+          {/* Settings panel — only for Gesture mode. Has its own ✕ close
+              (the gear that opened it may be folded away on portrait
+              phones — never leave the panel without a close path). */}
           {showSettings && synthState.appMode === 'gesture' && (
             <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'row', gap: '16px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}
+                data-tip="Close settings"
+              >✕</button>
               {/* Left Hand */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
                 <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>

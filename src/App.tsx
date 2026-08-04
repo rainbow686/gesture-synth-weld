@@ -564,6 +564,17 @@ export default function App() {
   // degree (matches real play: the right hand never changes the chord,
   // default it only controls volume; finger-count → chord type is an
   // optional mode explained under the table).
+  // Loading-screen carousel rows (one table row per step, 5s each).
+  const LOADING_STEPS = [
+    { art: '1', row: 0, hint: 'Any 1 finger raised' },
+    { art: '2', row: 1, hint: 'Any 2 fingers' },
+    { art: '3', row: 2, hint: 'Any 3 fingers' },
+    { art: '4', row: 3, hint: 'Any 4 fingers' },
+    { art: '5', row: 4, hint: 'All 5 fingers' },
+    { art: 'VI', row: 5, hint: 'Index + Pinky ONLY' },
+    { art: 'VII', row: 6, hint: 'Index + Pinky + Thumb' },
+    { art: 'mute', row: 7, hint: 'Fist = mute — notes held' },
+  ] as const;
   const HELP_DEMO_STEPS = [
     { left: '1', row: 0 },
     { left: '2', row: 1 },
@@ -641,6 +652,27 @@ export default function App() {
   // percent is inherently approximate — the completion anchor is real.)
   const [loadProgress, setLoadProgress] = useState(0);
   const loadProgTimerRef = useRef<number | null>(null);
+  // Loading-screen gesture carousel: one table row at a time (5s/row),
+  // same data as the Help demo — the wait becomes a learning moment.
+  // Desktop also shows the big animated hand above the row.
+  const [loadingDemoStep, setLoadingDemoStep] = useState(0);
+  const [loadingTimeoutShown, setLoadingTimeoutShown] = useState(false);
+  const [loadingVisible, setLoadingVisible] = useState(false);
+  const [loadingFading, setLoadingFading] = useState(false);
+  const loadDemoTimerRef = useRef<number | null>(null);
+  const loadTimeoutTimerRef = useRef<number | null>(null);
+  // Fade-out: render continues 250ms after isLoading drops, fading the
+  // screen before the camera view appears.
+  useEffect(() => {
+    if (isLoading) {
+      setLoadingVisible(true);
+      setLoadingFading(false);
+    } else if (loadingVisible) {
+      setLoadingFading(true);
+      const t = setTimeout(() => setLoadingVisible(false), 250);
+      return () => clearTimeout(t);
+    }
+  }, [isLoading, loadingVisible]);
   // Cancel = back to idle; the model download keeps running in the
   // background (initPromise is reused), so the next Enable Camera is
   // instant. The startCamera flow checks this flag after the awaits.
@@ -1549,6 +1581,8 @@ export default function App() {
     loadingStartRef.current = performance.now();
     loadCancelledRef.current = false;
     setLoadProgress(4);
+    setLoadingDemoStep(0);
+    setLoadingTimeoutShown(false);
     if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
     loadProgTimerRef.current = window.setInterval(() => {
       setLoadProgress((p) => {
@@ -1556,6 +1590,15 @@ export default function App() {
         return p < 45 ? p + 4 : p + 1;    // quick start, then crawl
       });
     }, 700);
+    // Gesture carousel: 5s per row (enough to read the long VI/VII hints).
+    if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+    loadDemoTimerRef.current = window.setInterval(() => {
+      setLoadingDemoStep((s) => (s + 1) % LOADING_STEPS.length);
+    }, 5000);
+    // Timeout nudge: after 90s swap the hint text for a reassurance
+    // (same slot — the cancel button already guarantees no wasted download).
+    if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
+    loadTimeoutTimerRef.current = window.setTimeout(() => setLoadingTimeoutShown(true), 90000);
     setError(null);
     firstGestureSentRef.current = false;
 
@@ -1621,6 +1664,8 @@ export default function App() {
       await trackingPromise;
       // Real completion anchor: the fake bar jumps to 100% only here.
       if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+      if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+      if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
       setLoadProgress(100);
       if (loadCancelledRef.current) {
         // User cancelled mid-download — the model is now cached (initPromise
@@ -1644,6 +1689,8 @@ export default function App() {
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+      if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+      if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
       trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
       setIsLoading(false);
 
@@ -2728,44 +2775,71 @@ export default function App() {
         )}
 
         {/* ─── Loading ───────────────────────────────────────────────── */}
-        {isLoading && (
-          <div className="loading-screen">
-            <div className="spinner" />
-            <p>Loading hand tracking model…</p>
-            <div className="loading-bar-track">
-              <div className="loading-bar-fill" style={{ width: `${loadProgress}%` }} />
+        {loadingVisible && (
+          <div className={`loading-screen ${loadingFading ? 'loading-fading' : ''}`}>
+            <div className="loading-head">
+              <span className="spinner" />
+              <span className="loading-title">Loading hand tracking model…</span>
+              <div className="loading-bar-track">
+                <div className="loading-bar-fill" style={{ width: `${loadProgress}%` }} />
+              </div>
+              <span className="loading-percent">{loadProgress}%</span>
             </div>
-            <div className="loading-percent">{loadProgress}%</div>
-            <p className="loading-hint">
-              Downloading the hand-tracking model (~20 MB) — the first load
-              takes a moment on slow connections. Please wait.
-            </p>
-            <button
-              className="loading-cancel"
-              onClick={() => {
-                loadCancelledRef.current = true;
-                if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
-                setIsLoading(false);
-              }}
-              data-tip="Cancel — the download continues in the background, next start is instant"
-            >✕ Cancel (keeps downloading)</button>
-            {/* Affiliate card — off until loading-window exposure data proves
-                the wait is long enough (config.ENABLE_AFFILIATE_CARD). */}
-            {ENABLE_AFFILIATE_CARD && (
-              <a
-                href={AFFILIATE_CARD_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block', marginTop: '14px', padding: '10px 14px',
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px', color: 'var(--text-secondary)', fontSize: '0.65rem',
-                  textDecoration: 'none', textAlign: 'center',
+
+            {/* Gesture carousel: the wait is a learning moment. Desktop
+                shows the big animated hand + the row; mobile keeps just
+                the row (one at a time, 5s each). */}
+            <div className="loading-demo">
+              <div className="loading-demo-big">
+                {handArt(LOADING_STEPS[loadingDemoStep].art, 64, 'var(--neon-cyan)')}
+                <div className="loading-demo-grade">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
+              </div>
+              <div className="loading-demo-row">
+                {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                <div>
+                  <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
+                  <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fixed hint slot: normal expectation text, swapped for the
+                timeout reassurance after 90s (same slot, no extra space). */}
+            <div className="loading-hint">
+              {loadingTimeoutShown ? (
+                <span>Still downloading — it continues in the background either way, so your next start will be instant.</span>
+              ) : (
+                <span>Downloading the hand-tracking model (~20 MB) — the first load takes a moment on slow connections.</span>
+              )}
+            </div>
+
+            <div className="loading-footer">
+              <button
+                className="loading-cancel"
+                onClick={() => {
+                  loadCancelledRef.current = true;
+                  if (loadProgTimerRef.current) window.clearInterval(loadProgTimerRef.current);
+                  if (loadDemoTimerRef.current) window.clearInterval(loadDemoTimerRef.current);
+                  if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
+                  setIsLoading(false);
                 }}
-              >
-                While you wait: try a free online music studio →
-              </a>
-            )}
+                data-tip="Cancel — the download continues in the background, next start is instant"
+              >✕ Cancel</button>
+              {/* Fixed ad slot (60px): brand placeholder now, affiliate card
+                  later (config.ENABLE_AFFILIATE_CARD) — size stays constant. */}
+              <div className="loading-ad-slot">
+                {ENABLE_AFFILIATE_CARD ? (
+                  <a
+                    href={AFFILIATE_CARD_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="loading-ad-link"
+                  >While you wait: try a free online music studio →</a>
+                ) : (
+                  <span className="loading-ad-brand">Gesture Synth Weld</span>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

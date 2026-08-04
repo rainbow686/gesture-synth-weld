@@ -256,7 +256,114 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
+  padding: 28px 20px 18px;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+.loading-screen.loading-fading {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Head: title + progress on one compact row. */
+.loading-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.loading-title {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+/* Gesture carousel: the elastic middle area. */
+.loading-demo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+.loading-demo-big {
+  display: none; /* mobile: row-only */
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.loading-demo-grade {
+  color: var(--neon-cyan);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.loading-demo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+}
+.loading-demo-name {
+  color: var(--neon-cyan);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+.loading-demo-hint {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  margin-top: 1px;
+}
+@media (min-width: 769px) {
+  .loading-demo-big { display: flex; }
+}
+/* Fixed hint slot — expectation text, swapped for the timeout
+   reassurance at 90s (same slot, height stays constant). */
+.loading-hint {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 340px;
+  font-size: 0.7rem !important;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+/* Footer: cancel + fixed 60px ad slot (brand placeholder now). */
+.loading-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.loading-ad-slot {
+  width: 100%;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.loading-ad-brand {
+  color: rgba(255, 255, 255, 0.14);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-display);
+}
+.loading-ad-link {
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  text-decoration: none;
+  padding: 10px 14px;
 }
 
 .spinner {

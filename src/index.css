@@ -1387,10 +1387,25 @@ body {
      player keeps seeing their hands clearly). */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
-/* 1:1 and 9:16 both capture the full frame (9:16 went immersive 2026-08-04
-   — no more poster bands; window covers everything, brand/URL float). */
-.rec-frame-overlay.ratio-1x1 .rec-window { inset: 0; }
-.rec-frame-overlay.ratio-916 .rec-window { inset: 0; }
+/* 1:1 and 9:16 are immersive (full-frame content) — the viewfinder shows
+   the exact cover-crop window so the player sees what gets cropped:
+   9:16 → a vertical strip (width = 9/16 of the frame height), sides dimmed;
+   1:1 → a centered square, edges dimmed. The dim-outside box-shadow on
+   .rec-window does the darkening automatically. */
+.rec-frame-overlay.ratio-1x1 .rec-window {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(100vw, 100vh);
+  height: min(100vw, 100vh);
+}
+.rec-frame-overlay.ratio-916 .rec-window {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: calc(100vh * 9 / 16);
+}
 .rec-tag {
   position: absolute;
   top: 10px;

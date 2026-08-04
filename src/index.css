@@ -405,6 +405,50 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
   letter-spacing: 0.02em;
 }
+/* Visual permission guide: a mini address bar (CSS — the browser UI's own
+   language, so it reads as "the address bar"), lock icon (Feather/MIT),
+   and a three-step caption. Language-independent for non-technical users. */
+.err-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.err-addressbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  max-width: 280px;
+  width: 100%;
+}
+.err-url {
+  flex: 1;
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.err-dots {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+}
+.err-steps {
+  display: flex;
+  gap: 12px;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+.err-steps b {
+  color: var(--neon-cyan);
+}
 .loading-cancel {
   align-self: center;
   background: none;

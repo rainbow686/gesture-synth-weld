@@ -627,6 +627,11 @@ export default function App() {
   };
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  // Which camera error is showing (for the personalized guide + visual
+  // address-bar hint on permission denial).
+  const [cameraErrorType, setCameraErrorType] = useState<'permission_denied' | 'no_camera' | 'unsupported_browser' | 'other' | null>(null);
   // Settings panel hidden by default on all platforms (it covers the camera
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
@@ -1600,6 +1605,7 @@ export default function App() {
     if (loadTimeoutTimerRef.current) window.clearTimeout(loadTimeoutTimerRef.current);
     loadTimeoutTimerRef.current = window.setTimeout(() => setLoadingTimeoutShown(true), 90000);
     setError(null);
+    setCameraErrorType(null);
     firstGestureSentRef.current = false;
 
     try {
@@ -1721,6 +1727,7 @@ export default function App() {
         }
       }
       trackCameraStartFailed(errorType, getErrorMessage(err));
+      setCameraErrorType(errorType);
     }
   }, [handleVisibility, restartCameraStream, triggerHelpPulse, triggerMorePulse]);
 
@@ -2845,22 +2852,42 @@ export default function App() {
             </div>
             <div className="camera-error-message">{error}</div>
             {isCameraError && (
+              {/* Personalized single path — only the user's own device
+                  shows (no hunting through four options). */}
               <div className="camera-error-guide">
                 <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">iPhone / iPad</span>
-                  Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
+                  <span className="camera-error-guide-label">
+                    {isIOS ? 'iPhone / iPad' : isAndroid ? 'Android' : /Mac/i.test(navigator.userAgent) ? 'Mac' : 'Windows'}
+                  </span>
+                  {isIOS ? (
+                    <>Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.</>
+                  ) : isAndroid ? (
+                    <>Settings → Apps → your browser → Permissions → <strong>Camera</strong> → Allow. Then reload.</>
+                  ) : /Mac/i.test(navigator.userAgent) ? (
+                    <>System Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.</>
+                  ) : (
+                    <>Settings → Privacy &amp; Security → <strong>Camera</strong> → Camera access: On → make sure your browser is allowed. Then reload.</>
+                  )}
                 </div>
-                <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Android</span>
-                  Settings → Apps → your browser → Permissions → <strong>Camera</strong> → Allow. Then reload.
+              </div>
+            )}
+            {/* Permission denial: VISUAL hint — a mini address bar with the
+                lock icon, language-independent (users who can't follow the
+                text still find the lock). Feather lock icon (MIT). */}
+            {cameraErrorType === 'permission_denied' && (
+              <div className="err-visual">
+                <div className="err-addressbar">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span className="err-url">gesturesynthweld.com</span>
+                  <span className="err-dots">⋯</span>
                 </div>
-                <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Mac</span>
-                  System Settings → Privacy &amp; Security → <strong>Camera</strong> → turn on your browser. Then reload.
-                </div>
-                <div className="camera-error-guide-item">
-                  <span className="camera-error-guide-label">Windows</span>
-                  Settings → Privacy &amp; Security → <strong>Camera</strong> → Camera access: On → make sure your browser is allowed. Then reload.
+                <div className="err-steps">
+                  <span><b>①</b> Click the lock</span>
+                  <span><b>②</b> Camera: Allow</span>
+                  <span><b>③</b> Reload &amp; retry</span>
                 </div>
               </div>
             )}

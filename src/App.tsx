@@ -2779,14 +2779,17 @@ export default function App() {
 
                 {/* Gesture carousel: one table row at a time (5s), framed
                     by the dividers — color hierarchy (neon name, muted
-                    hint) replaces an inner box. The tiny "HOW TO PLAY"
-                    tag tells first-time users what this zone is. */}
+                    hint) replaces an inner box. Both hands shown: left =
+                    the changing chord gesture (cyan), right = fixed 1-finger
+                    posture (magenta, mirrored — same color code as the Help
+                    panel), since the right hand plays volume by height. */}
                 <div className="loading-zone-label">How to play</div>
                 <div className="loading-demo-row">
                   {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                  {handArt('1', 26, 'var(--neon-magenta)', true)}
                   <div>
                     <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
-                    <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint}</div>
+                    <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint} · Right: height = volume</div>
                   </div>
                 </div>
 

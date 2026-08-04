@@ -495,6 +495,28 @@ export default function App() {
   // hand, raising fingers and hearing the sound. Marked done once they
   // actually open the help. The hands-ready badge appears once per
   // session when both hands are first detected.
+  // Mobile ⋯ more-panel: portrait phones collapse the toolbar to
+  // [brand · record · help · ⋯]; the rest lives in the panel. Hidden on
+  // desktop/landscape (media query).
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [showMorePulse, setShowMorePulse] = useState(false);
+  const morePulseTimerRef = useRef<number | null>(null);
+  const triggerMorePulse = useCallback(() => {
+    let done = false;
+    try { done = sessionStorage.getItem('gswMorePulse') === '1'; } catch { /* private mode */ }
+    if (done) return;
+    setShowMorePulse(true);
+    if (morePulseTimerRef.current) window.clearTimeout(morePulseTimerRef.current);
+    morePulseTimerRef.current = window.setTimeout(() => setShowMorePulse(false), 8000);
+  }, []);
+  const dismissMorePulse = useCallback(() => {
+    setShowMorePulse(false);
+    if (morePulseTimerRef.current) {
+      window.clearTimeout(morePulseTimerRef.current);
+      morePulseTimerRef.current = null;
+    }
+    try { sessionStorage.setItem('gswMorePulse', '1'); } catch { /* private mode */ }
+  }, []);
   const [showHelpPulse, setShowHelpPulse] = useState(false);
   const helpPulseTimerRef = useRef<number | null>(null);
   const triggerHelpPulse = useCallback(() => {
@@ -582,7 +604,9 @@ export default function App() {
   };
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const [showSettings, setShowSettings] = useState(!isMobile);
+  // Settings panel hidden by default on all platforms (it covers the camera
+  // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
+  const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
@@ -1598,6 +1622,8 @@ export default function App() {
       // Camera is live — the player can see their hands now, so nudge
       // them toward the hand demo (8s pulse, one-time until they open it)
       triggerHelpPulse();
+      // …and (portrait phones) toward the ⋯ more panel (settings/modes)
+      triggerMorePulse();
     } catch (err: unknown) {
       console.error('Failed to start:', err);
       trackLoadingScreenVisible(performance.now() - loadingStartRef.current, 'failed');
@@ -1631,7 +1657,7 @@ export default function App() {
       }
       trackCameraStartFailed(errorType, getErrorMessage(err));
     }
-  }, [handleVisibility, restartCameraStream, triggerHelpPulse]);
+  }, [handleVisibility, restartCameraStream, triggerHelpPulse, triggerMorePulse]);
 
   /* ─── Warm up hand tracking on button intent ───────────────────────── */
 
@@ -2005,6 +2031,8 @@ export default function App() {
       finishRecording();
       return;
     }
+    // Recording = the player is about to perform — drop any open menu
+    setMoreOpen(false);
     // Platforms without canvas.captureStream (iOS Safari) can't record
     // video — fall back to audio before showing the chooser.
     if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
@@ -2092,17 +2120,17 @@ export default function App() {
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
           <div className="frost-toolbar" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', gap: '3px', padding: '6px 14px', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'visible' }}>
             <span className="brand" style={{ fontSize: '0.6rem' }}>Gesture Synth Weld</span>
-            <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'gesture'); setSynthState(prev => ({ ...prev, appMode: 'gesture' })); }} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
-            <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'theremin'); setSynthState(prev => ({ ...prev, appMode: 'theremin' })); }} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
-            <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'monoPiano'); setSynthState(prev => ({ ...prev, appMode: 'monoPiano' })); }} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
-            <span className="divider" />
-            <select value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
+            <button className={`mobile-collapse ${synthState.appMode === 'gesture' ? 'active' : ''}`} onClick={() => { trackSettingChanged('app_mode', 'gesture'); setSynthState(prev => ({ ...prev, appMode: 'gesture' })); }} data-tip="Two-hand chord mode — left hand picks harmony, right hand controls expression">Gesture</button>
+            <button className={`mobile-collapse ${synthState.appMode === 'theremin' ? 'active' : ''}`} onClick={() => { trackSettingChanged('app_mode', 'theremin'); setSynthState(prev => ({ ...prev, appMode: 'theremin' })); }} data-tip="Theremin mode — right hand Y-axis = pitch, left hand Y-axis = volume">Theremin</button>
+            <button className={`mobile-collapse ${synthState.appMode === 'monoPiano' ? 'active' : ''}`} onClick={() => { trackSettingChanged('app_mode', 'monoPiano'); setSynthState(prev => ({ ...prev, appMode: 'monoPiano' })); }} data-tip="Mono Piano mode — finger count selects a single note interval">Piano</button>
+            <span className="divider mobile-collapse" />
+            <select className="mobile-collapse" value={KEYS[synthState.keyOffset]?.name ?? 'C'} onChange={(e) => { const ki = KEYS.findIndex(k => k.name === e.target.value); setSynthState(prev => ({ ...prev, keyOffset: ki })); }} data-tip="Transpose all chords to a different key">
               {KEYS.map(key => <option key={key.name} value={key.name}>{key.name}</option>)}
             </select>
-            <span className="divider" />
-            <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
-            <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass — root note two octaves below">∿</button>
-            <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+            <span className="divider mobile-collapse" />
+            <button className={`icon-btn mobile-collapse ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator — sweep chord notes like a harp">⟿</button>
+            <button className={`icon-btn mobile-collapse ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass — root note two octaves below">∿</button>
+            <button className={`icon-btn mobile-collapse ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton — show/hide tracking lines" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
               {/* Hand-tracking skeleton: the MediaPipe 21-landmark graph
                   (this IS what the toggle shows over the hands) */}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -2113,8 +2141,8 @@ export default function App() {
                 </g>
               </svg>
             </button>
-            <span className="divider" />
-            <button className="icon-btn" onClick={stopCamera} data-tip="Stop camera and audio">
+            <span className="divider mobile-collapse" />
+            <button className="icon-btn mobile-collapse" onClick={stopCamera} data-tip="Stop camera and audio">
               {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
               <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
@@ -2123,7 +2151,7 @@ export default function App() {
                 <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </button>
-            <button className="icon-btn" onClick={() => setShowSettings(!showSettings)} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
+            <button className="icon-btn mobile-collapse" onClick={() => { setShowSettings(!showSettings); }} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
               {/* Gear like the iOS Settings / clockwork cog: a thick ring
                   with many short fat teeth and an open center */}
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
@@ -2152,7 +2180,42 @@ export default function App() {
                 </svg>
               )}
             </button>
+            {/* More ⋯ — portrait phones only (hidden by media query on
+                desktop/landscape). Opens the collapsed controls panel. */}
+            <button
+              className={`icon-btn mobile-more-btn ${showMorePulse ? 'help-pulse' : ''}`}
+              onClick={() => { if (moreOpen) dismissMorePulse(); setMoreOpen(!moreOpen); }}
+              data-tip={moreOpen ? 'Close more options' : 'More options'}
+              style={moreOpen ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}
+            >{moreOpen ? '✕' : '⋯'}</button>
           </div>
+
+          {/* Mobile ⋯ panel — the collapsed controls (modes, arp/bass,
+              skeleton, settings, stop). Rendered under the toolbar; the
+              backdrop closes it on outside tap. Portrait phones only. */}
+          {moreOpen && (
+            <>
+              <div className="mobile-more-backdrop" onClick={() => setMoreOpen(false)} />
+              <div className="frost-panel mobile-more-panel">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.62rem' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    <button className={synthState.appMode === 'gesture' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'gesture'); setSynthState(prev => ({ ...prev, appMode: 'gesture' })); setMoreOpen(false); }}>Gesture</button>
+                    <button className={synthState.appMode === 'theremin' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'theremin'); setSynthState(prev => ({ ...prev, appMode: 'theremin' })); setMoreOpen(false); }}>Theremin</button>
+                    <button className={synthState.appMode === 'monoPiano' ? 'active' : ''} onClick={() => { trackSettingChanged('app_mode', 'monoPiano'); setSynthState(prev => ({ ...prev, appMode: 'monoPiano' })); setMoreOpen(false); }}>Piano</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator">⟿</button>
+                    <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass">∿</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>Skeleton</button>
+                    <button className="icon-btn" onClick={() => { setMoreOpen(false); setShowSettings(!showSettings); }} data-tip="Settings" style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>⚙</button>
+                    <button className="icon-btn" onClick={() => { setMoreOpen(false); stopCamera(); }} data-tip="Stop camera">⏹</button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Settings panel — only for Gesture mode */}
           {showSettings && synthState.appMode === 'gesture' && (

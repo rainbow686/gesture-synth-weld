@@ -2776,7 +2776,9 @@ export default function App() {
 
                 {/* Gesture carousel: one table row at a time (5s), framed
                     by the dividers — color hierarchy (neon name, muted
-                    hint) replaces an inner box. */}
+                    hint) replaces an inner box. The tiny "HOW TO PLAY"
+                    tag tells first-time users what this zone is. */}
+                <div className="loading-zone-label">How to play</div>
                 <div className="loading-demo-row">
                   {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
                   <div>

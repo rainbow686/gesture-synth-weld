@@ -737,15 +737,15 @@ export default function App() {
     try {
       const saved = localStorage.getItem('gsw-vignette');
       const v = saved === null ? NaN : Number(saved);
-      return isNaN(v) ? 50 : Math.min(100, Math.max(0, v));
-    } catch { return 50; }
+      return isNaN(v) ? 60 : Math.min(100, Math.max(0, v)); // 60% = cinematic but gentle
+    } catch { return 60; }
   });
   const [scanlinesStrength, setScanlinesStrength] = useState(() => {
     try {
       const saved = localStorage.getItem('gsw-scanlines');
       const v = saved === null ? NaN : Number(saved);
-      return isNaN(v) ? 50 : Math.min(100, Math.max(0, v));
-    } catch { return 50; }
+      return isNaN(v) ? 30 : Math.min(100, Math.max(0, v)); // 30% = subtle texture
+    } catch { return 30; }
   });
   const vignetteStrengthRef = useRef(vignetteStrength);
   const scanlinesStrengthRef = useRef(scanlinesStrength);
@@ -1353,9 +1353,9 @@ export default function App() {
     cur.g += (target[1] - cur.g) * 0.12;
     cur.b += (target[2] - cur.b) * 0.12;
 
-    // ── Tilt (filter sweep) → brightness ±20% (right-hand expression) ──
+    // ── Tilt (filter sweep) → brightness ±25% (right-hand expression) ──
     const tilt = Math.max(-1, Math.min(1, hands.right?.tiltAngle ?? 0));
-    const brightness = 1 + 0.2 * tilt;
+    const brightness = 1 + 0.25 * tilt;
     const R = Math.max(0, Math.min(255, Math.round(cur.r * brightness)));
     const G = Math.max(0, Math.min(255, Math.round(cur.g * brightness)));
     const B = Math.max(0, Math.min(255, Math.round(cur.b * brightness)));
@@ -1368,8 +1368,8 @@ export default function App() {
     for (let e = 0; e <= echoes; e++) {
       // Symmetric vertical spread so a thicker chord reads as a fanned
       // stack around the real waveform, not a line drifting downward.
-      const offsetY = Math.round((e - echoes / 2) * 2.4);
-      const a = e === 0 ? alphaBase : alphaBase * 0.35 * ((echoes + 1 - e) / (echoes + 1));
+      const offsetY = Math.round((e - echoes / 2) * 3.2);
+      const a = e === 0 ? alphaBase : alphaBase * 0.45 * ((echoes + 1 - e) / (echoes + 1));
       ctx.lineWidth = lineW;
       ctx.strokeStyle = muted
         ? `rgba(120, 120, 120, ${a})`
@@ -2335,7 +2335,11 @@ export default function App() {
             the recording window (drawn in drawRecFrame). Opacity = the
             user's strength slider (base gradient × strength/100). */}
         {vignetteStrength > 0 && <div className="theme-overlay theme-vignette" style={{ opacity: vignetteStrength / 100 }} />}
-        {scanlinesStrength > 0 && <div className="theme-overlay theme-scanlines" style={{ opacity: scanlinesStrength / 100 }} />}
+        {/* Scanlines only while the camera runs — on the pre-camera landing
+            they read as frosted-glass mesh over the UI (user feedback
+            2026-08-05); the performance atmosphere belongs to the
+            performance. The recording window still gets them (camera on). */}
+        {isRunning && scanlinesStrength > 0 && <div className="theme-overlay theme-scanlines" style={{ opacity: scanlinesStrength / 100 }} />}
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
         {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
@@ -3193,12 +3197,15 @@ export default function App() {
                   <span style={{ fontSize: '2rem', fontWeight: 500, color: 'rgba(0, 255, 204, 0.08)', marginLeft: '0.15em' }}>
                     {synthState.chordExt}
                   </span>
-                  {/* Octave badge — top-right corner (Inter, amber pill) */}
+                  {/* Octave badge — floats just outside the chord symbol's
+                      right edge (translateX(100%) guarantees it never
+                      overlaps the note glyphs). */}
                   {synthState.octaveDown && (
                     <span style={{
                       position: 'absolute',
-                      top: '-0.5em',
-                      right: '-1.2em',
+                      top: '-0.4em',
+                      right: 0,
+                      transform: 'translateX(100%)',
                       fontFamily: 'Inter, system-ui, sans-serif',
                       fontSize: '1rem',
                       fontWeight: 700,

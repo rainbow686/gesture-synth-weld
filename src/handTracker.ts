@@ -1,8 +1,4 @@
-import {
-  HandLandmarker,
-  FilesetResolver,
-  type HandLandmarkerResult,
-} from '@mediapipe/tasks-vision';
+import type { HandLandmarker, HandLandmarkerResult } from '@mediapipe/tasks-vision';
 import type { HandData, LandmarkPoint } from './types';
 import { modelSourceLabel, trackModelLoad } from './analytics';
 
@@ -95,6 +91,10 @@ async function doInit(): Promise<HandLandmarker> {
     ? [order, ...MODEL_SOURCES.filter((s) => s !== order)]
     : [...MODEL_SOURCES];
   const startTime = performance.now();
+  // Lazy-load the tasks-vision runtime: it's ~120 KB of JS that only the
+  // camera path needs, so it stays out of the initial bundle (LCP). The
+  // types are imported statically and erased at build time.
+  const { HandLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision');
   for (const src of attemptSources) {
     trackModelLoad('started', { source: modelSourceLabel(src.wasm) });
     try {

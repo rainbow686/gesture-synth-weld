@@ -10,6 +10,26 @@ import { ARP_SPEED_MS } from './types';
 
 export type TimbreType = 'gesture' | 'theremin';
 
+/** Vocal polish level for the sing-along recording tap (recording only). */
+export type VocalPolish = 'off' | 'light' | 'standard' | 'strong';
+
+/**
+ * Cheap room-ish impulse response: stereo exponentially-decaying noise —
+ * the standard Web-Audio trick (Tone.js Reverb generates its own the same
+ * way), so no audio asset needs downloading.
+ */
+function createImpulseResponse(ctx: BaseAudioContext, duration = 1.5, decay = 2.5): AudioBuffer {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
+  const ir = ctx.createBuffer(2, length, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = ir.getChannelData(ch);
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+    }
+  }
+  return ir;
+}
+
 interface Instrument {
   triggerAttack: (freq: number, time?: number, velocity?: number) => void;
   triggerRelease: (freq: number, time?: number) => void;
@@ -84,6 +104,17 @@ export class AudioEngine {
   private micTrack: MediaStreamTrack | null = null;
   private micGain: GainNode | null = null;
   private micAnalyser: AnalyserNode | null = null;
+  // Vocal polish chain (recording tap only): mic → HPF → compressor →
+  // short room reverb. Never routed to speakers — the mic path is
+  // recording-only by design, so there is no feedback risk. setVocalPolish
+  // toggles three parallel tails off micGain (bypass / dry / wet).
+  private vocalHp: BiquadFilterNode | null = null;
+  private vocalComp: DynamicsCompressorNode | null = null;
+  private vocalReverb: ConvolverNode | null = null;
+  private vocalWet: GainNode | null = null;
+  private vocalDry: GainNode | null = null;
+  private vocalBypass: GainNode | null = null;
+  private vocalPolish: VocalPolish = 'standard';
   private initCalled = false;
 
   // Volume control
@@ -153,7 +184,43 @@ export class AudioEngine {
       this.micGain = rawCtx.createGain();
       this.micGain.gain.value = 0.9;
       this.micAnalyser.connect(this.micGain);
-      this.micGain.connect(this.mediaStreamDest);
+
+      // Vocal polish: industry-standard vocal chain (high-pass → compressor
+      // → short room reverb) so sing-along takes sound produced without
+      // touching the live path. Three parallel tails off micGain — bypass
+      // (polish off, raw voice as before), dry (HPF+compressor) and wet
+      // (reverb) — toggled by setVocalPolish.
+      this.vocalHp = rawCtx.createBiquadFilter();
+      this.vocalHp.type = 'highpass';
+      this.vocalHp.frequency.value = 100;
+      this.vocalComp = rawCtx.createDynamicsCompressor();
+      this.vocalComp.threshold.value = -20;
+      this.vocalComp.ratio.value = 3;
+      this.vocalComp.knee.value = 6;
+      this.vocalComp.attack.value = 0.01;
+      this.vocalComp.release.value = 0.15;
+      this.vocalReverb = rawCtx.createConvolver();
+      this.vocalReverb.buffer = createImpulseResponse(rawCtx, 1.5, 2.5);
+      this.vocalWet = rawCtx.createGain();
+      this.vocalWet.gain.value = 0.15;
+      this.vocalDry = rawCtx.createGain();
+      this.vocalDry.gain.value = 1.0;
+      this.vocalBypass = rawCtx.createGain();
+      this.vocalBypass.gain.value = 0;
+
+      this.micGain.connect(this.vocalBypass);
+      this.micGain.connect(this.vocalHp);
+      this.vocalHp.connect(this.vocalComp);
+      this.vocalComp.connect(this.vocalDry);
+      this.vocalComp.connect(this.vocalReverb);
+      this.vocalReverb.connect(this.vocalWet);
+      this.vocalBypass.connect(this.mediaStreamDest);
+      this.vocalDry.connect(this.mediaStreamDest);
+      this.vocalWet.connect(this.mediaStreamDest);
+
+      // Re-apply the level chosen before init (the App effect may have
+      // run before the camera start).
+      this.setVocalPolish(this.vocalPolish);
     }
 
     // Create bass synth for auto bass
@@ -462,6 +529,24 @@ export class AudioEngine {
       const chords = Math.max(0.2, 2 - voice);
       this.recMixGain.gain.setTargetAtTime(chords, this.ctx?.currentTime ?? 0, 0.02);
     }
+  }
+
+  /**
+   * Set the vocal-polish level for the recording tap. 'off' bypasses the
+   * chain (raw voice, exactly as before); light/standard/strong raise the
+   * reverb blend, and 'strong' grips the voice harder with the compressor.
+   * Recording-only — the live path never routes the mic, so no feedback
+   * risk. Idempotent; no-op until init() has built the chain.
+   */
+  setVocalPolish(level: VocalPolish): void {
+    if (!this.vocalBypass || !this.vocalDry || !this.vocalWet || !this.vocalComp || !this.ctx) return;
+    this.vocalPolish = level;
+    const now = this.ctx.currentTime;
+    const wet = level === 'off' ? 0 : level === 'light' ? 0.08 : level === 'standard' ? 0.15 : 0.25;
+    this.vocalBypass.gain.setTargetAtTime(level === 'off' ? 1 : 0, now, 0.02);
+    this.vocalDry.gain.setTargetAtTime(level === 'off' ? 0 : 1, now, 0.02);
+    this.vocalWet.gain.setTargetAtTime(wet, now, 0.02);
+    this.vocalComp.threshold.setTargetAtTime(level === 'strong' ? -25 : -20, now, 0.02);
   }
 
   /**

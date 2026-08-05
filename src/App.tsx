@@ -5,7 +5,7 @@ import {
   detectHands,
   HAND_CONNECTIONS,
 } from './handTracker';
-import { audioEngine } from './audioEngine';
+import { audioEngine, type VocalPolish } from './audioEngine';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -341,6 +341,9 @@ export default function App() {
   const rafIdRef = useRef<number>(0);
   const lastDetectRef = useRef<number>(0);
   const isDetectingRef = useRef(false);
+  // Adaptive detection interval (ms): raised on weak devices so the main
+  // thread stays responsive for interactions (INP); 33ms = 30fps baseline.
+  const detectIntervalRef = useRef<number>(33);
   const runningRef = useRef(false);
   const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -406,6 +409,13 @@ export default function App() {
   const [micLevel, setMicLevel] = useState(0);
   const [micPermState, setMicPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
   const [recVoice, setRecVoice] = useState(() => Number(localStorage.getItem('gsw-rec-voice')) || 1.3);
+  // Vocal polish (recording-only voice effects): off/light/standard/strong.
+  // Saved choice wins; 'standard' is the industry-chain default.
+  const [recPolish, setRecPolish] = useState<VocalPolish>(() => {
+    const saved = localStorage.getItem('gsw-rec-polish');
+    if (saved === 'off' || saved === 'light' || saved === 'standard' || saved === 'strong') return saved;
+    return 'standard';
+  });
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [micDeviceId, setMicDeviceId] = useState('');
   const recVoiceRef = useRef(1.3);
@@ -694,6 +704,10 @@ export default function App() {
     audioEngine.setRecordingMix(recVoice);
     localStorage.setItem('gsw-rec-voice', String(recVoice));
   }, [recVoice]);
+  useEffect(() => {
+    audioEngine.setVocalPolish(recPolish);
+    localStorage.setItem('gsw-rec-polish', recPolish);
+  }, [recPolish]);
 
   // Re-select the mic device (Chrome's permission prompt defaults to a
   // virtual/loopback device on some Macs — e.g. BlackHole — which records
@@ -1447,15 +1461,22 @@ export default function App() {
       ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (!isDetectingRef.current && timestamp - lastDetectRef.current > 33) {
+      if (!isDetectingRef.current && timestamp - lastDetectRef.current > detectIntervalRef.current) {
         lastDetectRef.current = timestamp;
         isDetectingRef.current = true;
+        const t0 = performance.now();
         try {
           const hands = detectHands(video, timestamp);
           processHandsRef.current?.(hands);
         } catch (e) {
           console.warn('Detection frame error:', e);
         } finally {
+          // Adaptive rate (B2): a slow synchronous detection eats the main
+          // thread, and every click queues behind it (the 530ms INP). Drop
+          // to 20/15fps while detections run long; fast devices stay at
+          // 30fps and never notice. Thresholds are tuning constants.
+          const dt = performance.now() - t0;
+          detectIntervalRef.current = dt > 70 ? 66 : dt > 45 ? 50 : 33;
           isDetectingRef.current = false;
         }
       }
@@ -2681,6 +2702,17 @@ export default function App() {
                       <span>Chords</span>
                     </div>
                     <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
+                    <div className="rec-sheet-sub">Vocal polish <span className="rec-mix-desc">— voice effects in the recording</span></div>
+                    <select
+                      className="rec-device-select"
+                      value={recPolish}
+                      onChange={(e) => { trackSettingChanged('vocal_polish', e.target.value); setRecPolish(e.target.value as VocalPolish); }}
+                    >
+                      <option value="off">Off — raw voice</option>
+                      <option value="light">Light — subtle</option>
+                      <option value="standard">Standard — recommended</option>
+                      <option value="strong">Strong — roomy</option>
+                    </select>
                   </>
                 ) : micPermState === 'denied' ? (
                   <div className="rec-mic-notice">

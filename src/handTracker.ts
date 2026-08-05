@@ -8,10 +8,9 @@ import { modelSourceLabel, trackModelLoad } from './analytics';
 
 /* ─── MediaPipe Hand Tracking Wrapper ────────────────────────────────── */
 
-// Model sources, raced. Primary: Cloudflare (assets.gesturesynthweld.com —
+// Model sources. Primary: Cloudflare (assets.gesturesynthweld.com —
 // unlimited bandwidth, global CDN). Fallback: Vercel same-origin (/v1.0.1/).
-// Only the lightweight HEAD probes race; the ~19 MB model download happens
-// from the winner only (racing full downloads would double bandwidth).
+// CF is deterministic-priority — see pickSource() for why we never race them.
 // Browsers cache these files for 1 year (immutable, via the CF _headers
 // file), so a version bump MUST change this path AND re-upload
 // public/vX.Y.Z/ to CF — see CLAUDE.md.
@@ -24,20 +23,26 @@ const MODEL_SOURCES = [
 ] as const;
 
 /**
- * Race lightweight HEAD probes across all sources — the first one that
- * responds wins (no sequential 6s waits). Rejects only if every source is
- * unreachable, which the caller surfaces as the init error.
+ * Pick the download source. CF is deterministic-priority, never raced against
+ * Vercel: on real user networks Vercel's static edges answer HEADs faster
+ * than CF's worker (8/4 analytics: Promise.any picked Vercel for 92% of
+ * downloads — ~6 GB/day of metered egress). Probe CF only (3s) and prefer it
+ * whenever reachable; same-origin Vercel is the fallback for CF-unreachable
+ * users (e.g. mainland China ISPs with flaky CF paths).
  */
 async function pickSource(): Promise<(typeof MODEL_SOURCES)[number]> {
-  const probes = MODEL_SOURCES.map((src) =>
-    fetch(src.task, { method: 'HEAD', signal: AbortSignal.timeout(6000), cache: 'no-store' }).then(
-      (res) => {
-        if (!res.ok) throw new Error(`HEAD ${res.status} for ${src.task}`);
-        return src;
-      },
-    ),
-  );
-  return Promise.any(probes);
+  const cf = MODEL_SOURCES[0];
+  try {
+    const res = await fetch(cf.task, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(3000),
+      cache: 'no-store',
+    });
+    if (res.ok) return cf;
+  } catch {
+    // CF unreachable — fall back to same-origin Vercel.
+  }
+  return MODEL_SOURCES[1];
 }
 
 let handLandmarker: HandLandmarker | null = null;
@@ -57,6 +62,25 @@ export function initHandTracking(): Promise<HandLandmarker> {
     });
   }
   return initPromise;
+}
+
+/**
+ * Hover/touch prefetch — downloads from CF only. A hover must never spend
+ * Vercel's metered bandwidth, so if CF is unreachable this silently does
+ * nothing; the click path (initHandTracking) still has the Vercel fallback.
+ */
+export async function prefetchModel(): Promise<void> {
+  const cf = MODEL_SOURCES[0];
+  try {
+    const res = await fetch(cf.task, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(3000),
+      cache: 'no-store',
+    });
+    if (res.ok) await initHandTracking();
+  } catch {
+    // CF down — nothing to prefetch.
+  }
 }
 
 async function doInit(): Promise<HandLandmarker> {

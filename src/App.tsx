@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   initHandTracking,
+  prefetchModel,
   detectHands,
   HAND_CONNECTIONS,
 } from './handTracker';
@@ -1737,8 +1738,10 @@ export default function App() {
   // intent (hover / touch / focus on the Enable Camera button) so the
   // actual click has nothing left to wait for. Users who never approach
   // the button download nothing. Errors surface at startCamera.
+  // CF-only: a hover must never spend Vercel's metered bandwidth — the
+  // click path owns the Vercel fallback for CF-unreachable users.
   const prefetchTracking = useCallback(() => {
-    initHandTracking().catch(() => {});
+    prefetchModel().catch(() => {});
   }, []);
 
   const stopCamera = useCallback(() => {

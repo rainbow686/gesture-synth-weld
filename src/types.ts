@@ -71,6 +71,13 @@ export const FINGER_TO_CHORD_INDEX: Record<number, number> = {
 export interface SynthState {
   chordIndex: number;
   chordName: string;
+  /** HUD display parts: root+quality (big) and right-hand extension (small) */
+  chordBase: string;
+  chordExt: string;
+  /** Right-thumb octave-down state (HUD 8vb badge) */
+  octaveDown: boolean;
+  /** Active chord style this frame (drives the waveform line count) */
+  chordStyle?: import('./chords').ChordStyle;
   volume: number;
   mode: 'major' | 'minor' | 'neutral';
   isPlaying: boolean;

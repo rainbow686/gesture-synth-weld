@@ -1360,30 +1360,39 @@ export default function App() {
     const G = Math.max(0, Math.min(255, Math.round(cur.g * brightness)));
     const B = Math.max(0, Math.min(255, Math.round(cur.b * brightness)));
 
-    // ── Line count = chord note count (right-hand thickness) ──
-    const echoes = muted ? 0 : Math.max(0, chordNoteCount(s.chordStyle) - 1);
+    // ── Line count = chord note count (right-hand thickness). The echoes
+    //    recede like a floor grid: front line at the bottom, each echo
+    //    higher, smaller, dimmer, with spacing compressing toward the
+    //    horizon and a slight horizontal convergence — so 3-5 lines read
+    //    as clearly separate strands in depth, not one blurry line. ──
+    const lineCount = muted ? 1 : Math.max(1, chordNoteCount(s.chordStyle));
     const alphaBase = muted ? 0.25 : 0.2 + rms * 0.8;
+    const H = canvas.height;
+    const baseY = H * 0.78;    // front line (closest)
+    const horizonY = H * 0.16; // far echoes converge toward here
+    const cx = canvas.width / 2;
+    const ampH = H * 0.55;
 
-    const sliceWidth = canvas.width / bufferLength;
-    for (let e = 0; e <= echoes; e++) {
-      // Symmetric vertical spread so a thicker chord reads as a fanned
-      // stack around the real waveform, not a line drifting downward.
-      const offsetY = Math.round((e - echoes / 2) * 3.2);
-      const a = e === 0 ? alphaBase : alphaBase * 0.45 * ((echoes + 1 - e) / (echoes + 1));
-      ctx.lineWidth = lineW;
+    for (let k = 0; k < lineCount; k++) {
+      const depth = k;
+      const t = 1 - Math.pow(0.55, depth); // 0 (front) → ~0.9 (far)
+      const yCenter = baseY + (horizonY - baseY) * t;
+      const scale = Math.pow(0.7, depth);       // amplitude shrinks with depth
+      const hScale = 1 - 0.06 * depth;          // slight horizontal convergence
+      const a = muted ? alphaBase : alphaBase * Math.pow(0.62, depth);
+      ctx.lineWidth = lineW * (0.5 + 0.5 * scale);
       ctx.strokeStyle = muted
-        ? `rgba(120, 120, 120, ${a})`
+        ? `rgba(120, 120, 120, ${alphaBase})`
         : `rgba(${R}, ${G}, ${B}, ${a})`;
       ctx.shadowColor = muted ? 'transparent' : `rgb(${R}, ${G}, ${B})`;
-      ctx.shadowBlur = muted ? 0 : 8;
+      ctx.shadowBlur = muted ? 0 : Math.max(2, Math.round(8 * scale));
       ctx.beginPath();
-      let x = 0;
       for (let i = 0; i < bufferLength; i++) {
-        const v = (waveform[i] + 1) / 2;
-        const y = v * canvas.height + offsetY;
+        const v = (waveform[i] + 1) / 2 - 0.5; // -0.5..0.5
+        const x = cx + (i / (bufferLength - 1) - 0.5) * canvas.width * hScale;
+        const y = yCenter + v * ampH * scale;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
-        x += sliceWidth;
       }
       ctx.stroke();
     }
@@ -3229,7 +3238,7 @@ export default function App() {
               bottom: '45px',
               left: 0,
               right: 0,
-              height: '36px',
+              height: '46px',
               zIndex: 5,
               pointerEvents: 'none',
             }}>

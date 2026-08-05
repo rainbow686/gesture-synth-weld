@@ -33,7 +33,7 @@ Single sawtooth synth — intentionally minimal
 
 ### Center HUD (live, gesture mode)
 - **Chord display**: root+quality big (Orbitron 900), right-hand extension smaller + dimmer (maj7/maj9/9th, inversion as slash-bass A/C#), scale-degree chip on the left (Inter, quiet), amber 8vb pill badge on the corner (Inter — never Orbitron: its geometric glyphs turn "8ve" into "81B"). Key/mode deliberately NOT shown here (toolbar + recording HUD already carry them)
-- **Waveform**: three channels — color = scale degree (7-hue neon spectrum, smooth lerp, DEGREE_COLORS), line count = chord note count (chordNoteCount: triad 3 / 7th 4 / 9th 5, fanned echoes), width = volume; right-hand tilt (filter sweep) brightens/darkens ±20%. Gray when muted
+- **Waveform**: three channels — color = scale degree (7-hue neon spectrum, smooth lerp, DEGREE_COLORS), line count = chord note count (chordNoteCount: triad 3 / 7th 4 / 9th 5, echoes recede toward a horizon like a floor grid — higher, smaller, dimmer, converging spacing, so the strands read as separate in depth), width = volume; right-hand tilt (filter sweep) brightens/darkens ±25%. Gray when muted
 
 ### Expression Controls
 - **Arpeggiator**: 3 speeds (slow/normal/fast), sequential note triggering

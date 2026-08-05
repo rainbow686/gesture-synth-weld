@@ -209,6 +209,80 @@ export function getChordName(
 }
 
 /**
+ * Display-name split for the center HUD: the big root+quality line and the
+ * smaller extension (right-hand chord changes — 7th/9th suffixes, inversion
+ * slash-bass). Mirror of getChordName with the extension separated so the
+ * HUD can style the two differently. Root names use the sharp alias
+ * (C#/Db → C#), matching the toolbar.
+ */
+export function getChordParts(
+  chordIndex: number,
+  modeOverride?: 'major' | 'minor',
+  keyOffset: number = 0,
+  chordStyle?: ChordStyle,
+): { base: string; ext: string } {
+  const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
+  const rootNoteIndex = ((chord.intervals[0] + keyOffset) % 12 + 12) % 12;
+  const rootNoteName = (KEYS[rootNoteIndex]?.name ?? 'C').split('/')[0];
+
+  const minor = (): boolean => {
+    if (modeOverride === 'major') return false;
+    if (modeOverride === 'minor') return true;
+    return !chord.isMajor;
+  };
+
+  if (!chordStyle) {
+    // Diatonic default (no locked style): root + quality, no extension.
+    const dim = chord.roman === 'vii°' && modeOverride !== 'major';
+    return { base: dim ? rootNoteName + 'dim' : rootNoteName + (minor() ? 'm' : ''), ext: '' };
+  }
+
+  switch (chordStyle) {
+    case 'root':
+    case 'triad':
+    case 'majorTriad':
+      return { base: rootNoteName, ext: '' };
+    case 'major1stInv': {
+      // Slash-bass notation: 1st inversion puts the 3rd in the bass
+      // (major third for major chords, minor third for minor).
+      const third = minor() ? 3 : 4;
+      const bass = (KEYS[(rootNoteIndex + third) % 12]?.name ?? 'C').split('/')[0];
+      return { base: rootNoteName + (minor() ? 'm' : ''), ext: `/${bass}` };
+    }
+    case 'minorTriad':
+      return { base: rootNoteName + 'm', ext: '' };
+    case 'dimTriad':
+      return { base: rootNoteName + 'dim', ext: '' };
+    case 'sus2':
+      return { base: rootNoteName + 'sus2', ext: '' };
+    case 'sus4':
+      return { base: rootNoteName + 'sus4', ext: '' };
+    case 'major7th':
+      return { base: rootNoteName, ext: 'maj7' };
+    case 'dominant7th':
+      return { base: rootNoteName, ext: '7' };
+    case '7th':
+      return { base: rootNoteName + (minor() ? 'm' : ''), ext: minor() ? 'm7' : 'maj7' };
+    case '9th':
+      return { base: rootNoteName + (minor() ? 'm' : ''), ext: minor() ? 'm9' : 'maj9' };
+  }
+}
+
+/** Number of notes the chord style plays (drives the waveform line count). */
+export function chordNoteCount(chordStyle?: ChordStyle): number {
+  switch (chordStyle) {
+    case '7th':
+    case 'major7th':
+    case 'dominant7th':
+      return 4;
+    case '9th':
+      return 5;
+    default:
+      return 3; // triads, 1st inversions, sus2/sus4, dim, root
+  }
+}
+
+/**
  * Get scale degree notes for a given key and mode.
  * Returns 7 notes (one octave of the scale).
  */

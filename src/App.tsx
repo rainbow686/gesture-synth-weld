@@ -10,6 +10,8 @@ import {
   DIATONIC_CHORDS,
   KEYS,
   getChordName,
+  getChordParts,
+  chordNoteCount,
   midiToFreq,
   type ChordStyle,
   CHORD_STYLE_OPTIONS,
@@ -151,6 +153,78 @@ function drawMetalBrand(
   g.addColorStop(1, '#a8cde8');
   ctx.fillStyle = g;
   ctx.fillText(text, x, y);
+}
+
+// 7 scale-degree colors for the waveform (neon palette, in-key): the
+// degree = harmony identity (left hand), so a chord change glides the
+// waveform's hue through this spectrum.
+const DEGREE_COLORS: [number, number, number][] = [
+  [0, 255, 204],   // I   — brand cyan
+  [0, 224, 138],   // ii  — spring green
+  [102, 255, 102], // iii — green
+  [170, 255, 68],  // IV  — yellow-green
+  [255, 204, 0],   // V   — amber
+  [255, 68, 204],  // vi  — magenta
+  [180, 76, 255],  // vii — violet
+];
+
+/**
+ * Recording-HUD chord: root+quality big (soft static, pill-backed look),
+ * right-hand extension smaller and dimmer, and the amber 8vb badge —
+ * mirrors the live center display (WYSIWYG).
+ */
+function drawChordHud(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  baseY: number,
+  size: number,
+  base: string,
+  ext: string,
+  octaveDown: boolean,
+): void {
+  ctx.font = `700 ${size}px Orbitron, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(0, 255, 204, 0.88)';
+  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
+  ctx.shadowBlur = 6;
+  const baseWidth = ctx.measureText(base).width;
+  ctx.fillText(base, cx, baseY);
+  if (ext) {
+    ctx.font = `500 ${Math.round(size * 0.4)}px Orbitron, monospace`;
+    ctx.fillStyle = 'rgba(0, 255, 204, 0.55)';
+    ctx.shadowBlur = 0;
+    ctx.fillText(ext, cx + baseWidth / 2 + Math.round(size * 0.25), baseY);
+  }
+  ctx.shadowBlur = 0;
+  if (octaveDown) {
+    // Amber pill (Inter — never Orbitron: its geometric glyphs turn
+    // "8ve" into "81B"). Anchored to the base text's top-right.
+    const badgeFont = Math.round(size * 0.22);
+    ctx.font = `700 ${badgeFont}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    const bw = ctx.measureText('8vb').width;
+    const bh = Math.round(size * 0.32);
+    const pad = Math.round(size * 0.12);
+    const bx = cx + baseWidth / 2 + (ext ? Math.round(size * 0.25) + ctx.measureText(ext).width + Math.round(size * 0.1) : Math.round(size * 0.12));
+    const by = baseY - size * 0.95;
+    ctx.fillStyle = 'rgba(255, 140, 0, 0.12)';
+    ctx.strokeStyle = 'rgba(255, 160, 40, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(bx, by, bw + pad * 2, bh, bh / 2);
+    } else {
+      ctx.rect(bx, by, bw + pad * 2, bh);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffb84d';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('8vb', bx + pad, by + bh / 2 + 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+  }
 }
 
 /** Soft chord text — floats directly, like the on-site display. */
@@ -346,6 +420,8 @@ export default function App() {
   const detectIntervalRef = useRef<number>(33);
   const runningRef = useRef(false);
   const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Waveform color state (RGB, lerped toward the current degree's hue).
+  const degreeColorRef = useRef({ r: 0, g: 255, b: 204 });
 
   /* ─── State ─────────────────────────────────────────────────────────── */
 
@@ -356,6 +432,9 @@ export default function App() {
   const [synthState, setSynthState] = useState<SynthState>({
     chordIndex: 0,
     chordName: 'C',
+    chordBase: 'C',
+    chordExt: '',
+    octaveDown: false,
     volume: 0.6,
     mode: 'neutral',
     isPlaying: false,
@@ -651,8 +730,23 @@ export default function App() {
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
   // toggle needed, and each effect adjusts independently. Stackable.
   // WYSIWYG between live view and recording window.
-  const [vignetteStrength, setVignetteStrength] = useState(0);
-  const [scanlinesStrength, setScanlinesStrength] = useState(0);
+  // Visual atmosphere defaults ON at 50% (= the pre-slider fixed look:
+  // gentle cinematic vignette + subtle scanlines). Saved choice wins; the
+  // localStorage read is guarded for private mode.
+  const [vignetteStrength, setVignetteStrength] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsw-vignette');
+      const v = saved === null ? NaN : Number(saved);
+      return isNaN(v) ? 50 : Math.min(100, Math.max(0, v));
+    } catch { return 50; }
+  });
+  const [scanlinesStrength, setScanlinesStrength] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gsw-scanlines');
+      const v = saved === null ? NaN : Number(saved);
+      return isNaN(v) ? 50 : Math.min(100, Math.max(0, v));
+    } catch { return 50; }
+  });
   const vignetteStrengthRef = useRef(vignetteStrength);
   const scanlinesStrengthRef = useRef(scanlinesStrength);
   useEffect(() => { vignetteStrengthRef.current = vignetteStrength; }, [vignetteStrength]);
@@ -708,6 +802,8 @@ export default function App() {
     audioEngine.setVocalPolish(recPolish);
     localStorage.setItem('gsw-rec-polish', recPolish);
   }, [recPolish]);
+  useEffect(() => { try { localStorage.setItem('gsw-vignette', String(vignetteStrength)); } catch { /* private mode */ } }, [vignetteStrength]);
+  useEffect(() => { try { localStorage.setItem('gsw-scanlines', String(scanlinesStrength)); } catch { /* private mode */ } }, [scanlinesStrength]);
 
   // Re-select the mic device (Chrome's permission prompt defaults to a
   // virtual/loopback device on some Macs — e.g. BlackHole — which records
@@ -1118,17 +1214,22 @@ export default function App() {
     // hand loss stops (grace period below).
     const leftFist = leftHand ? leftHand.fingerCount === 0 : true;
     const isPlaying = !!(leftHand && rightHand && !leftFist);
-    const chordName = getChordName(
+    const { base: chordBase, ext: chordExt } = getChordParts(
       chordIndex,
       mode === 'neutral' ? undefined : mode,
       s.keyOffset,
       chordStyle,
-    ) + (thumbDown ? ' (-8ve)' : '');
+    );
+    const chordName = chordBase + chordExt + (thumbDown ? ' (-8ve)' : '');
 
     const newSynth: SynthState = {
       ...s,
       chordIndex,
       chordName,
+      chordBase,
+      chordExt,
+      octaveDown: thumbDown,
+      chordStyle,
       volume,
       mode,
       isPlaying,
@@ -1203,8 +1304,11 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff6ec7', 'rgba(255,110,199,0.3)', 2, 4);
   };
 
-  // Draw waveform visualization — line thickness follows volume,
-  // gray when muted, invisible when silent.
+  // Draw waveform visualization — three-channel HUD:
+  //   color  = scale degree (left hand; 7-hue neon spectrum, smooth lerp),
+  //   lines  = chord note count (right hand: 3 triad / 4 seventh / 5 ninth),
+  //   width  = volume; right-hand tilt (filter sweep) brightens/darkens.
+  // Gray when muted, invisible when silent.
   const drawWaveformRef = useRef<() => void>();
   drawWaveformRef.current = () => {
     const canvas = waveformCanvasRef.current;
@@ -1236,32 +1340,53 @@ export default function App() {
     if (!handsPresent && rms < 0.005) return;
 
     // Muted (hands present but silent) → thin gray line
-    // Playing → cyan with variable width
     const muted = rms < 0.005;
     const lineW = muted ? 2 : 1 + rms * 8;
-    const r = muted ? 120 : 0;
-    const g = muted ? 120 : 255;
-    const b = muted ? 120 : 204;
-    const alpha = muted ? 0.25 : 0.2 + rms * 0.8;
 
-    ctx.lineWidth = lineW;
-    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    ctx.shadowColor = muted ? 'transparent' : '#00ffcc';
-    ctx.shadowBlur = muted ? 0 : 8;
-    ctx.beginPath();
+    // ── Color = scale degree (left-hand harmony), lerped so a chord
+    //    change glides through the neon spectrum instead of snapping. ──
+    const s = synthRef.current;
+    const degree = s.chordIndex >= 0 && s.chordIndex < DEGREE_COLORS.length ? s.chordIndex : 0;
+    const target = DEGREE_COLORS[degree];
+    const cur = degreeColorRef.current;
+    cur.r += (target[0] - cur.r) * 0.12;
+    cur.g += (target[1] - cur.g) * 0.12;
+    cur.b += (target[2] - cur.b) * 0.12;
+
+    // ── Tilt (filter sweep) → brightness ±20% (right-hand expression) ──
+    const tilt = Math.max(-1, Math.min(1, hands.right?.tiltAngle ?? 0));
+    const brightness = 1 + 0.2 * tilt;
+    const R = Math.max(0, Math.min(255, Math.round(cur.r * brightness)));
+    const G = Math.max(0, Math.min(255, Math.round(cur.g * brightness)));
+    const B = Math.max(0, Math.min(255, Math.round(cur.b * brightness)));
+
+    // ── Line count = chord note count (right-hand thickness) ──
+    const echoes = muted ? 0 : Math.max(0, chordNoteCount(s.chordStyle) - 1);
+    const alphaBase = muted ? 0.25 : 0.2 + rms * 0.8;
 
     const sliceWidth = canvas.width / bufferLength;
-    let x = 0;
-
-    for (let i = 0; i < bufferLength; i++) {
-      const v = (waveform[i] + 1) / 2;
-      const y = v * canvas.height;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-      x += sliceWidth;
+    for (let e = 0; e <= echoes; e++) {
+      // Symmetric vertical spread so a thicker chord reads as a fanned
+      // stack around the real waveform, not a line drifting downward.
+      const offsetY = Math.round((e - echoes / 2) * 2.4);
+      const a = e === 0 ? alphaBase : alphaBase * 0.35 * ((echoes + 1 - e) / (echoes + 1));
+      ctx.lineWidth = lineW;
+      ctx.strokeStyle = muted
+        ? `rgba(120, 120, 120, ${a})`
+        : `rgba(${R}, ${G}, ${B}, ${a})`;
+      ctx.shadowColor = muted ? 'transparent' : `rgb(${R}, ${G}, ${B})`;
+      ctx.shadowBlur = muted ? 0 : 8;
+      ctx.beginPath();
+      let x = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = (waveform[i] + 1) / 2;
+        const y = v * canvas.height + offsetY;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.stroke();
     }
-
-    ctx.stroke();
     ctx.shadowBlur = 0;
   };
 
@@ -1368,7 +1493,7 @@ export default function App() {
     // 1:1 / 9:16: push the chord down by ~a note-height so it never crowds
     // the top-left brand wordmark (16:9 keeps its tighter 84px slot).
     const chordY = ratio === '16:9' ? 84 : wy + 114;
-    drawChordText(rctx, W / 2, chordY, chordSize, s.chordName || '—');
+    drawChordHud(rctx, W / 2, chordY, chordSize, s.chordBase || '—', s.chordExt || '', !!s.octaveDown);
 
     if (ratio !== '16:9') {
       rctx.font = '500 16px Inter, system-ui, sans-serif';
@@ -3029,22 +3154,65 @@ export default function App() {
               </div>
             )}
 
-            {/* Now playing note — prominent but transparent, centered */}
+            {/* Now playing chord — prominent but transparent, centered.
+                Four-element hierarchy: [degree chip] Amaj7 (extension
+                smaller + dimmer) with the amber 8vb corner badge. */}
             {synthState.appMode === 'gesture' && synthState.isPlaying && (
               <div style={{
                 position: 'absolute',
                 top: '40%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                fontSize: '5rem',
-                fontWeight: 900,
-                color: 'rgba(0, 255, 204, 0.15)',
-                fontFamily: 'var(--font-display)',
                 zIndex: 3,
                 pointerEvents: 'none',
                 letterSpacing: '0.1em',
               }}>
-                {synthState.chordName}
+                <div style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-display)',
+                }}>
+                  {/* Scale-degree chip — left ear (Inter, small, quiet) */}
+                  <span style={{
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    color: 'rgba(150, 255, 235, 0.45)',
+                    marginRight: '0.45em',
+                    letterSpacing: '0.08em',
+                  }}>
+                    {GRADE_NAMES[synthState.chordIndex % GRADE_NAMES.length]}
+                  </span>
+                  {/* Root + quality — the main note */}
+                  <span style={{ fontSize: '5rem', fontWeight: 900, color: 'rgba(0, 255, 204, 0.15)', lineHeight: 1 }}>
+                    {synthState.chordBase}
+                  </span>
+                  {/* Extension — right-hand thickness, smaller + dimmer */}
+                  <span style={{ fontSize: '2rem', fontWeight: 500, color: 'rgba(0, 255, 204, 0.08)', marginLeft: '0.15em' }}>
+                    {synthState.chordExt}
+                  </span>
+                  {/* Octave badge — top-right corner (Inter, amber pill) */}
+                  {synthState.octaveDown && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-0.5em',
+                      right: '-1.2em',
+                      fontFamily: 'Inter, system-ui, sans-serif',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: '#ffb84d',
+                      background: 'rgba(255, 140, 0, 0.12)',
+                      border: '1px solid rgba(255, 160, 40, 0.4)',
+                      borderRadius: '999px',
+                      padding: '0.15em 0.55em',
+                      letterSpacing: '0.04em',
+                    }}>
+                      8vb
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 

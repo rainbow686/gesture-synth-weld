@@ -162,6 +162,26 @@ export function trackDownload(): void {
   track('download_clicked');
 }
 
+/**
+ * Share-sheet outcome (mobile Web Share API) — closes the recording
+ * funnel's blind spot: recordings previewed but never downloaded may
+ * actually be leaving via the share sheet. mode 'text' = the file share
+ * was rejected and the brand message fell back to a text-only share.
+ */
+export function trackShare(result: 'success' | 'canceled' | 'failed', mode: 'file' | 'text' = 'file'): void {
+  track('share_attempted', { result, mode });
+}
+
+/** Record button pressed with idle → chooser (the funnel entry). */
+export function trackRecordButtonClicked(): void {
+  track('record_button_clicked');
+}
+
+/** "Include my voice" toggle in the recording chooser. */
+export function trackMicToggled(on: boolean): void {
+  track('mic_toggled', { on: on ? 'on' : 'off' });
+}
+
 /** User scrolled the SEO content (Playbook) into view — ad placement signal. */
 export function trackScrollToPlaybook(): void {
   track('scroll_to_playbook');

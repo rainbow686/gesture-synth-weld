@@ -48,6 +48,9 @@ import {
   trackRecordingViewed,
   trackScrollToPlaybook,
   trackSettingChanged,
+  trackShare,
+  trackRecordButtonClicked,
+  trackMicToggled,
   trackWatchdogTriggered,
 } from './analytics';
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
@@ -1991,8 +1994,12 @@ export default function App() {
         text: brandText,
       });
       setShareFailed(false);
+      trackShare('success', 'file');
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return; // user cancelled
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        trackShare('canceled', 'file');
+        return; // user cancelled
+      }
       // Files share rejected (NotSupportedError etc.) — retry text-only so
       // the brand message still reaches the share sheet.
       try {
@@ -2002,9 +2009,14 @@ export default function App() {
           url: 'https://gesturesynthweld.com',
         });
         setShareFailed(false);
+        trackShare('success', 'text');
       } catch (e2) {
-        if (e2 instanceof DOMException && e2.name === 'AbortError') return;
+        if (e2 instanceof DOMException && e2.name === 'AbortError') {
+          trackShare('canceled', 'text');
+          return;
+        }
         setShareFailed(true);
+        trackShare('failed', 'text');
       }
     }
   }, [recBlob]);
@@ -2271,7 +2283,9 @@ export default function App() {
       setRecMode('audio');
     }
     setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
-  }, [isRunning, isRecording, finishRecording, recMode]);
+    // Funnel entry: only when the chooser actually opens (idle → choosing).
+    if (recPhase === 'idle') trackRecordButtonClicked();
+  }, [isRunning, isRecording, finishRecording, recMode, recPhase]);
 
   const handleStartRecording = useCallback(() => {
     localStorage.setItem('gsw-rec-mode', recMode);
@@ -2811,7 +2825,7 @@ export default function App() {
                   feature exists — grayed out until the mic is enabled */}
               <div className={`rec-mic-section ${micStreamRef.current ? '' : 'disabled'}`}>
                 <label className="rec-mic-toggle">
-                  <input type="checkbox" checked={micOn} onChange={(e) => setMicOn(e.target.checked)} disabled={!micStreamRef.current} />
+                  <input type="checkbox" checked={micOn} onChange={(e) => { trackMicToggled(e.target.checked); setMicOn(e.target.checked); }} disabled={!micStreamRef.current} />
                   <span>🎤 Include my voice — sing along with the chords</span>
                 </label>
                 {micStreamRef.current ? (

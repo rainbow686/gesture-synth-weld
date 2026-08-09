@@ -271,7 +271,7 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
         Close
       </button>
       <div className="kb-guide-hint">
-        Hold 1–7 to play · [ ] minor/major · Shift = octave down
+        Hold 1–7 to play · [ ] minor/major · Shift = octave down · back to camera: top toolbar camera button
       </div>
     </div>
   );

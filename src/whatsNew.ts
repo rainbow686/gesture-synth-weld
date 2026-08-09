@@ -10,13 +10,14 @@
  *    its own. No ✕, no dismissal — it can't be "seen once and lost"
  *    and the player never has to close it. Click = enter the feature.
  *
- *  - PLAYING-scene card (below the toolbar, camera modes only — a
- *    keyboard-mode player IS the new feature): DISMISSAL-based
- *    announcement at the moment the player is in the experience. Shows
- *    every session while active until the player closes it with the ✕
- *    (localStorage gsw-whatsnew-dismissed). Sits at Help's corner UNDER
- *    Help's z-index, so the two never stack at any resolution: Help open
- *    covers the card (and shows the full announcement anyway).
+ *  - PLAYING-scene card (camera modes only — a keyboard-mode player IS
+ *    the new feature): DISMISSAL-based announcement at the moment the
+ *    player is in the experience. Shows every session while active until
+ *    the player closes it with the ✕ (localStorage
+ *    gsw-whatsnew-dismissed). STACKED layout (never covering): anchors
+ *    under the toolbar (top 64px); while Help is open it slides below
+ *    the fixed-height Help panel (--help-h, smaller on mobile), so both
+ *    are visible, neatly arranged, at every resolution.
  *
  *  - Help modal: shows "New in this version" permanently (changelog
  *    role) — reading it dismisses nothing.

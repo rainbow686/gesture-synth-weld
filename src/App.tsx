@@ -1507,15 +1507,56 @@ export default function App() {
               </svg>
             </button>
             <span className="divider mobile-collapse" />
-            <button className="icon-btn mobile-collapse" onClick={stopCamera} data-tip="Stop camera and audio">
-              {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
-              <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
-                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
-                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-                <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
-              </svg>
+            {/* Camera ↔ keyboard mode switch — the PERMANENT, prominent
+                way to change input source (the NEW card and the settings
+                toggle are the other paths; the card expires after the
+                announce window, this button doesn't — user decision
+                2026-08-09: keyboard-mode players must always be able to
+                find their way back to the camera). In keyboard mode it's
+                a labeled "Camera" capsule so new players can't miss it;
+                in camera mode a bare keyboard icon (tooltip explains). */}
+            <button
+              className={`icon-btn mobile-collapse mode-switch-btn${keyboardMode ? ' labeled' : ''}`}
+              onClick={() => handleKeyboardToggle(!keyboardMode)}
+              data-tip={keyboardMode
+                ? 'Switch to camera mode — play with hand gestures'
+                : 'Switch to keyboard mode — no camera needed'}
+            >
+              {keyboardMode ? (
+                <>
+                  {/* Camera pictogram (Apple-style) — no magenta slash
+                      (that slash marks STOP on the button next to it) */}
+                  <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                    <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                    <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                  </svg>
+                  <span className="mode-switch-label">Camera</span>
+                </>
+              ) : (
+                /* Keyboard pictogram — same glyph as the landing button */
+                <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
+                </svg>
+              )}
             </button>
+            {/* Stop is CAMERA-mode only (user decision 2026-08-09): in
+                keyboard mode there's no camera to stop and the Camera
+                capsule takes its role (leaving keyboard mode), so the
+                misleading stop-camera button is hidden there. In camera
+                mode it stays — the only way to leave the playing scene
+                back to the landing. */}
+            {!keyboardMode && (
+              <button className="icon-btn mobile-collapse" onClick={stopCamera} data-tip="Stop camera and audio">
+                {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
+                <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                  <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                  <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                  <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
             <button className="icon-btn mobile-collapse" onClick={() => { setShowSettings(!showSettings); }} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
               {/* Gear like the iOS Settings / clockwork cog: a thick ring
                   with many short fat teeth and an open center */}
@@ -1657,7 +1698,7 @@ export default function App() {
                 announcement anyway) — they never stack. Click = switch
                 to keyboard mode. ──────────────────────────────────────── */}
         {isRunning && !keyboardMode && whatsNewActive() && !whatsNewDismissedState && (
-          <div className="whatsnew-card whatsnew-card--scene">
+          <div className={`whatsnew-card whatsnew-card--scene${showHelp ? ' whatsnew-card--below-help' : ''}`}>
             <button
               className="whatsnew-close"
               onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); }}

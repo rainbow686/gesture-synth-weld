@@ -18,6 +18,9 @@ export type InputSource = 'camera' | 'keyboard';
 export interface HandFrame {
   left: HandData | null;
   right: HandData | null;
+  /** Which source produced this frame — consumers gate camera-specific
+   *  compensation (pinky memory) on this. */
+  source: InputSource;
 }
 
 /** Common interface for all input sources (future MIDI source implements this). */

@@ -53,6 +53,7 @@ export class CameraSource implements HandInputSource {
     return {
       left: leftDetected ? left : null,
       right: rightDetected ? right : null,
+      source: 'camera',
     };
   }
 

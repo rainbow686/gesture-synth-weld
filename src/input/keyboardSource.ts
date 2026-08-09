@@ -17,6 +17,9 @@
  *     mouse Y  → height (volume, top = loud)
  *     8/9/0/-  → chord style 1–4 (triad / 1st inv / 7th / 9th)
  *     M        → thumb (octave down, HUD 8vb badge)
+ *   Global:
+ *     X        → mute toggle (like the left fist; muted frames report no
+ *                hands, so the consume pipeline stops all sound)
  *
  * Synthetic hands have empty landmarks — the skeleton overlay skips them
  * (drawHandSkeleton requires ≥21 points); everything else (HUD chord,
@@ -50,12 +53,21 @@ export class KeyboardSource implements HandInputSource {
   readonly kind: InputSource = 'keyboard';
 
   private state: KbState = structuredClone(DEFAULT_STATE);
+  private muted = false;
+
+  /** Mute state (X key) — mirror of the left-fist mute. */
+  get isMuted(): boolean {
+    return this.muted;
+  }
 
   /** Key handler — call from a window keydown/keyup listener. */
   handleKey(e: KeyboardEvent, down: boolean): void {
     const key = e.key;
     // Only react to our mapped keys; keep default browser behavior otherwise.
     switch (key) {
+      case 'x': case 'X':
+        if (down) this.muted = !this.muted;
+        break;
       case '1': case '2': case '3': case '4': case '5':
         if (down) {
           this.state.left = { ...this.state.left, fingerCount: Number(key), vi: false, vii: false };
@@ -96,6 +108,10 @@ export class KeyboardSource implements HandInputSource {
   }
 
   getFrame(): HandFrame {
+    // Muted (X): report no hands — the consume pipeline stops all sound
+    // (same path as the left fist / hand loss).
+    if (this.muted) return { left: null, right: null, source: 'keyboard' };
+
     const { left, right, mouse } = this.state;
 
     // Left hand → harmony. VI/VII express via extended fingers (same
@@ -138,10 +154,11 @@ export class KeyboardSource implements HandInputSource {
       positionX: 0.7,
     };
 
-    return { left: leftHand, right: rightHand };
+    return { left: leftHand, right: rightHand, source: 'keyboard' };
   }
 
   reset(): void {
     this.state = structuredClone(DEFAULT_STATE);
+    this.muted = false;
   }
 }

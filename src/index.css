@@ -770,7 +770,9 @@ body {
   border: 1px solid var(--frost-border);
   border-radius: 16px;
   box-shadow: var(--frost-shadow);
-  z-index: 19;
+  /* Above .camera-placeholder (30): the brand wordmark used to cover the
+     panel's bottom toggle on the landing view (reported 2026-08-09). */
+  z-index: 35;
   display: flex;
   flex-direction: column;
   gap: 10px;

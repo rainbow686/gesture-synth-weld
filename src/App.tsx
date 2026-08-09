@@ -955,10 +955,17 @@ export default function App() {
       const extended = leftHand.extendedFingers;
       // Pinky memory: if detected in last 60 frames (~2s), treat as extended.
       // Long window compensates for unreliable Y-axis pinky detection.
-      if (extended.includes('pinky')) {
-        pinkyMemoryRef.current = 60;
-      } else if (pinkyMemoryRef.current > 0) {
-        pinkyMemoryRef.current--;
+      // Camera-only: the keyboard source reports exact fingers, so a pinky
+      // it already released must not linger (bug: 7→1/2/3/4/5 passed through
+      // VI for ~2s after the camera-style memory).
+      if (frame.source === 'camera') {
+        if (extended.includes('pinky')) {
+          pinkyMemoryRef.current = 60;
+        } else if (pinkyMemoryRef.current > 0) {
+          pinkyMemoryRef.current--;
+        }
+      } else {
+        pinkyMemoryRef.current = 0;
       }
       const pinky = pinkyMemoryRef.current > 0;
       const thumb = extended.includes('thumb');
@@ -1425,7 +1432,7 @@ export default function App() {
         }
         drawStageBackground(ctx, canvas.width, canvas.height);
         try {
-          const frame = keyboardSourceRef.current?.getFrame() ?? { left: null, right: null };
+          const frame = keyboardSourceRef.current?.getFrame() ?? { left: null, right: null, source: 'keyboard' as const };
           processHandsRef.current?.(frame);
         } catch (e) {
           console.warn('Keyboard frame error:', e);
@@ -1436,14 +1443,29 @@ export default function App() {
       }
 
       const cam = video as HTMLVideoElement; // camera branch (keyboardMode returned above)
-      if (canvas.width !== cam.videoWidth || canvas.height !== cam.videoHeight) {
-        canvas.width = cam.videoWidth || 640;
-        canvas.height = cam.videoHeight || 480;
+      // Canvas bitmap = display size (device pixels). The video is drawn
+      // with the SAME cover-crop math as the recording compositor, so the
+      // live view and the recording show identical framing (WYSIWYG —
+      // reported 2026-08-09: 9:16 live vs recording widths differed because
+      // CSS object-fit:cover and the recorder's cover formula disagreed).
+      const dpr = window.devicePixelRatio || 1;
+      const dispW = Math.max(1, Math.round(canvas.clientWidth * dpr));
+      const dispH = Math.max(1, Math.round(canvas.clientHeight * dpr));
+      if (canvas.width !== dispW || canvas.height !== dispH) {
+        canvas.width = dispW;
+        canvas.height = dispH;
       }
 
       ctx.save();
       ctx.scale(-1, 1);
-      ctx.drawImage(video as HTMLVideoElement, -canvas.width, 0, canvas.width, canvas.height);
+      const sw = cam.videoWidth || 640;
+      const sh = cam.videoHeight || 480;
+      const scale = Math.max(dispW / sw, dispH / sh);
+      const dw = Math.round(sw * scale);
+      const dh = Math.round(sh * scale);
+      const dx = Math.round((dispW - dw) / 2);
+      const dy = Math.round((dispH - dh) / 2);
+      ctx.drawImage(cam, dx, dy, dw, dh);
       ctx.restore();
 
       ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
@@ -1455,7 +1477,7 @@ export default function App() {
         const t0 = performance.now();
         try {
           // Camera branch only (keyboardMode returned above), so video is present.
-          const frame = cameraSourceRef.current?.getFrame(video as HTMLVideoElement, timestamp) ?? { left: null, right: null };
+          const frame = cameraSourceRef.current?.getFrame(video as HTMLVideoElement, timestamp) ?? { left: null, right: null, source: 'camera' as const };
           processHandsRef.current?.(frame);
         } catch (e) {
           console.warn('Detection frame error:', e);
@@ -2930,7 +2952,7 @@ export default function App() {
                 </button>
                 <p className="camera-placeholder-hint">
                   {keyboardMode
-                    ? 'Keys 1-7 chords · Q/W major-minor · 8/9/0/- style · M octave · mouse X filter · mouse Y volume'
+                    ? 'Keys 1-7 chords · Q/W major-minor · 8/9/0/- style · M octave · X mute · mouse X filter · mouse Y volume'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
               </>

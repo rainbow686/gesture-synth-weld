@@ -152,7 +152,7 @@ export default function App() {
   // identical behavior).
   const cameraSourceRef = useRef<CameraSource | null>(null);
   if (!cameraSourceRef.current) cameraSourceRef.current = new CameraSource();
-  // Keyboard+mouse input source (no-camera mode).
+  // Keyboard input source (no-camera mode).
   const keyboardSourceRef = useRef<KeyboardSource | null>(null);
   if (!keyboardSourceRef.current) keyboardSourceRef.current = new KeyboardSource();
 
@@ -266,7 +266,7 @@ export default function App() {
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
-  // No-camera mode (2026-08-09, refactor branch): keyboard+mouse drives the
+  // No-camera mode (2026-08-09, refactor branch): keyboard drives the
   // same consume pipeline via synthetic HandData (see input/keyboardSource).
   // Persisted so camera-less users stay productive across visits.
   const [keyboardMode, setKeyboardMode] = useState(() => {
@@ -1784,7 +1784,7 @@ export default function App() {
                       <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
                     )}
                   </svg>
-                  <span>{keyboardMode ? 'Start Playing (Keyboard & Mouse)' : 'Enable Camera'}</span>
+                  <span>{keyboardMode ? 'Start Playing (Keyboard)' : 'Enable Camera'}</span>
                 </button>
                 <p className="camera-placeholder-hint">
                   {keyboardMode

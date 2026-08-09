@@ -1,7 +1,7 @@
 /**
  * Input source abstraction (2026-08-09, refactor/input-engine-architecture).
  *
- * Architecture: every input source (camera, keyboard+mouse, future MIDI)
+ * Architecture: every input source (camera, keyboard, future MIDI)
  * produces the SAME payload — a pair of `HandData` (left/right, or null) —
  * which App consumes through one pipeline ("every input reaches the same
  * audio engine", the competitor .online principle). Hand-gesture-only

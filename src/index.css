@@ -109,6 +109,12 @@ body {
 
 .camera-placeholder-brand {
   margin-bottom: 0.5rem;
+  /* Pure display — never intercept clicks. On smaller screens the brand
+     can overlap the settings panel / main button; with pointer-events
+     off, clicks pass through to whatever is underneath (resolution-proof,
+     bug 2026-08-09: brand wordmark covered the keyboard toggle on a
+     13" Mac). */
+  pointer-events: none;
 }
 
 .camera-placeholder-brand-text {

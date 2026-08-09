@@ -108,7 +108,15 @@
         "name": "Do I need any special equipment?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads."
+          "text": "No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads. Prefer no camera at all? Keyboard mode turns your physical keyboard into the instrument — no webcam and no model download required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I play without a camera?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes — Keyboard Mode (desktop) turns your physical keyboard into the instrument: press 1-7 for scale degrees I-VII (hold to play, release to stop), [ / ] for minor/major, 8/9/0/- for chord styles, Shift for octave down, arrow keys for volume and filter sweeps, Space to stop. Enable it in Settings — no camera permission, no MediaPipe model download. A real-keyboard interactive guide with a demo animation teaches every key; recording captures audio (voice optional) since there's no camera feed to record as video."
         }
       },
       {
@@ -657,6 +665,37 @@
           </tbody>
         </table>
 
+        <!-- Keyboard Mode (no-camera) -->
+        <h3 style="color:#00ffcc;margin-top:1.5rem">⌨ Keyboard Mode — No Camera Needed</h3>
+        <p style="margin-bottom:0.4rem">
+          Don't have a webcam — or just don't want to use one? Turn on
+          <strong>Settings → No camera? Keyboard mode (desktop)</strong> and play the
+          synth with your physical keyboard. No camera permission, no model
+          download, nothing is captured.
+        </p>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Key</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>1 – 7</strong></td><td>Scale degrees I – VII — <strong>hold to play, release to stop</strong> (like a keyboard instrument)</td></tr>
+            <tr><td><strong>[ / ]</strong></td><td>Minor / Major mode</td></tr>
+            <tr><td><strong>8 / 9 / 0 / -</strong></td><td>Chord style: triad · 1st inversion · 7th · 9th</td></tr>
+            <tr><td><strong>Shift</strong></td><td>Octave down (8vb)</td></tr>
+            <tr><td><strong>↑ / ↓</strong></td><td>Volume sweep (hold)</td></tr>
+            <tr><td><strong>← / →</strong></td><td>Filter sweep (hold)</td></tr>
+            <tr><td><strong>Space</strong></td><td>Stop all notes</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:0.4rem">
+          The first time you enter keyboard mode, an interactive guide shows a real
+          QWERTY keyboard with a demo animation — press the keys yourself and they
+          light up with what each one plays. You can replay it anytime from the
+          <strong>?</strong> help panel. <strong>Recording</strong> in keyboard mode captures audio
+          (including your voice if you enable the mic) — there's no camera feed to
+          record as video.
+        </p>
+
         <!-- Default Settings -->
         <h3 style="color:#ffaa00;margin-top:1.5rem">⚙ Default Settings</h3>
         <p style="margin-bottom:0.4rem">The <strong>default settings</strong> out of the box:</p>
@@ -898,6 +937,22 @@
             choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished,
             Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt in settings
             to switch between major and minor with left-hand wrist tilt. <a href="#gesture-guide" style="color:#00ffcc">See the full gesture table →</a>
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I play without a camera?</summary>
+          <p>
+            Yes — <strong>Keyboard Mode</strong> turns your physical keyboard into the instrument
+            (desktop only, no camera permission and no model download needed). Enable it in
+            <strong>Settings → "No camera? Keyboard mode"</strong>, then press <strong>1-7</strong>
+            for scale degrees I-VII (hold to play, release to stop), <strong>[ / ]</strong> for
+            minor/major, <strong>8/9/0/-</strong> for chord styles, <strong>Shift</strong> for
+            octave down, <strong>↑/↓</strong> for volume and <strong>←/→</strong> for the filter
+            sweep, and <strong>Space</strong> to stop. A real-keyboard guide with a demo animation
+            shows you every key the first time — replayable anytime from the <strong>?</strong> help
+            panel. Recording in keyboard mode captures audio (add your voice with the mic) — video
+            modes need a camera feed, so they're hidden there.
           </p>
         </details>
 

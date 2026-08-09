@@ -494,7 +494,11 @@ export default function App() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (keyboardModeRef.current) keyboardSourceRef.current?.handleKey(e, false);
+      // Forward releases while keyboard mode runs OR the guide is open —
+      // the keydown guard already covers the guide, and a release without
+      // this guard left the key "stuck" (note kept sounding) when the
+      // guide was replayed from the camera mode (bug 2026-08-09).
+      if (keyboardModeRef.current || showKbGuideRef.current) keyboardSourceRef.current?.handleKey(e, false);
       // NOTE: no guide dismissal here — the keyup of the very keystroke
       // that activated the mode button (Enter/Space) used to flash the
       // first-run guide away before it could be read (bug 2026-08-09).
@@ -1370,6 +1374,11 @@ export default function App() {
 
   // Settings-panel keyboard toggle — owns persistence + mode lifecycle
   // (the panel component stays presentation-only).
+  // Symmetric behavior (user decision 2026-08-09): ENABLING keyboard mode
+  // starts playing at once; DISABLING it starts the camera at once —
+  // no idle hop through the Enable Camera landing, the player keeps
+  // operating. (First camera start still shows the loading flow with the
+  // model download.)
   const handleKeyboardToggle = useCallback((on: boolean) => {
     trackSettingChanged('keyboard_mode', on ? 'on' : 'off');
     try { localStorage.setItem('gsw-keyboard-mode', on ? '1' : '0'); } catch { /* private mode */ }
@@ -1378,11 +1387,10 @@ export default function App() {
       // Start immediately when enabled from idle
       startKeyboardMode();
     } else if (!on && isRunning) {
-      // Running on keyboard: stop cleanly; the main button
-      // returns to Enable Camera.
-      stopCamera();
+      // Returning from keyboard: start the camera directly
+      startCamera();
     }
-  }, [isRunning, startKeyboardMode, stopCamera]);
+  }, [isRunning, startKeyboardMode, startCamera]);
 
   // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
   // after the section stays ≥50% visible for 3s (a quick scroll-through does

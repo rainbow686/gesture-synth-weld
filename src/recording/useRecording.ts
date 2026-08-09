@@ -122,9 +122,14 @@ export function useRecording(deps: UseRecordingDeps) {
     if (!recBlob) return null;
     return URL.createObjectURL(recBlob.blob);
   }, [recBlob]);
+  // Revoke ONLY on unmount/change — the original App code revoked in the
+  // effect body too, which killed the freshly-created URL before the
+  // result panel could play it (regression 2026-08-09: previews were
+  // black while downloads worked — downloadRec builds its own URL).
   useEffect(() => {
-    if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
-    return () => { if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl); };
+    return () => {
+      if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
+    };
   }, [recPreviewUrl]);
 
   /* ─── Mic ───────────────────────────────────────────────────────────── */

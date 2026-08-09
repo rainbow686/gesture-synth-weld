@@ -74,6 +74,7 @@ src/
 ├── index.css           # Full-screen cyberpunk theme
 ├── main.tsx            # React entry point
 ├── wavEncoder.ts       # WAV export utility
+├── __tests__/          # Vitest: chords.test.ts + audioEngine.test.ts (29 tests)
 ├── handArt.ts          # Licensed hand-gesture SVG art for the Help demo (Commons CC BY-SA / Noto Apache-2.0 / OpenClipart CC0, single-color)
 └── mp4tags.ts          # MP4/M4A brand tags + cover art (covr) injection
 
@@ -150,7 +151,7 @@ fallback → same-origin /v1.0.1/ (Vercel; mainland-China safety net)
 - **Performance**: Chord fingerprint prevents re-triggering on identical chords
 - **Smooth transitions**: All parameter changes use Tone.js ramping methods
 - **UI sync**: Help panel and FAQ JSON-LD updated to match actual implementation
-- **Testing**: No test framework yet; manual testing required
+- **Testing**: Vitest (since 2026-08-09, refactor branch) — unit tests for chords + audioEngine pure logic (`npm test`); UI still manual + Kimi WebBridge screenshot regression
 
 ## Known Gotchas
 

@@ -1,23 +1,28 @@
 /**
- * Keyboard + mouse input source — the no-camera fallback (growth plan P0,
- * competitor .online/.net ship equivalents).
+ * Keyboard input source — the no-camera fallback (growth plan P0).
  *
  * Key principle: inputs are translated into synthetic `HandData` and fed
  * through the SAME consume pipeline as the camera ("every input reaches
  * the same audio engine"). The left hand (harmony) maps to the number
- * keys, the right hand (expression) to the mouse:
+ * keys, the right hand (expression) to the direction keys.
+ *
+ * Design (2026-08-09, user + competitor review — single-device, keyboard
+ * only; competitor .net's arrow-key energy control was the inspiration):
  *
  *   Left hand (harmony) — HOLD to play, release to stop (keyboard
- *   instrument semantics: press = sound, release = silence):
+ *   instrument semantics; only the degree key is ever held, so multi-key
+ *   state is always knowable):
  *     1-5      → scale degree I–V        (fingerCount 1–5)
  *     6        → VI                      (index+pinky)
  *     7        → VII                     (index+pinky+thumb)
- *     Q / W    → wrist tilt (minor/major, matching camera sign: ≥0 major)
+ *     [ / ]    → wrist tilt minor/major (point-toggle, like the camera
+ *                wrist; '[' = minor, ']' = major)
  *   Right hand (expression):
- *     mouse X  → tilt (filter sweep, -1..1)
- *     mouse Y  → height (volume, top = loud)
+ *     ↑ / ↓    → volume (hold to sweep; maps to height positionY)
+ *     ← / →    → filter sweep (hold to sweep; maps to tiltAngle)
  *     8/9/0/-  → chord style 1–4 (triad / 1st inv / 7th / 9th)
- *     M        → thumb (octave down, HUD 8vb badge)
+ *     Shift    → thumb (octave down, HUD 8vb badge)
+ *   Space      → stop-all (kept in App; category convention)
  *
  * Releasing the held degree key reports no left hand — the consume
  * pipeline stops all sound (same path as the left fist / hand loss).
@@ -37,20 +42,29 @@ interface KbState {
     fingerCount: number; // 1-5 → I-V
     vi: boolean; // 6 → VI
     vii: boolean; // 7 → VII
-    tilt: number; // -1 minor / +1 major
+    tilt: number; // -1 minor / +1 major ('[' / ']')
   };
   right: {
     styleFinger: number; // 1-4 → triad/1stInv/7th/9th
-    thumb: boolean; // M → octave down
+    thumb: boolean; // Shift → octave down
+    positionY: number; // height → volume (0 top = loud, 1 bottom = quiet)
+    tiltAngle: number; // -1..1 → filter sweep
   };
-  mouse: { x: number; y: number }; // 0..1 normalized
+  /** Arrow keys held this frame — applied as a continuous sweep in getFrame. */
+  adjust: {
+    volume: -1 | 0 | 1; // ↑ = -1 (louder), ↓ = +1 (quieter)
+    tilt: -1 | 0 | 1; // ← = -1, → = +1
+  };
 }
 
 const DEFAULT_STATE: KbState = {
   left: { key: null, fingerCount: 1, vi: false, vii: false, tilt: 1 },
-  right: { styleFinger: 1, thumb: false },
-  mouse: { x: 0.5, y: 0.5 },
+  right: { styleFinger: 1, thumb: false, positionY: 0.5, tiltAngle: 0 },
+  adjust: { volume: 0, tilt: 0 },
 };
+
+/** Sweep speed per frame (rAF ~60fps → full range in ~1s). */
+const SWEEP_STEP = 0.02;
 
 export class KeyboardSource implements HandInputSource {
   readonly kind: InputSource = 'keyboard';
@@ -78,11 +92,14 @@ export class KeyboardSource implements HandInputSource {
         if (down) this.state.left = { ...this.state.left, key, vii: true, vi: false };
         else if (key === this.state.left.key) this.state.left = { ...this.state.left, key: null };
         break;
-      case 'q': case 'Q':
-        if (down) this.state.left = { ...this.state.left, tilt: -1 };
+      case '[':
+        if (down) this.state.left = { ...this.state.left, tilt: -1 }; // minor
         break;
-      case 'w': case 'W':
-        if (down) this.state.left = { ...this.state.left, tilt: 1 };
+      case ']':
+        if (down) this.state.left = { ...this.state.left, tilt: 1 }; // major
+        break;
+      case 'Shift':
+        if (down) this.state.right = { ...this.state.right, thumb: !this.state.right.thumb };
         break;
       case '8': case '9': case '0': case '-':
         if (down) {
@@ -90,24 +107,25 @@ export class KeyboardSource implements HandInputSource {
           this.state.right = { ...this.state.right, styleFinger };
         }
         break;
-      case 'm': case 'M':
-        if (down) this.state.right = { ...this.state.right, thumb: !this.state.right.thumb };
+      case 'ArrowUp':
+        this.state.adjust = { ...this.state.adjust, volume: down ? -1 : 0 };
+        break;
+      case 'ArrowDown':
+        this.state.adjust = { ...this.state.adjust, volume: down ? 1 : 0 };
+        break;
+      case 'ArrowLeft':
+        this.state.adjust = { ...this.state.adjust, tilt: down ? -1 : 0 };
+        break;
+      case 'ArrowRight':
+        this.state.adjust = { ...this.state.adjust, tilt: down ? 1 : 0 };
         break;
       default:
         break;
     }
   }
 
-  /** Mouse handler — call from a window mousemove listener. */
-  handleMouse(e: MouseEvent): void {
-    this.state.mouse = {
-      x: Math.max(0, Math.min(1, e.clientX / window.innerWidth)),
-      y: Math.max(0, Math.min(1, e.clientY / window.innerHeight)),
-    };
-  }
-
   getFrame(): HandFrame {
-    const { left, right, mouse } = this.state;
+    const { left, right, adjust } = this.state;
 
     // No degree key held → no left hand → the consume pipeline silences
     // (same path as the left fist / hand loss).
@@ -115,11 +133,18 @@ export class KeyboardSource implements HandInputSource {
       return { left: null, right: null, source: 'keyboard' };
     }
 
+    // Arrow-key sweeps: volume (positionY) and filter (tiltAngle).
+    if (adjust.volume !== 0) {
+      right.positionY = Math.max(0, Math.min(1, right.positionY + adjust.volume * SWEEP_STEP));
+    }
+    if (adjust.tilt !== 0) {
+      right.tiltAngle = Math.max(-1, Math.min(1, right.tiltAngle + adjust.tilt * SWEEP_STEP));
+    }
+
     // Left hand → harmony. VI/VII express via extended fingers (same
     // detection as the camera: index+pinky / +thumb). Plain 1-5 use
     // fingerCount only — extendedFingers must NOT include thumb/pinky
-    // for those (a stray pinky would flip VI detection on the camera
-    // path; here we control it fully).
+    // for those (a stray pinky would flip VI detection).
     let extendedFingers: string[];
     let fingerCount: number;
     if (left.vi) {
@@ -143,15 +168,14 @@ export class KeyboardSource implements HandInputSource {
       positionX: 0.3,
     };
 
-    // Right hand → expression. Mouse Y is height (volume): positionY 0 =
-    // top = loud (matches 1.1 - positionY in the consume pipeline).
+    // Right hand → expression (direction keys replace the mouse).
     const rightHand: HandData = {
       landmarks: [],
       label: 'Right',
       fingerCount: right.styleFinger,
       extendedFingers: right.thumb ? ['thumb'] : ['index'],
-      tiltAngle: mouse.x * 2 - 1, // -1..1 → filter sweep
-      positionY: mouse.y,
+      tiltAngle: right.tiltAngle,
+      positionY: right.positionY,
       positionX: 0.7,
     };
 

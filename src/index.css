@@ -1844,3 +1844,111 @@ body {
 .rec-mic-enable-btn:hover {
   background: rgba(0, 255, 204, 0.22);
 }
+
+/* ─── Keyboard-mode guide overlay (first-run + replay) ────────────────
+   Liquid-glass abstract keyboard: frosted panel, neon keys, grouped
+   pulse animations teaching key → music mapping. Auto-dismisses after
+   a few seconds or on any key press. */
+.kb-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(5, 5, 15, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+  animation: kb-fade-in 0.25s ease;
+}
+
+@keyframes kb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.kb-guide-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 14px rgba(0, 255, 204, 0.5);
+}
+
+.kb-guide-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.kb-guide-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-border);
+  border-radius: 14px;
+  padding: 8px 10px;
+  box-shadow: var(--frost-shadow);
+}
+
+/* Grouped pulse: each functional group lights up in turn. */
+.kb-guide-pulse {
+  animation: kb-pulse 2.6s ease-in-out infinite;
+}
+.kb-guide-pulse-1 { animation-delay: 0s; }
+.kb-guide-pulse-2 { animation-delay: 0.65s; }
+.kb-guide-pulse-3 { animation-delay: 1.3s; }
+
+@keyframes kb-pulse {
+  0%, 60%, 100% { box-shadow: 0 0 0 rgba(0, 255, 204, 0); border-color: var(--frost-border); }
+  20%, 45% { box-shadow: 0 0 18px rgba(0, 255, 204, 0.45); border-color: rgba(0, 255, 204, 0.7); }
+}
+
+.kb-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 34px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+
+.kb-key-cap {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.kb-key-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.kb-guide-note {
+  align-self: center;
+  font-size: 0.52rem;
+  color: var(--neon-cyan);
+  opacity: 0.8;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.kb-guide-hint {
+  font-size: 0.6rem;
+  color: #b0b0d0;
+  letter-spacing: 0.06em;
+}

@@ -569,6 +569,21 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
+  // First-run keyboard guide overlay: auto-shows once (localStorage flag),
+  // dismisses on any key or after a few seconds; replayable from Help.
+  const [showKbGuide, setShowKbGuide] = useState(false);
+  const showKbGuideRef = useRef(false);
+  useEffect(() => { showKbGuideRef.current = showKbGuide; }, [showKbGuide]);
+  const kbGuideTimerRef = useRef<number | null>(null);
+  const dismissKbGuide = useCallback(() => {
+    setShowKbGuide(false);
+    if (kbGuideTimerRef.current) { window.clearTimeout(kbGuideTimerRef.current); kbGuideTimerRef.current = null; }
+  }, []);
+  const showKbGuideWithAutoHide = useCallback(() => {
+    setShowKbGuide(true);
+    if (kbGuideTimerRef.current) window.clearTimeout(kbGuideTimerRef.current);
+    kbGuideTimerRef.current = window.setTimeout(() => setShowKbGuide(false), 4000);
+  }, []);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
   // toggle needed, and each effect adjusts independently. Stackable.
@@ -805,19 +820,16 @@ export default function App() {
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (keyboardModeRef.current) keyboardSourceRef.current?.handleKey(e, false);
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (keyboardModeRef.current) keyboardSourceRef.current?.handleMouse(e);
+      // Any key dismisses the first-run keyboard guide (played immediately
+      // — the player wants to start).
+      if (showKbGuideRef.current) dismissKbGuide();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('mousemove', handleMouseMove);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
 
@@ -1621,8 +1633,9 @@ export default function App() {
     if (video.paused) video.play().catch(() => {});
   }, [restartCameraStream]);
 
-  // No-camera mode: no getUserMedia, no model download — the keyboard+mouse
+  // No-camera mode: no getUserMedia, no model download — the keyboard
   // source drives the same pipeline from the rAF loop. Persist the choice.
+  // First run auto-shows the keyboard guide (once); replay lives in Help.
   const startKeyboardMode = useCallback(() => {
     try { localStorage.setItem('gsw-keyboard-mode', '1'); } catch { /* private mode */ }
     setKeyboardMode(true);
@@ -1631,7 +1644,13 @@ export default function App() {
     firstGestureSentRef.current = false;
     setIsLoading(false);
     setIsRunning(true);
-  }, []);
+    let guideSeen = false;
+    try { guideSeen = localStorage.getItem('gsw-keyboard-guide-seen') === '1'; } catch { /* private mode */ }
+    if (!guideSeen) {
+      try { localStorage.setItem('gsw-keyboard-guide-seen', '1'); } catch { /* private mode */ }
+      showKbGuideWithAutoHide();
+    }
+  }, [showKbGuideWithAutoHide]);
 
   const startCamera = useCallback(async () => {
     trackCameraClicked();
@@ -2511,7 +2530,10 @@ export default function App() {
                   </label>
                 </div>
               </div>
-              {/* No-camera mode — keyboard+mouse drives the same pipeline. */}
+              {/* No-camera mode — keyboard drives the same pipeline.
+                  Desktop only: phones have no physical keyboard (soft
+                  keyboards cover the screen; Shift/arrow keys are unusable). */}
+              {!isMobile && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
                   <input
@@ -2534,10 +2556,11 @@ export default function App() {
                     style={{ accentColor: 'var(--neon-cyan)' }}
                   />
                   <span style={{ color: keyboardMode ? 'var(--neon-cyan)' : 'var(--text-secondary)', fontSize: '0.68rem', fontWeight: 600 }}>
-                    No camera? Keyboard &amp; mouse mode
+                    No camera? Keyboard mode (desktop)
                   </span>
                 </label>
               </div>
+              )}
             </div>
           )}
         </div>
@@ -2678,6 +2701,20 @@ export default function App() {
             <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
               Full guide & tips below ↓
             </a>
+
+            {/* Keyboard mode (no-camera fallback, desktop only) */}
+            {!isMobile && (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
+                <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Keyboard Mode</span> — no camera? Play with the keyboard.<br/>
+                <span style={{ color: '#b0b0d0' }}>Hold 1-7 = chords (I-VII) · [ ] = minor / major · 8 9 0 - = chord style · Shift = octave down · ↑↓ volume · ←→ filter · Space = stop</span>
+                <button
+                  onClick={showKbGuideWithAutoHide}
+                  style={{ marginTop: '6px', padding: '4px 10px', background: 'rgba(0,255,204,0.08)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', color: 'var(--neon-cyan)', fontSize: '0.56rem', cursor: 'pointer' }}
+                >
+                  ▶ Replay keyboard guide
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -2952,7 +2989,7 @@ export default function App() {
                 </button>
                 <p className="camera-placeholder-hint">
                   {keyboardMode
-                    ? 'Hold 1-7 to play chords · Q/W major-minor · 8/9/0/- style · M octave · mouse X filter · mouse Y volume'
+                    ? 'Hold 1-7 to play · [ ] major-minor · 8/9/0/- style · Shift octave · arrows volume/filter · Space stop'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
               </>
@@ -3031,8 +3068,11 @@ export default function App() {
         {/* ─── Running-state overlays ────────────────────────────────── */}
         {isRunning && (
           <>
-            {/* Scale Guide - 8 blocks showing scale degrees */}
-            {synthState.appMode === 'gesture' && (
+            {/* Scale Guide - 8 blocks showing scale degrees.
+                Hidden in keyboard mode: its hints are hand-gesture semantics
+                ('1 finger' / 'idx + pky'), meaningless for key presses, and
+                it would overlap the keyboard guide overlay. */}
+            {synthState.appMode === 'gesture' && !keyboardMode && (
               <div className="scale-guide" style={{
                 position: 'absolute',
                 bottom: '80px',
@@ -3274,6 +3314,39 @@ export default function App() {
         )}
 
       </section>
+
+      {/* ─── Keyboard guide overlay (first-run + replayable) ──────────── */}
+      {showKbGuide && (
+        <div className="kb-guide" onClick={dismissKbGuide}>
+          <div className="kb-guide-title">Keyboard Mode</div>
+          <div className="kb-guide-rows">
+            {/* Degree keys — the held-to-play row */}
+            <div className="kb-guide-row kb-guide-pulse kb-guide-pulse-1">
+              {['1', '2', '3', '4', '5', '6', '7'].map((k, i) => (
+                <div key={k} className="kb-key">
+                  <span className="kb-key-cap">{k}</span>
+                  <span className="kb-key-label">{['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i]}</span>
+                </div>
+              ))}
+              <span className="kb-guide-note">hold to play</span>
+            </div>
+            {/* Control keys — point-toggles */}
+            <div className="kb-guide-row kb-guide-pulse kb-guide-pulse-2">
+              <div className="kb-key"><span className="kb-key-cap">[</span><span className="kb-key-label">Minor</span></div>
+              <div className="kb-key"><span className="kb-key-cap">]</span><span className="kb-key-label">Major</span></div>
+              <div className="kb-key"><span className="kb-key-cap">8 9 0 -</span><span className="kb-key-label">Chord style</span></div>
+              <div className="kb-key"><span className="kb-key-cap">Shift</span><span className="kb-key-label">Octave 8vb</span></div>
+            </div>
+            {/* Expression keys */}
+            <div className="kb-guide-row kb-guide-pulse kb-guide-pulse-3">
+              <div className="kb-key"><span className="kb-key-cap">↑ ↓</span><span className="kb-key-label">Volume</span></div>
+              <div className="kb-key"><span className="kb-key-cap">← →</span><span className="kb-key-label">Filter</span></div>
+              <div className="kb-key"><span className="kb-key-cap">Space</span><span className="kb-key-label">Stop</span></div>
+            </div>
+          </div>
+          <div className="kb-guide-hint">Hold 1-7 to play · any key to start</div>
+        </div>
+      )}
 
     </div>
   );

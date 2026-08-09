@@ -279,6 +279,13 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
+  // Playing-scene What's-new card visibility — shows in EVERY playing
+  // mode (user decision 2026-08-09: the card is a GENERIC announcement
+  // slot, not a keyboard shortcut, so the old !keyboardMode gate is
+  // gone; future features announce here in any scene). Shared by the
+  // card JSX and the toolbar mode-switch pulse (the card teaches the
+  // switch button; the button glows while the card is shown).
+  const whatsNewCardVisible = isRunning && whatsNewActive() && !whatsNewDismissedState;
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
@@ -1512,11 +1519,15 @@ export default function App() {
                 toggle are the other paths; the card expires after the
                 announce window, this button doesn't — user decision
                 2026-08-09: keyboard-mode players must always be able to
-                find their way back to the camera). In keyboard mode it's
-                a labeled "Camera" capsule so new players can't miss it;
-                in camera mode a bare keyboard icon (tooltip explains). */}
+                find their way back to the camera). Always a labeled
+                capsule, both states — one control, two shapes would read
+                as two different things (user decision 2026-08-09): in
+                keyboard mode "📷 Camera", in camera mode "⌨ Keyboard".
+                Text labels avoid any icon confusion with the stop-camera
+                button; the pulse draws the eye while the What's-new card
+                teaches the switch. */}
             <button
-              className={`icon-btn mobile-collapse mode-switch-btn${keyboardMode ? ' labeled' : ''}`}
+              className={`icon-btn mobile-collapse mode-switch-btn${whatsNewCardVisible ? ' help-pulse' : ''}`}
               onClick={() => handleKeyboardToggle(!keyboardMode)}
               data-tip={keyboardMode
                 ? 'Switch to camera mode — play with hand gestures'
@@ -1534,10 +1545,13 @@ export default function App() {
                   <span className="mode-switch-label">Camera</span>
                 </>
               ) : (
-                /* Keyboard pictogram — same glyph as the landing button */
-                <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
-                </svg>
+                <>
+                  {/* Keyboard pictogram — same glyph as the landing button */}
+                  <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="mode-switch-label">Keyboard</span>
+                </>
               )}
             </button>
             {/* Stop is CAMERA-mode only (user decision 2026-08-09): in
@@ -1690,15 +1704,17 @@ export default function App() {
 
         {/* ─── What's-new card in the PLAYING scene — camera modes only
                 (keyboard-mode players ARE the new feature; camera-less
-                users get the landing hint instead). DISMISSAL-based:
-                shows every session while active (14-day window) until
-                the player closes it with ✕ (gsw-whatsnew-dismissed).
-                Sits below the toolbar at Help's corner UNDER Help's
-                z-index, so Help open covers it (and shows the full
-                announcement anyway) — they never stack. Click = switch
-                to keyboard mode. ──────────────────────────────────────── */}
-        {isRunning && !keyboardMode && whatsNewActive() && !whatsNewDismissedState && (
-          <div className={`whatsnew-card whatsnew-card--scene${showHelp ? ' whatsnew-card--below-help' : ''}`}>
+                users get the landing hint instead). Bottom-left, above
+                the status bar (user decision 2026-08-09). DISMISSAL-based:
+                shows every session while active (14-day window) until the
+                player closes it with ✕ (gsw-whatsnew-dismissed).
+                TEACHING card, NOT a shortcut (user decision 2026-08-09):
+                the body doesn't jump to keyboard mode — it points at the
+                toolbar mode-switch button, which pulses while the card is
+                visible, so the player learns the permanent switch (the
+                card expires after 14 days; the button doesn't). ───────── */}
+        {whatsNewCardVisible && (
+          <div className="whatsnew-card whatsnew-card--scene">
             <button
               className="whatsnew-close"
               onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); }}
@@ -1711,12 +1727,21 @@ export default function App() {
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
-            <button className="whatsnew-body" onClick={startKeyboardMode}>
+            <div className="whatsnew-body">
               <span className="whatsnew-badge">NEW</span>
               <span>
                 <strong>Keyboard mode</strong> — no camera needed
+                {/* The teaching line adapts to the current mode: it always
+                    points at the toolbar switch's ACTUAL label (Keyboard
+                    capsule in camera mode, Camera capsule in keyboard
+                    mode), reinforcing the habit both ways. */}
+                <span className="whatsnew-teach">
+                  {keyboardMode
+                    ? 'Switch back via the Camera button in the top toolbar'
+                    : 'Switch via the keyboard button in the top toolbar'}
+                </span>
               </span>
-            </button>
+            </div>
           </div>
         )}
 

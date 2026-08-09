@@ -27,16 +27,14 @@
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Fixed Help-panel height — single source of truth for the stacked
-     What's-new card position (card sits below the panel while Help is
-     open: top = 12px + var(--help-h) + 10px). Smaller on phones so the
-     pair fits under the toolbar. */
-  --help-h: min(520px, 72vh);
+  /* Bottom status-bar height — the What's-new playing-scene card anchors
+     above it (bottom: calc(var(--status-bar-h) + 10px), left corner). */
+  --status-bar-h: 42px;
 }
 
 @media (max-width: 768px) {
   :root {
-    --help-h: min(440px, 62vh);
+    --status-bar-h: 36px;
   }
 }
 
@@ -319,17 +317,18 @@ body {
   padding: 1px 5px;
 }
 
-/* Playing-scene variant: below the toolbar (top 64px clears the one-row
-   ~34px toolbar at every width), at Help's left corner. STACKED layout
-   (user decision 2026-08-09 — no covering, no overlap at any resolution):
-   while Help is open the card slides below the fixed-height Help panel
-   (top = 12px + --help-h + 10px) so both are visible, neatly arranged;
-   Help closed it anchors back under the toolbar. Frosted dark so it
-   stays readable over the live camera feed; same width as Help
-   (min(360px, 100vw - 24px)). */
+/* Playing-scene variant (user decision 2026-08-09): anchored at the
+   screen's BOTTOM-LEFT, above the status bar (bottom = status-bar height
+   + 10px) — clear of the toolbar, Help (top-left), the centered hands
+   badge and the waveform band; never overlaps anything at any resolution.
+   Frosted dark so it stays readable over the live camera feed; width
+   min(360px, 100vw - 24px). TEACHING card: the body is NOT clickable —
+   it points at the toolbar mode-switch button instead (the button pulses
+   while the card is visible), so the player learns the permanent switch,
+   not a 14-day shortcut. */
 .whatsnew-card--scene {
   position: absolute;
-  top: 64px;
+  bottom: calc(var(--status-bar-h) + 10px);
   left: 12px;
   z-index: 90; /* under HelpModal (100), over canvas HUD */
   width: min(360px, calc(100vw - 24px));
@@ -337,33 +336,45 @@ body {
   background: rgba(8, 8, 20, 0.85);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
-  transition: top 0.2s ease;
 }
-.whatsnew-card--scene.whatsnew-card--below-help {
-  top: calc(12px + var(--help-h) + 10px);
+/* Informational (not a button) — no pointer cursor */
+.whatsnew-card--scene .whatsnew-body {
+  cursor: default;
+}
+.whatsnew-teach {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  color: #b0b0d0;
 }
 
-/* Camera ↔ keyboard mode switch (toolbar). In keyboard mode it's a
-   labeled capsule so new players can't miss the way back to the camera;
-   in camera mode a bare keyboard icon. */
-.mode-switch-btn {
-  color: var(--neon-cyan);
-}
-.mode-switch-btn:hover {
-  color: #7dffe6;
-}
-.mode-switch-btn.labeled {
+/* Camera ↔ keyboard mode switch (toolbar). ALWAYS a labeled capsule in
+   both states — one control must have one shape (user decision
+   2026-08-09: circle in one mode + capsule in the other read as two
+   different controls). Full specificity like rec-capsule (the base
+   .frost-toolbar button.icon-btn is a 32×32 circle — without the
+   override the label overflows the frame, bug 2026-08-09). Text labels
+   also avoid any icon confusion with the stop-camera button. */
+.frost-toolbar button.icon-btn.mode-switch-btn {
+  width: auto;
+  height: 27px;
+  border-radius: 14px;
+  padding: 0 10px 0 8px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px 3px 8px;
+  color: var(--neon-cyan);
   border-color: rgba(0, 255, 204, 0.3);
   background: rgba(0, 255, 204, 0.08);
+}
+.frost-toolbar button.icon-btn.mode-switch-btn:hover {
+  color: #7dffe6;
 }
 .mode-switch-btn .mode-switch-label {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .camera-error-message {

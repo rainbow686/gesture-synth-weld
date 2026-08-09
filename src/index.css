@@ -317,15 +317,19 @@ body {
   padding: 1px 5px;
 }
 
-/* Playing-scene variant (user decision 2026-08-09): anchored at the
-   screen's BOTTOM-LEFT, above the status bar (bottom = status-bar height
-   + 10px) — clear of the toolbar, Help (top-left), the centered hands
-   badge and the waveform band; never overlaps anything at any resolution.
-   Frosted dark so it stays readable over the live camera feed; width
-   min(360px, 100vw - 24px). TEACHING card: the body is NOT clickable —
-   it points at the toolbar mode-switch button instead (the button pulses
-   while the card is visible), so the player learns the permanent switch,
-   not a 14-day shortcut. */
+/* Playing-scene variant (user decision 2026-08-09): DESKTOP anchors at
+   the screen's BOTTOM-LEFT, above the status bar (bottom = status-bar
+   height + 10px) — clear of the toolbar, Help (top-left), the centered
+   Scale Guide and the waveform band. MOBILE moves it TOP-LEFT below the
+   toolbar (media query below): the mobile toolbar shows only
+   Record/Help/⋯ so the top-left is free, while the bottom area is taken
+   by the Scale Guide's 8 degree blocks (bottom: 80px centered) — a
+   bottom card would cover them at near-full width. No backdrop-filter:
+   blurring the live canvas behind the card is a known mobile compositor
+   hog (suspected of starving the detection loop, 2026-08-09) — the
+   near-opaque background looks the same. TEACHING card: the body is NOT
+   clickable — it points at the toolbar control the entry declares
+   (pulseTarget), which pulses while the card is visible. */
 .whatsnew-card--scene {
   position: absolute;
   bottom: calc(var(--status-bar-h) + 10px);
@@ -333,13 +337,51 @@ body {
   z-index: 90; /* under HelpModal (100), over canvas HUD */
   width: min(360px, calc(100vw - 24px));
   margin-top: 0;
-  background: rgba(8, 8, 20, 0.85);
-  backdrop-filter: var(--frost-blur);
-  -webkit-backdrop-filter: var(--frost-blur);
+  background: rgba(8, 8, 20, 0.92);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 /* Informational (not a button) — no pointer cursor */
 .whatsnew-card--scene .whatsnew-body {
   cursor: default;
+}
+/* Mobile (kept directly after the base rule — same-specificity overrides
+   must come later in the file, bug 2026-08-09: the earlier media-query
+   copy lost to the base rule and the card stretched between top+bottom):
+   the card can't sit at the bottom — the Scale Guide's 8 degree blocks
+   own that area (bottom: 80px, centered). Top-left, below the compact
+   mobile toolbar (Record/Help/⋯ only), is free. */
+@media (max-width: 768px) {
+  .whatsnew-card--scene {
+    bottom: auto;
+    top: 64px;
+    left: 12px;
+  }
+}
+
+/* Collapsed mobile dot — iOS floating-pill pattern (user decision
+   2026-08-09): after 4s the mobile card tucks into this small NEW pill
+   at the same corner; tap to re-expand. Desktop never collapses, so this
+   renders mobile-only. */
+.whatsnew-dot {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  z-index: 90;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ff6ec7;
+  border: 1px solid rgba(255, 110, 199, 0.45);
+  background: rgba(8, 8, 20, 0.92);
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 110, 199, 0.25);
+  transition: all 0.15s ease;
+}
+.whatsnew-dot:hover {
+  background: rgba(255, 110, 199, 0.12);
+  border-color: rgba(255, 110, 199, 0.7);
 }
 .whatsnew-teach {
   display: block;
@@ -351,17 +393,21 @@ body {
 /* Camera ↔ keyboard mode switch (toolbar). ALWAYS a labeled capsule in
    both states — one control must have one shape (user decision
    2026-08-09: circle in one mode + capsule in the other read as two
-   different controls). Full specificity like rec-capsule (the base
-   .frost-toolbar button.icon-btn is a 32×32 circle — without the
-   override the label overflows the frame, bug 2026-08-09). Text labels
-   also avoid any icon confusion with the stop-camera button. */
+   different controls). FIXED min-width so 'Keyboard' and 'Camera' render
+   the SAME width — the centered toolbar must not shift when the label
+   changes (user decision 2026-08-09). Full specificity like rec-capsule
+   (the base .frost-toolbar button.icon-btn is a 32×32 circle — without
+   the override the label overflows the frame, bug 2026-08-09). Text
+   labels also avoid any icon confusion with the stop-camera button. */
 .frost-toolbar button.icon-btn.mode-switch-btn {
   width: auto;
+  min-width: 96px;
   height: 27px;
   border-radius: 14px;
-  padding: 0 10px 0 8px;
+  padding: 0 10px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   color: var(--neon-cyan);
   border-color: rgba(0, 255, 204, 0.3);

@@ -24,7 +24,7 @@ import { drawWaveform } from './hud/waveform';
 import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
-import { whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
+import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -286,6 +286,22 @@ export default function App() {
   // card JSX and the toolbar mode-switch pulse (the card teaches the
   // switch button; the button glows while the card is shown).
   const whatsNewCardVisible = isRunning && whatsNewActive() && !whatsNewDismissedState;
+  // Data-driven pulse: the ACTIVE entry declares which toolbar control it
+  // teaches (pulseTarget) — future announcements that don't teach a
+  // control simply omit it and nothing pulses (user decision 2026-08-09).
+  const whatsNewEntry = WHATS_NEW[0];
+  const pulseModeSwitch = whatsNewCardVisible && whatsNewEntry?.pulseTarget === 'mode-switch';
+  // Mobile auto-collapse (iOS floating-pill pattern, user decision
+  // 2026-08-09): after 4s the card tucks into a small NEW dot at the same
+  // corner — the tiny viewfinder stays clear but the announcement keeps
+  // its every-session presence; tap the dot to re-expand. Desktop keeps
+  // the card expanded (380px in the corner blocks nothing).
+  const [whatsNewCollapsed, setWhatsNewCollapsed] = useState(false);
+  useEffect(() => {
+    if (!whatsNewCardVisible || !isMobile) { setWhatsNewCollapsed(false); return; }
+    const t = window.setTimeout(() => setWhatsNewCollapsed(true), 4000);
+    return () => window.clearTimeout(t);
+  }, [whatsNewCardVisible, isMobile]);
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
@@ -1527,7 +1543,7 @@ export default function App() {
                 button; the pulse draws the eye while the What's-new card
                 teaches the switch. */}
             <button
-              className={`icon-btn mobile-collapse mode-switch-btn${whatsNewCardVisible ? ' help-pulse' : ''}`}
+              className={`icon-btn mobile-collapse mode-switch-btn${pulseModeSwitch ? ' help-pulse' : ''}`}
               onClick={() => handleKeyboardToggle(!keyboardMode)}
               data-tip={keyboardMode
                 ? 'Switch to camera mode — play with hand gestures'
@@ -1713,7 +1729,20 @@ export default function App() {
                 toolbar mode-switch button, which pulses while the card is
                 visible, so the player learns the permanent switch (the
                 card expires after 14 days; the button doesn't). ───────── */}
-        {whatsNewCardVisible && (
+        {whatsNewCardVisible && whatsNewEntry && (
+          whatsNewCollapsed ? (
+            /* Collapsed mobile dot (iOS floating-pill pattern): keeps the
+               every-session presence without occupying the tiny
+               viewfinder; tap to re-expand the card. */
+            <button
+              className="whatsnew-dot"
+              onClick={() => setWhatsNewCollapsed(false)}
+              aria-label="What's new"
+              title={whatsNewEntry.title}
+            >
+              NEW
+            </button>
+          ) : (
           <div className="whatsnew-card whatsnew-card--scene">
             <button
               className="whatsnew-close"
@@ -1730,19 +1759,20 @@ export default function App() {
             <div className="whatsnew-body">
               <span className="whatsnew-badge">NEW</span>
               <span>
-                <strong>Keyboard mode</strong> — no camera needed
-                {/* The teaching line adapts to the current mode: it always
-                    points at the toolbar switch's ACTUAL label (Keyboard
-                    capsule in camera mode, Camera capsule in keyboard
-                    mode), reinforcing the habit both ways. */}
-                <span className="whatsnew-teach">
-                  {keyboardMode
-                    ? 'Switch back via the Camera button in the top toolbar'
-                    : 'Switch via the keyboard button in the top toolbar'}
-                </span>
+                <strong>{whatsNewEntry.title}</strong>
+                {/* Teaching line (from the entry, per-mode): points at the
+                    toolbar control's ACTUAL label in the current mode —
+                    reinforcing the habit both ways. No entry teach = no
+                    line (and no pulse, via pulseTarget). */}
+                {whatsNewEntry.teach && (
+                  <span className="whatsnew-teach">
+                    {whatsNewEntry.teach[keyboardMode ? 'keyboard' : 'camera'] ?? whatsNewEntry.teach.camera}
+                  </span>
+                )}
               </span>
             </div>
           </div>
+          )
         )}
 
         {/* ─── Help Modal (component: demo animation, mapping tables,

@@ -17,12 +17,18 @@
  *    old !keyboardMode gate is gone; future features announce here in
  *    any scene). Shows every session while active until the player
  *    closes it with the ✕ (localStorage gsw-whatsnew-dismissed).
- *    Bottom-left, above the status bar (--status-bar-h + 10px) — clear
- *    of the toolbar, Help and the waveform. TEACHING card, not a
- *    shortcut: it points at the toolbar mode-switch button (whose label
- *    adapts to the current mode), and that button pulses while the card
- *    is visible — the player learns the PERMANENT switch, which outlives
- *    the 14-day card.
+ *    DESKTOP: bottom-left, above the status bar (--status-bar-h + 10px)
+ *    — clear of the toolbar, Help and the waveform. MOBILE: top-left,
+ *    below the compact toolbar — the Scale Guide's 8 degree blocks own
+ *    the bottom area, and the tiny viewfinder can't spare a full card, so
+ *    it AUTO-COLLAPSES after 4s into a small NEW dot (iOS floating-pill
+ *    pattern, user decision 2026-08-09): tap to re-expand, ✕ to dismiss.
+ *    TEACHING card, not a shortcut: it points at the toolbar control the
+ *    entry declares in pulseTarget (that button pulses while the card is
+ *    visible, per-mode teaching line from entry.teach) — the player
+ *    learns the PERMANENT control, which outlives the 14-day card.
+ *    Future entries without pulseTarget/teach simply show no pulse and
+ *    no teaching line.
  *
  *  - Help modal: shows "New in this version" permanently (changelog
  *    role) — reading it dismisses nothing.
@@ -37,6 +43,18 @@ export interface WhatsNewEntry {
   releasedAt: string;
   title: string;
   body: string;
+  /** Optional: toolbar control the playing-scene card teaches — that
+   *  button pulses while the card is visible (semantic key; 'mode-switch'
+   *  = the camera↔keyboard switch). Future entries that don't teach a
+   *  toolbar control simply omit it — no pulse. (User decision
+   *  2026-08-09: the pulse must not be hardcoded to the mode switch;
+   *  the card is a generic announcement slot.) */
+  pulseTarget?: string;
+  /** Optional: per-mode teaching line on the playing-scene card — the
+   *  card is a description, NOT a shortcut, so it points at the control
+   *  instead of jumping. Per-mode so the line can name the current
+   *  mode's actual button label. */
+  teach?: { camera?: string; keyboard?: string };
 }
 
 /** How long the landing hint stays active after release. */
@@ -48,6 +66,11 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     releasedAt: '2026-08-09',
     title: 'Keyboard mode — no camera needed',
     body: 'Turn your physical keyboard into the instrument: hold 1-7 for chords, [ ] for major/minor, Shift for octave down, arrows for volume & filter. Enable it in Settings — no camera permission, no model download. An interactive real-keyboard guide teaches every key.',
+    pulseTarget: 'mode-switch',
+    teach: {
+      camera: 'Switch via the keyboard button in the top toolbar',
+      keyboard: 'Switch back via the Camera button in the top toolbar',
+    },
   },
 ];
 

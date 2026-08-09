@@ -28,6 +28,12 @@ All Engine methods are idempotent and use smooth transitions:
 - **Theremin**: Right hand Y=pitch, left hand Y=volume (dual-hand)
 - **MonoPiano**: Finger count → note interval (1=root, 2=3rd, 3=5th, 4=octave, 5=9th)
 
+### No-Camera Mode (keyboard & mouse, 2026-08-09 refactor branch)
+- Settings toggle "No camera? Keyboard & mouse mode" (persisted gsw-keyboard-mode); main button becomes "Start Playing (Keyboard & Mouse)" — no getUserMedia, no MediaPipe model download
+- **Input source abstraction** (`src/input/`): every source produces a `HandFrame` (left/right HandData) consumed by ONE pipeline ("every input reaches the same audio engine" — competitor .online principle). CameraSource (detection + presence smoothing) / KeyboardSource (synthetic hands, empty landmarks — skeleton overlay skips them)
+- Keyboard: 1-5 = degrees I-V, 6 = VI, 7 = VII, Q/W = minor/major, 8/9/0/- = chord style 1-4, M = octave down; mouse X = filter sweep, mouse Y = volume
+- Recording in keyboard mode: video modes render stage background + waveform (no feed)
+
 ### Instruments
 Single sawtooth synth — intentionally minimal
 
@@ -65,8 +71,8 @@ Single sawtooth synth — intentionally minimal
 ```
 src/
 ├── analytics.ts        # Clarity + GA4 custom events (low-frequency UI tracking; hostname-guarded — forks of this repo must replace the tracking IDs in index.html)
-├── audioEngine.ts      # Tone.js wrapper, all methods idempotent
-├── App.tsx             # Main component, two-hand logic, keyboard shortcuts
+├── audioEngine.ts      # Tone.js wrapper, all methods idempotent; Engine-layer dedup (frequency key)
+├── App.tsx             # Main component, two-hand logic, input orchestration (3150 lines, refactor in progress)
 ├── handTracker.ts      # MediaPipe integration, finger detection
 ├── types.ts            # Type definitions, FINGER_TO_CHORD_INDEX, FINGER_TO_NOTE_INTERVAL
 ├── chords.ts           # 12 keys, DIATONIC_CHORDS, getChordFreqs()
@@ -74,6 +80,8 @@ src/
 ├── index.css           # Full-screen cyberpunk theme
 ├── main.tsx            # React entry point
 ├── wavEncoder.ts       # WAV export utility
+├── input/              # Input source abstraction (2026-08-09): types.ts (HandFrame/HandInputSource), cameraSource.ts, keyboardSource.ts
+├── hud/draw.ts         # Canvas drawing helpers (extracted 2026-08-09: skeleton/chord HUD/stage/brand)
 ├── __tests__/          # Vitest: chords.test.ts + audioEngine.test.ts (29 tests)
 ├── handArt.ts          # Licensed hand-gesture SVG art for the Help demo (Commons CC BY-SA / Noto Apache-2.0 / OpenClipart CC0, single-color)
 └── mp4tags.ts          # MP4/M4A brand tags + cover art (covr) injection

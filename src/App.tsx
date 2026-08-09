@@ -5,6 +5,7 @@ import {
 } from './handTracker';
 import { audioEngine, type VocalPolish } from './audioEngine';
 import { CameraSource } from './input/cameraSource';
+import { KeyboardSource } from './input/keyboardSource';
 import type { HandFrame } from './input/types';
 import {
   roundRectPath,
@@ -416,6 +417,9 @@ export default function App() {
   // identical behavior).
   const cameraSourceRef = useRef<CameraSource | null>(null);
   if (!cameraSourceRef.current) cameraSourceRef.current = new CameraSource();
+  // Keyboard+mouse input source (no-camera mode).
+  const keyboardSourceRef = useRef<KeyboardSource | null>(null);
+  if (!keyboardSourceRef.current) keyboardSourceRef.current = new KeyboardSource();
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -557,6 +561,14 @@ export default function App() {
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+  // No-camera mode (2026-08-09, refactor branch): keyboard+mouse drives the
+  // same consume pipeline via synthetic HandData (see input/keyboardSource).
+  // Persisted so camera-less users stay productive across visits.
+  const [keyboardMode, setKeyboardMode] = useState(() => {
+    try { return localStorage.getItem('gsw-keyboard-mode') === '1'; } catch { return false; }
+  });
+  const keyboardModeRef = useRef(keyboardMode);
+  useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
   // toggle needed, and each effect adjusts independently. Stackable.
@@ -763,6 +775,13 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // No-camera mode: forward mapped keys to the keyboard source
+      // (only while it's the active input).
+      if (keyboardModeRef.current) {
+        keyboardSourceRef.current?.handleKey(e, true);
+        // Space still stops all notes below (mute convenience).
+      }
+
       // Space: Stop all notes
       if (e.key === ' ') {
         e.preventDefault();
@@ -784,8 +803,22 @@ export default function App() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (keyboardModeRef.current) keyboardSourceRef.current?.handleKey(e, false);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (keyboardModeRef.current) keyboardSourceRef.current?.handleMouse(e);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
   }, []);
 
   /* ─── Process Detected Hands (Two-Hand Logic) ──────────────────────── */
@@ -1370,7 +1403,8 @@ export default function App() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!canvas) return;
+    if (!keyboardModeRef.current && !video) return;
 
     runningRef.current = true;
     lastDetectRef.current = 0;
@@ -1383,14 +1417,33 @@ export default function App() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
+      // No-camera mode: synthetic hands + stage background (no video feed).
+      if (keyboardModeRef.current) {
+        if (canvas.width !== 640 || canvas.height !== 480) {
+          canvas.width = 640;
+          canvas.height = 480;
+        }
+        drawStageBackground(ctx, canvas.width, canvas.height);
+        try {
+          const frame = keyboardSourceRef.current?.getFrame() ?? { left: null, right: null };
+          processHandsRef.current?.(frame);
+        } catch (e) {
+          console.warn('Keyboard frame error:', e);
+        }
+        drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
+        drawWaveformRef.current?.();
+        return;
+      }
+
+      const cam = video as HTMLVideoElement; // camera branch (keyboardMode returned above)
+      if (canvas.width !== cam.videoWidth || canvas.height !== cam.videoHeight) {
+        canvas.width = cam.videoWidth || 640;
+        canvas.height = cam.videoHeight || 480;
       }
 
       ctx.save();
       ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.drawImage(video as HTMLVideoElement, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
 
       ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
@@ -1401,7 +1454,8 @@ export default function App() {
         isDetectingRef.current = true;
         const t0 = performance.now();
         try {
-          const frame = cameraSourceRef.current?.getFrame(video, timestamp) ?? { left: null, right: null };
+          // Camera branch only (keyboardMode returned above), so video is present.
+          const frame = cameraSourceRef.current?.getFrame(video as HTMLVideoElement, timestamp) ?? { left: null, right: null };
           processHandsRef.current?.(frame);
         } catch (e) {
           console.warn('Detection frame error:', e);
@@ -1422,7 +1476,7 @@ export default function App() {
       // B2: camera-freeze watchdog — while visible, if the video clock
       // hasn't advanced for ~4s the OS killed the stream (long screen
       // lock on Android). Restart it so the picture comes back.
-      if (document.visibilityState === 'visible' && !video.paused && video.videoWidth > 0) {
+      if (document.visibilityState === 'visible' && video && !video.paused && video.videoWidth > 0) {
         const now = performance.now();
         if (now - lastVideoCheckRef.current > 2000) {
           lastVideoCheckRef.current = now;
@@ -1464,15 +1518,23 @@ export default function App() {
               // Camera frame (mirrored like the live view) + soft skeleton.
               // NO waveform here — camera layouts draw their own HUD
               // waveform (bottom band / frame bottom).
+              // No-camera mode (keyboard): no feed — stage + waveform.
+              const v0 = videoRef.current;
+              if (!v0) {
+                drawStageBackground(sctx, sc.width, sc.height);
+                const wf = waveformCanvasRef.current;
+                if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
+              } else {
               sctx.fillStyle = '#050510';
               sctx.fillRect(0, 0, sc.width, sc.height);
               sctx.save();
               sctx.scale(-1, 1);
-              sctx.drawImage(video, -sc.width, 0, sc.width, sc.height);
+              sctx.drawImage(v0, -sc.width, 0, sc.width, sc.height);
               sctx.restore();
               sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
               sctx.fillRect(0, 0, sc.width, sc.height);
               drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+              }
             }
           }
         }
@@ -1536,6 +1598,18 @@ export default function App() {
     }
     if (video.paused) video.play().catch(() => {});
   }, [restartCameraStream]);
+
+  // No-camera mode: no getUserMedia, no model download — the keyboard+mouse
+  // source drives the same pipeline from the rAF loop. Persist the choice.
+  const startKeyboardMode = useCallback(() => {
+    try { localStorage.setItem('gsw-keyboard-mode', '1'); } catch { /* private mode */ }
+    setKeyboardMode(true);
+    setError(null);
+    setCameraErrorType(null);
+    firstGestureSentRef.current = false;
+    setIsLoading(false);
+    setIsRunning(true);
+  }, []);
 
   const startCamera = useCallback(async () => {
     trackCameraClicked();
@@ -1746,6 +1820,7 @@ export default function App() {
     stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     rightHandHistoryRef.current = [];
     cameraSourceRef.current?.reset();
+    keyboardSourceRef.current?.reset();
     pinkyMemoryRef.current = 0;
 
     const canvas = canvasRef.current;
@@ -2414,6 +2489,33 @@ export default function App() {
                   </label>
                 </div>
               </div>
+              {/* No-camera mode — keyboard+mouse drives the same pipeline. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={keyboardMode}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      trackSettingChanged('keyboard_mode', on ? 'on' : 'off');
+                      try { localStorage.setItem('gsw-keyboard-mode', on ? '1' : '0'); } catch { /* private mode */ }
+                      setKeyboardMode(on);
+                      if (on && !isRunning) {
+                        // Start immediately when enabled from idle
+                        startKeyboardMode();
+                      } else if (!on && isRunning) {
+                        // Running on keyboard: stop cleanly; the main button
+                        // returns to Enable Camera.
+                        stopCamera();
+                      }
+                    }}
+                    style={{ accentColor: 'var(--neon-cyan)' }}
+                  />
+                  <span style={{ color: keyboardMode ? 'var(--neon-cyan)' : 'var(--text-secondary)', fontSize: '0.68rem', fontWeight: 600 }}>
+                    No camera? Keyboard &amp; mouse mode
+                  </span>
+                </label>
+              </div>
             </div>
           )}
         </div>
@@ -2811,18 +2913,26 @@ export default function App() {
               <>
                 <button
                   className="enable-camera-btn"
-                  onClick={startCamera}
+                  onClick={keyboardMode ? startKeyboardMode : startCamera}
                   disabled={isLoading}
                   onMouseEnter={prefetchTracking}
                   onFocus={prefetchTracking}
                   onTouchStart={prefetchTracking}
                 >
                   <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                    <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                    {keyboardMode ? (
+                      <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
+                    ) : (
+                      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                    )}
                   </svg>
-                  <span>Enable Camera</span>
+                  <span>{keyboardMode ? 'Start Playing (Keyboard & Mouse)' : 'Enable Camera'}</span>
                 </button>
-                <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
+                <p className="camera-placeholder-hint">
+                  {keyboardMode
+                    ? 'Keys 1-7 chords · Q/W major-minor · 8/9/0/- style · M octave · mouse X filter · mouse Y volume'
+                    : 'Allow camera access to start playing with hand gestures'}
+                </p>
               </>
             )}
             </div>

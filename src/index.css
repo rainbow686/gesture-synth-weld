@@ -1690,26 +1690,19 @@ body {
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
 /* 1:1 and 9:16 are immersive (full-frame content) — the viewfinder shows
-   the exact cover-crop window so the player sees what gets cropped:
-   9:16 → a vertical strip (width = 9/16 of the frame height), sides dimmed;
-   1:1 → a centered square, edges dimmed. The dim-outside box-shadow on
+   the exact cover-crop window so the player sees what gets cropped.
+   Width comes from --rec-strip-w (App.tsx: ratio × videoH/videoW of the
+   screen — the same cover-crop the recording compositor applies to the
+   video-native source: 4:3 webcam → 9:16 strip = 42% of the screen; 16:9
+   camera → 32%); height is always full. The dim-outside box-shadow on
    .rec-window does the darkening automatically. */
-.rec-frame-overlay.ratio-1x1 .rec-window {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(100vw, 100vh);
-  height: min(100vw, 100vh);
-}
+.rec-frame-overlay.ratio-1x1 .rec-window,
 .rec-frame-overlay.ratio-916 .rec-window {
   left: 50%;
   top: 0;
   bottom: 0;
   transform: translateX(-50%);
-  /* A 9:16 frame is 9/16 of the viewport HEIGHT wide — but never wider
-     than the screen itself (portrait phones are already ~9:16, so the
-     strip becomes ≈ full-width there). */
-  width: min(100vw, calc(100vh * 9 / 16));
+  width: var(--rec-strip-w, min(100vw, 100vh));
 }
 .rec-tag {
   position: absolute;
@@ -1893,27 +1886,27 @@ body {
 .kb-keyboard {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   background: var(--frost-bg);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid var(--frost-border);
   border-radius: 16px;
-  padding: 12px;
+  padding: 14px;
   box-shadow: var(--frost-shadow);
-  max-width: min(640px, 92vw);
+  max-width: min(720px, 92vw);
 }
 
 .kb-row {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   justify-content: center;
 }
 
 .kb-key {
   flex: 1 1 0;
-  min-width: 38px;
-  height: 40px;
+  min-width: 42px;
+  height: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1971,6 +1964,29 @@ body {
 }
 .kb-key-active .kb-key-cap { color: var(--neon-cyan); text-shadow: 0 0 10px rgba(0, 255, 204, 0.9); }
 .kb-key-active .kb-key-label { color: var(--neon-cyan) !important; }
+
+/* Auto-demo highlight (distinct from the pressed state): white glow with
+   a soft scale pop, so the eye follows the teaching animation. */
+.kb-key-demo {
+  transform: translateY(1px) scale(1.08);
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.75), inset 0 0 14px rgba(0, 255, 204, 0.35);
+  border-color: #ffffff !important;
+}
+
+/* Demo caption line — the "按 3 → III 级" teaching text. */
+.kb-guide-demo {
+  min-height: 1.5em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(0, 255, 204, 0.6);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.kb-guide-demo.visible {
+  opacity: 1;
+}
 
 .kb-guide-hint {
   font-size: 0.62rem;

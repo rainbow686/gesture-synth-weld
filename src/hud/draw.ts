@@ -191,7 +191,10 @@ export function drawStageBackground(
   ctx.fillRect(0, Math.round(h * 0.85), w, Math.round(h * 0.15));
 }
 
-/** Live/recorded hand skeleton — neon lines + glowing fingertips. */
+/** Live/recorded hand skeleton — neon lines + glowing fingertips.
+ *  `scale` multiplies line widths / dot radii / glow — the live canvas
+ *  bitmap is display-size × dpr (previously video-native 640px), so
+ *  callers pass w/640 to keep the skeleton the same screen size. */
 export function drawHandSkeleton(
   ctx: CanvasRenderingContext2D,
   hand: HandData,
@@ -201,6 +204,7 @@ export function drawHandSkeleton(
   glowColor: string,
   lineWidth: number = 3,
   tipGlow: number = 8,
+  scale: number = 1,
 ) {
   const pts = hand.landmarks;
   if (!pts || pts.length < 21) return;
@@ -211,7 +215,7 @@ export function drawHandSkeleton(
   });
 
   ctx.strokeStyle = glowColor;
-  ctx.lineWidth = lineWidth;
+  ctx.lineWidth = lineWidth * scale;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
@@ -229,13 +233,13 @@ export function drawHandSkeleton(
     const isTip = [4, 8, 12, 16, 20].includes(i);
 
     ctx.beginPath();
-    ctx.arc(p.x, p.y, isTip ? 5 : 3, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, (isTip ? 5 : 3) * scale, 0, Math.PI * 2);
     ctx.fillStyle = isTip ? color : 'rgba(255,255,255,0.5)';
     ctx.fill();
 
     if (isTip) {
       ctx.shadowColor = color;
-      ctx.shadowBlur = tipGlow;
+      ctx.shadowBlur = tipGlow * scale;
       ctx.fill();
       ctx.shadowBlur = 0;
     }

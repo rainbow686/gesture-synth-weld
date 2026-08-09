@@ -68,6 +68,16 @@ import {
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
 
+/** Keys KeyboardSource maps — their default browser behavior (page
+ *  scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
+ *  Everything else keeps native behavior (Tab, F5, …). */
+const KEYBOARD_MAPPED_KEYS = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
+  '[', ']', 'Shift',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  ' ',
+];
+
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
 
 /* ─── B2: Recording constants & helpers (module level, pure) ────────── */
@@ -578,12 +588,15 @@ export default function App() {
     setShowKbGuide(false);
     if (kbGuideTimerRef.current) { window.clearTimeout(kbGuideTimerRef.current); kbGuideTimerRef.current = null; }
   }, []);
-  const showKbGuideWithAutoHide = useCallback(() => {
+  const showKbGuideWithAutoHide = useCallback((autoHide: boolean = true) => {
     setShowKbGuide(true);
     if (kbGuideTimerRef.current) window.clearTimeout(kbGuideTimerRef.current);
-    // 8s — long enough to read all three rows at leisure; closes on
-    // overlay click or Esc when the player wants to start sooner.
-    kbGuideTimerRef.current = window.setTimeout(() => setShowKbGuide(false), 8000);
+    // First-run auto-pop: 8s auto-hide (the player may not want it).
+    // Replay from Help: NO auto-hide — the player asked to see it and
+    // may study it for a long time (user feedback 2026-08-09).
+    if (autoHide) {
+      kbGuideTimerRef.current = window.setTimeout(() => setShowKbGuide(false), 8000);
+    }
   }, []);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
@@ -794,6 +807,11 @@ export default function App() {
       // No-camera mode: forward mapped keys to the keyboard source
       // (only while it's the active input).
       if (keyboardModeRef.current) {
+        // The page scrolls (toolbar + SEO content below the fold) — ↑/↓
+        // (and Space) would scroll it mid-play and drag the playing area
+        // out of view (bug 2026-08-09). Block defaults for our keys only;
+        // everything else (Tab, F5, …) keeps browser behavior.
+        if (KEYBOARD_MAPPED_KEYS.includes(e.key)) e.preventDefault();
         keyboardSourceRef.current?.handleKey(e, true);
         // Space still stops all notes below (mute convenience).
       }
@@ -1145,8 +1163,13 @@ export default function App() {
   drawOverlayRef.current = (ctx, w, h) => {
     if (!showSkeleton) return;
     const g = gestureRef.current;
-    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)');
-    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
+    // Live canvas bitmap is display-size × dpr; skeleton params were tuned
+    // for a 640px-wide canvas (video native, pre-refactor). Without the
+    // rescale the lines shrink to hairlines after CSS downscaling
+    // (bug 2026-08-09: "skeleton lines thinner than before").
+    const s = w / 640;
+    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)', 3, 8, s);
+    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)', 3, 8, s);
   };
 
   // Video version of the skeleton: soft palette + thinner lines + weak
@@ -1543,9 +1566,15 @@ export default function App() {
         const mode = recModeRef.current;
         const sc = skeletonCanvasRef.current;
         if (sc) {
-          if (sc.width !== canvas.width || sc.height !== canvas.height) {
-            sc.width = canvas.width;
-            sc.height = canvas.height;
+          // Video-NATIVE size (never the live screen-size canvas) — see
+          // beginRecording for why; a screen-size source shrank the 9:16
+          // crop from 42% to 32% of the video (bug 2026-08-09).
+          const srcV = videoRef.current;
+          const sw = srcV?.videoWidth || 640;
+          const sh = srcV?.videoHeight || 480;
+          if (sc.width !== sw || sc.height !== sh) {
+            sc.width = sw;
+            sc.height = sh;
           }
           const sctx = sc.getContext('2d');
           if (sctx) {
@@ -1967,12 +1996,18 @@ export default function App() {
         return;
       }
       // The recording-source canvas (stage or camera + soft skeleton) is
-      // the source for BOTH video modes
+      // the source for BOTH video modes. It must be VIDEO-NATIVE size —
+      // the live canvas is display-size (16:9 screen), and a 9:16/1:1
+      // cover-crop from a 16:9 source captures only 32% of the video
+      // width (was 42% from the 4:3 source pre-refactor — recordings
+      // silently lost content, bug 2026-08-09). No camera (keyboard
+      // mode): fall back to a 4:3 640×480 source.
       if (!skeletonCanvasRef.current) {
         skeletonCanvasRef.current = document.createElement('canvas');
       }
-      skeletonCanvasRef.current.width = live.width;
-      skeletonCanvasRef.current.height = live.height;
+      const srcVideo = videoRef.current;
+      skeletonCanvasRef.current.width = srcVideo?.videoWidth || 640;
+      skeletonCanvasRef.current.height = srcVideo?.videoHeight || 480;
       const srcCanvas = skeletonCanvasRef.current;
       if (!srcCanvas || !srcCanvas.width) {
         setRecPhase('idle');
@@ -2286,13 +2321,27 @@ export default function App() {
         {isRunning && scanlinesStrength > 0 && <div className="theme-overlay theme-scanlines" style={{ opacity: scanlinesStrength / 100 }} />}
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
-        {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
-          <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}>
-            {recRatio === '16:9' && <><div className="rec-strip top" /><div className="rec-strip bottom" /></>}
-            <div className="rec-window" />
-            <div className="rec-tag">REC {recRatio}</div>
-          </div>
-        )}
+        {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (() => {
+          // Viewfinder width = the recording compositor's cover-crop of the
+          // VIDEO-NATIVE source: fraction of the full-width screen captured
+          // = ratio × videoH/videoW (4:3 webcam → 9:16 shows 42% of the
+          // screen; 16:9 camera → 32%). Synced with the video-native
+          // recording source (bug 2026-08-09: strip was 32% while the
+          // recording showed 42% — the strip looked narrower than reality).
+          const rv = videoRef.current;
+          const rvw = rv?.videoWidth || 640;
+          const rvh = rv?.videoHeight || 480;
+          const rw = recRatio === '9:16' ? 9 / 16 : recRatio === '1:1' ? 1 : 16 / 9;
+          const frac = Math.min(1, rw * (rvh / rvw));
+          return (
+            <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}
+                 style={{ ['--rec-strip-w' as string]: `${(frac * 100).toFixed(2)}%` }}>
+              {recRatio === '16:9' && <><div className="rec-strip top" /><div className="rec-strip bottom" /></>}
+              <div className="rec-window" />
+              <div className="rec-tag">REC {recRatio}</div>
+            </div>
+          );
+        })()}
 
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
@@ -2715,7 +2764,7 @@ export default function App() {
                 <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Keyboard Mode</span> — no camera? Play with the keyboard.<br/>
                 <span style={{ color: '#b0b0d0' }}>Hold 1-7 = chords (I-VII) · [ ] = minor / major · 8 9 0 - = chord style · Shift = octave down · ↑↓ volume · ←→ filter · Space = stop</span>
                 <button
-                  onClick={showKbGuideWithAutoHide}
+                  onClick={() => showKbGuideWithAutoHide(false)}
                   style={{ marginTop: '6px', padding: '4px 10px', background: 'rgba(0,255,204,0.08)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', color: 'var(--neon-cyan)', fontSize: '0.56rem', cursor: 'pointer' }}
                 >
                   ▶ Replay keyboard guide

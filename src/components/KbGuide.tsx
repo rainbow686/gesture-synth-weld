@@ -12,9 +12,15 @@
  *      pressed key and the brain forms the association. Playing IS the
  *      lesson.
  *
- * The component self-contains the highlight logic (its own window
- * keydown/keyup listeners while mounted); App only toggles visibility.
- * Dismissal: overlay click, Esc, or App's auto-hide timer (8s).
+ * Demo animation (2026-08-09, user feedback: "teaching only works as
+ * animation"): on open, the guide AUTO-CYCLES through every mapped key —
+ * each glows for ~1.4s with a caption explaining it ("6 = VI 级"), looping
+ * until the player presses a mapped key themselves (then the demo pauses
+ * and the guide becomes a live press-to-learn display).
+ *
+ * Auto-hide: ONLY for the first-run auto-pop (8s, App-controlled). The
+ * Help-modal replay passes autoHide=false — the player asked to see it,
+ * so it stays open until they click or press Esc.
  *
  * Color coding (brand-consistent):
  *   cyan (harmony)  — 1-7 scale degrees, [ ] minor/major
@@ -37,6 +43,41 @@ interface KbKey {
   /** Accent group. */
   color?: 'harmony' | 'expression' | 'stop';
 }
+
+/** Keys the app maps — pressing any of these hands control to the player
+ *  (demo pauses; the guide becomes a live press-to-learn display). */
+const MAPPED_KEY_SET = new Set([
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
+  '[', ']', 'Shift',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  ' ',
+]);
+
+/** Auto-demo script: every mapped key in teaching order, one caption each. */
+const DEMO_STEPS: { key: string; caption: string }[] = [
+  { key: '1', caption: '按 1 → I 级（主和弦）' },
+  { key: '2', caption: '按 2 → II 级' },
+  { key: '3', caption: '按 3 → III 级' },
+  { key: '4', caption: '按 4 → IV 级' },
+  { key: '5', caption: '按 5 → V 级' },
+  { key: '6', caption: '按 6 → VI 级' },
+  { key: '7', caption: '按 7 → VII 级' },
+  { key: '[', caption: '按 [ → 小调' },
+  { key: ']', caption: '按 ] → 大调' },
+  { key: '8', caption: '按 8 → 三和弦' },
+  { key: '9', caption: '按 9 → 第一转位' },
+  { key: '0', caption: '按 0 → 七和弦' },
+  { key: '-', caption: '按 - → 九和弦' },
+  { key: 'Shift', caption: '按住 Shift → 低八度（8vb）' },
+  { key: 'ArrowUp', caption: '按住 ↑ → 音量增大' },
+  { key: 'ArrowDown', caption: '按住 ↓ → 音量减小' },
+  { key: 'ArrowLeft', caption: '按住 ← → 滤波扫频（左）' },
+  { key: 'ArrowRight', caption: '按住 → → 滤波扫频（右）' },
+  { key: ' ', caption: '按 Space → 停止所有声音' },
+];
+
+/** Demo pacing: one key per 1.4s — readable, not rushed. */
+const DEMO_MS = 1400;
 
 const ROW_0: KbKey[] = [
   { key: '`', cap: '`' },
@@ -112,6 +153,9 @@ interface KbGuideProps {
 export function KbGuide({ onDismiss }: KbGuideProps) {
   // Set (not single key) so 'hold 5 + press 8' highlights both.
   const [activeKeys, setActiveKeys] = useState<ReadonlySet<string>>(new Set());
+  // Auto-demo state: null = not demoing (player took over), else the
+  // current DEMO_STEPS index.
+  const [demoStep, setDemoStep] = useState<number | null>(0);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -119,6 +163,9 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
         onDismiss();
         return;
       }
+      // First mapped key the player presses ends the demo — they're
+      // playing now, the guide becomes a live press-to-learn display.
+      if (MAPPED_KEY_SET.has(e.key)) setDemoStep(null);
       setActiveKeys((prev) => {
         if (prev.has(e.key)) return prev; // auto-repeat
         const next = new Set(prev);
@@ -143,12 +190,24 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
     };
   }, [onDismiss]);
 
+  // Demo timer — loops through the script until the player takes over
+  // (functional update keeps the latest state; no stale closures).
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setDemoStep((cur) => (cur === null ? null : (cur + 1) % DEMO_STEPS.length));
+    }, DEMO_MS);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const demoKey = demoStep === null ? null : DEMO_STEPS[demoStep]?.key ?? null;
+  const demoCaption = demoStep === null ? null : DEMO_STEPS[demoStep]?.caption ?? null;
+
   const renderRow = (row: KbKey[]) => (
     <div className="kb-row">
       {row.map((k) => (
         <div
           key={k.key}
-          className={`kb-key${k.color ? ` kb-key-${k.color}` : ''}${activeKeys.has(k.key) ? ' kb-key-active' : ''}`}
+          className={`kb-key${k.color ? ` kb-key-${k.color}` : ''}${activeKeys.has(k.key) || k.key === demoKey ? ' kb-key-active' : ''}${k.key === demoKey ? ' kb-key-demo' : ''}`}
           style={k.wide ? { flex: `${k.wide} 1 0` } : undefined}
         >
           <span className="kb-key-cap">{k.cap}</span>
@@ -161,13 +220,16 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
   return (
     <div className="kb-guide" onClick={onDismiss}>
       <div className="kb-guide-title">Keyboard Mode — how to play</div>
-      <div className="kb-guide-sub">Press the real keys — they light up as you play</div>
+      <div className="kb-guide-sub">Watch the demo, then press the keys yourself — they light up as you play</div>
       <div className="kb-keyboard">
         {renderRow(ROW_0)}
         {renderRow(ROW_1)}
         {renderRow(ROW_2)}
         {renderRow(ROW_3)}
         {renderRow(ROW_4)}
+      </div>
+      <div className={`kb-guide-demo${demoCaption ? ' visible' : ''}`}>
+        {demoCaption ?? '你按的键会在这里亮起 — 自己试试吧！'}
       </div>
       <div className="kb-guide-hint">
         Hold 1–7 to play · [ ] minor/major · Shift = octave down · click or Esc to close

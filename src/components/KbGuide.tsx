@@ -74,10 +74,13 @@ const DEMO_STEPS: { key: string; caption: string }[] = [
   { key: '0', caption: 'Press 0 → 7th chord' },
   { key: '-', caption: 'Press - → 9th chord' },
   { key: 'Shift', caption: 'Hold Shift → octave down (8vb)' },
-  { key: 'ArrowUp', caption: 'Hold ↑ → volume up' },
-  { key: 'ArrowDown', caption: 'Hold ↓ → volume down' },
-  { key: 'ArrowLeft', caption: 'Hold ← → filter sweep' },
-  { key: 'ArrowRight', caption: 'Hold → → filter sweep' },
+  // Arrow keys use a COLON separator (not →): the mapping arrow would
+  // read as a second key to press ("Hold → → filter sweep" = confusing,
+  // bug 2026-08-09). "Hold ↑ : volume up" is unambiguous.
+  { key: 'ArrowUp', caption: 'Hold ↑ : volume up' },
+  { key: 'ArrowDown', caption: 'Hold ↓ : volume down' },
+  { key: 'ArrowLeft', caption: 'Hold ← : filter sweep left' },
+  { key: 'ArrowRight', caption: 'Hold → : filter sweep right' },
   { key: ' ', caption: 'Press Space → stop all notes' },
 ];
 
@@ -237,21 +240,25 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
 
   return (
     <div className="kb-guide" onClick={onDismiss}>
-      <button
-        className="kb-guide-close"
-        onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-        aria-label="Close keyboard guide"
-        title="Close"
-      >
-        {/* Feather X (MIT) — consistent with the rest of the UI, no emoji */}
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
       <div className="kb-guide-title">Keyboard Mode — how to play</div>
       <div className="kb-guide-sub">Watch the demo, then press the keys yourself — they light up as you play</div>
       <div className="kb-keyboard">
+        {/* Close inside the keyboard panel — the player's eye is on the
+            keyboard, so the ✕ sits at its corner, not the screen's far
+            corner (user feedback 2026-08-09: the screen-corner ✕ was hard
+            to find). The Close button below is the explicit fallback. */}
+        <button
+          className="kb-guide-close"
+          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+          aria-label="Close keyboard guide"
+          title="Close"
+        >
+          {/* Feather X (MIT) — consistent with the rest of the UI, no emoji */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
         {renderRow(ROW_0)}
         {renderRow(ROW_1)}
         {renderRow(ROW_2)}
@@ -261,6 +268,9 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
       <div className={`kb-guide-demo${caption ? ' visible' : ''}`}>
         {caption ?? 'Press any key above to see what it does'}
       </div>
+      <button className="kb-guide-close-btn" onClick={(e) => { e.stopPropagation(); onDismiss(); }}>
+        Close
+      </button>
       <div className="kb-guide-hint">
         Hold 1–7 to play · [ ] minor/major · Shift = octave down
       </div>

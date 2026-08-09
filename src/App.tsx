@@ -585,13 +585,42 @@ export default function App() {
   const [showKbGuide, setShowKbGuide] = useState(false);
   const showKbGuideRef = useRef(false);
   useEffect(() => { showKbGuideRef.current = showKbGuide; }, [showKbGuide]);
-  const dismissKbGuide = useCallback(() => setShowKbGuide(false), []);
+  // Whether the performance pipeline was already running when the guide
+  // opened. If it wasn't (Help replay on the landing page), closing the
+  // guide must restore the idle state — and the guide's keypresses still
+  // sound because the guide runs the keyboard pipeline while open
+  // (bug 2026-08-09: guide presses were silent on first ever use, since
+  // audioEngine.init() only ran on camera start).
+  const kbGuideWasRunningRef = useRef(false);
+  const dismissKbGuide = useCallback(() => {
+    if (!showKbGuideRef.current) return;
+    setShowKbGuide(false);
+    if (!kbGuideWasRunningRef.current) {
+      // Guide borrowed the pipeline — hand it back to idle.
+      keyboardSourceRef.current?.reset();
+      audioEngine.stopAll();
+      setIsRunning(false);
+    }
+    kbGuideWasRunningRef.current = false;
+  }, []);
   // NO auto-hide (user decision 2026-08-09): the guide closes only on its
-  // ✕ button, overlay click, or Esc — for BOTH the first-run auto-pop and
-  // the Help replay. A timed dismissal would yank a player mid-lesson, and
-  // key-press dismissal would kill the first practice press (the earlier
-  // "flashed away" bug). Dismissing is always within reach (3 channels).
-  const showKbGuidePanel = useCallback(() => setShowKbGuide(true), []);
+  // Close button, overlay click, or Esc — for BOTH the first-run auto-pop
+  // and the Help replay. A timed dismissal would yank a player mid-lesson,
+  // and key-press dismissal would kill the first practice press (the
+  // earlier "flashed away" bug). Dismissing is always within reach.
+  const showKbGuidePanel = useCallback(async () => {
+    kbGuideWasRunningRef.current = isRunning || keyboardModeRef.current;
+    if (!kbGuideWasRunningRef.current) {
+      // Guide runs the keyboard pipeline so its presses sound (first-ever
+      // visit: the audio engine was never initialized — only camera start
+      // used to init it, bug 2026-08-09). The button click is the user
+      // gesture that unlocks the AudioContext.
+      await audioEngine.init();
+      keyboardSourceRef.current?.reset();
+      setIsRunning(true);
+    }
+    setShowKbGuide(true);
+  }, [isRunning]);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
   // toggle needed, and each effect adjusts independently. Stackable.
@@ -810,7 +839,7 @@ export default function App() {
         // Everything else (Tab, F5, …) keeps browser behavior.
         if (KEYBOARD_MAPPED_KEYS.includes(e.key)) e.preventDefault();
       }
-      if (keyboardModeRef.current) {
+      if (keyboardModeRef.current || showKbGuideRef.current) {
         keyboardSourceRef.current?.handleKey(e, true);
         // Space still stops all notes below (mute convenience).
       }
@@ -1448,7 +1477,10 @@ export default function App() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (!keyboardModeRef.current && !video) return;
+    // The keyboard guide can run the keyboard pipeline while keyboard mode
+    // itself is off (Help replay on the landing page) — bug 2026-08-09:
+    // guide keypresses were silent.
+    if (!keyboardModeRef.current && !showKbGuideRef.current && !video) return;
 
     runningRef.current = true;
     lastDetectRef.current = 0;
@@ -1462,7 +1494,8 @@ export default function App() {
       if (!ctx) return;
 
       // No-camera mode: synthetic hands + stage background (no video feed).
-      if (keyboardModeRef.current) {
+      // Also used while the keyboard guide is open (its presses must sound).
+      if (keyboardModeRef.current || showKbGuideRef.current) {
         if (canvas.width !== 640 || canvas.height !== 480) {
           canvas.width = 640;
           canvas.height = 480;
@@ -1671,21 +1704,30 @@ export default function App() {
   // No-camera mode: no getUserMedia, no model download — the keyboard
   // source drives the same pipeline from the rAF loop. Persist the choice.
   // First run auto-shows the keyboard guide (once); replay lives in Help.
-  const startKeyboardMode = useCallback(() => {
+  const startKeyboardMode = useCallback(async () => {
     try { localStorage.setItem('gsw-keyboard-mode', '1'); } catch { /* private mode */ }
     setKeyboardMode(true);
     setError(null);
     setCameraErrorType(null);
     firstGestureSentRef.current = false;
     setIsLoading(false);
+    // First-ever keyboard start (no camera history): the engine was never
+    // initialized — only camera start used to init it, so the keyboard
+    // was silently silent (bug 2026-08-09). The click is the user gesture.
+    await audioEngine.init();
     setIsRunning(true);
     let guideSeen = false;
     try { guideSeen = localStorage.getItem('gsw-keyboard-guide-seen') === '1'; } catch { /* private mode */ }
     if (!guideSeen) {
       try { localStorage.setItem('gsw-keyboard-guide-seen', '1'); } catch { /* private mode */ }
-      showKbGuidePanel();
+      // Open directly (not via showKbGuidePanel): the pipeline is ALREADY
+      // running above, and its isRunning closure would still read false
+      // here (state settles after this call) — which would make the guide
+      // tear the keyboard mode down on close.
+      kbGuideWasRunningRef.current = true;
+      setShowKbGuide(true);
     }
-  }, [showKbGuidePanel]);
+  }, []);
 
   const startCamera = useCallback(async () => {
     trackCameraClicked();

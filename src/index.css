@@ -1875,15 +1875,18 @@ body {
   text-shadow: 0 0 14px rgba(0, 255, 204, 0.5);
 }
 
-/* Explicit close button — the ONLY dismissal the guide offers beyond
-   overlay click and Esc (no auto-hide, no key-press close; user decision
-   2026-08-09: the first keypress is the lesson and must not dismiss it). */
+/* Dismissal (no auto-hide, no key-press close; user decision 2026-08-09:
+   the first keypress is the lesson and must not dismiss it):
+   — .kb-guide-close: ✕ inside the keyboard panel's corner (the player's
+     eye is on the keyboard; a screen-corner ✕ was hard to find)
+   — .kb-guide-close-btn: explicit "Close" text button under the caption
+   — overlay click + Esc as the third/fourth channel. */
 .kb-guide-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 34px;
-  height: 34px;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1893,12 +1896,31 @@ body {
   color: #c8c8e8;
   cursor: pointer;
   transition: all 0.15s ease;
+  z-index: 1;
 }
 .kb-guide-close:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
   border-color: rgba(0, 255, 204, 0.5);
   box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+}
+
+.kb-guide-close-btn {
+  padding: 7px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 204, 0.45);
+  background: rgba(0, 255, 204, 0.08);
+  color: var(--neon-cyan);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.kb-guide-close-btn:hover {
+  background: rgba(0, 255, 204, 0.16);
+  border-color: rgba(0, 255, 204, 0.8);
+  box-shadow: 0 0 14px rgba(0, 255, 204, 0.3);
 }
 
 .kb-guide-sub {
@@ -1908,8 +1930,10 @@ body {
   margin-top: -10px;
 }
 
-/* The keyboard — one flex row per physical row. */
+/* The keyboard — one flex row per physical row. Relative so the in-panel
+   ✕ close button anchors to the panel, not the screen. */
 .kb-keyboard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;

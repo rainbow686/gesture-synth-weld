@@ -116,6 +116,10 @@ export class AudioEngine {
   private vocalBypass: GainNode | null = null;
   private vocalPolish: VocalPolish = 'standard';
   private initCalled = false;
+  /** In-flight init promise — concurrent init() callers await the SAME
+   *  build (the old initCalled short-circuit returned before the chain
+   *  existed, silently dropping notes on keyboard-only first start). */
+  private initPromise: Promise<void> | null = null;
 
   // Volume control
   private masterGain: Tone.Gain | null = null;
@@ -141,9 +145,10 @@ export class AudioEngine {
   private analyser: Tone.Analyser | null = null;
 
   async init(): Promise<void> {
+    if (this.initPromise) return this.initPromise;
     if (this.initCalled) return;
     this.initCalled = true;
-
+    this.initPromise = (async () => {
     await Tone.start();
     console.log('Audio engine initialized');
 
@@ -229,6 +234,8 @@ export class AudioEngine {
       envelope: { attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.5 },
     }).connect(this.filter);
     this.bassSynth.volume.value = -6; // softer
+    })();
+    return this.initPromise;
   }
 
   getTimbre(): TimbreType {

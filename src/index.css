@@ -1846,9 +1846,11 @@ body {
 }
 
 /* ─── Keyboard-mode guide overlay (first-run + replay) ────────────────
-   Liquid-glass abstract keyboard: frosted panel, neon keys, grouped
-   pulse animations teaching key → music mapping. Auto-dismisses after
-   a few seconds or on any key press. */
+   REAL physical keyboard layout (2026-08-09 user feedback): full QWERTY
+   rows so position recognition is instant, mapped keys glow by function
+   (cyan = harmony, pink = expression, red = stop), unmapped keys stay
+   dim, and the pressed key highlights live (window keydown/keyup).
+   Auto-dismisses after 8s; closes on click or Esc. */
 .kb-guide {
   position: fixed;
   inset: 0;
@@ -1857,10 +1859,11 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  background: rgba(5, 5, 15, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  gap: 16px;
+  padding: 16px;
+  background: rgba(5, 5, 15, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
   animation: kb-fade-in 0.25s ease;
 }
@@ -1872,83 +1875,107 @@ body {
 
 .kb-guide-title {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 900;
   letter-spacing: 0.12em;
   color: var(--neon-cyan);
   text-shadow: 0 0 14px rgba(0, 255, 204, 0.5);
 }
 
-.kb-guide-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
+.kb-guide-sub {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: #9a9ac0;
+  margin-top: -10px;
 }
 
-.kb-guide-row {
+/* The keyboard — one flex row per physical row. */
+.kb-keyboard {
   display: flex;
-  gap: 6px;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 5px;
   background: var(--frost-bg);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid var(--frost-border);
-  border-radius: 14px;
-  padding: 8px 10px;
+  border-radius: 16px;
+  padding: 12px;
   box-shadow: var(--frost-shadow);
+  max-width: min(640px, 92vw);
 }
 
-/* Grouped pulse: each functional group lights up in turn. */
-.kb-guide-pulse {
-  animation: kb-pulse 2.6s ease-in-out infinite;
-}
-.kb-guide-pulse-1 { animation-delay: 0s; }
-.kb-guide-pulse-2 { animation-delay: 0.65s; }
-.kb-guide-pulse-3 { animation-delay: 1.3s; }
-
-@keyframes kb-pulse {
-  0%, 60%, 100% { box-shadow: 0 0 0 rgba(0, 255, 204, 0); border-color: var(--frost-border); }
-  20%, 45% { box-shadow: 0 0 18px rgba(0, 255, 204, 0.45); border-color: rgba(0, 255, 204, 0.7); }
+.kb-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
 }
 
 .kb-key {
+  flex: 1 1 0;
+  min-width: 38px;
+  height: 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 34px;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px 2px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  transition: all 0.12s ease;
+  cursor: pointer;
 }
 
 .kb-key-cap {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #ffffff;
+  line-height: 1.1;
 }
 
 .kb-key-label {
-  font-size: 0.5rem;
-  letter-spacing: 0.04em;
+  font-size: 0.48rem;
+  letter-spacing: 0.03em;
   color: var(--text-muted);
   white-space: nowrap;
+  line-height: 1.1;
 }
 
-.kb-guide-note {
-  align-self: center;
-  font-size: 0.52rem;
-  color: var(--neon-cyan);
-  opacity: 0.8;
-  margin-left: 4px;
-  white-space: nowrap;
+/* Accent groups — brand colors: harmony cyan, expression pink, stop red. */
+.kb-key-harmony {
+  background: rgba(0, 255, 204, 0.10);
+  border-color: rgba(0, 255, 204, 0.35);
 }
+.kb-key-harmony .kb-key-label { color: #6effe0; }
+
+.kb-key-expression {
+  background: rgba(255, 46, 158, 0.10);
+  border-color: rgba(255, 46, 158, 0.35);
+}
+.kb-key-expression .kb-key-label { color: #ff8ac4; }
+
+.kb-key-stop {
+  background: rgba(255, 80, 80, 0.10);
+  border-color: rgba(255, 80, 80, 0.35);
+}
+.kb-key-stop .kb-key-label { color: #ff9a9a; }
+
+/* Live pressed key — the press-to-learn highlight. */
+.kb-key-active {
+  transform: translateY(1px) scale(1.06);
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 22px rgba(0, 255, 204, 0.65), inset 0 0 12px rgba(0, 255, 204, 0.25);
+}
+.kb-key-active .kb-key-cap { color: var(--neon-cyan); text-shadow: 0 0 10px rgba(0, 255, 204, 0.9); }
+.kb-key-active .kb-key-label { color: var(--neon-cyan) !important; }
 
 .kb-guide-hint {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   color: #b0b0d0;
   letter-spacing: 0.06em;
+  text-align: center;
+  max-width: 560px;
 }

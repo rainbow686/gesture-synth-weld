@@ -7,6 +7,7 @@ import { audioEngine, type VocalPolish } from './audioEngine';
 import { CameraSource } from './input/cameraSource';
 import { KeyboardSource } from './input/keyboardSource';
 import type { HandFrame } from './input/types';
+import { KbGuide } from './components/KbGuide';
 import {
   roundRectPath,
   drawUrlPill,
@@ -572,8 +573,6 @@ export default function App() {
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
-  const showKbGuideRef = useRef(false);
-  useEffect(() => { showKbGuideRef.current = showKbGuide; }, [showKbGuide]);
   const kbGuideTimerRef = useRef<number | null>(null);
   const dismissKbGuide = useCallback(() => {
     setShowKbGuide(false);
@@ -582,7 +581,9 @@ export default function App() {
   const showKbGuideWithAutoHide = useCallback(() => {
     setShowKbGuide(true);
     if (kbGuideTimerRef.current) window.clearTimeout(kbGuideTimerRef.current);
-    kbGuideTimerRef.current = window.setTimeout(() => setShowKbGuide(false), 4000);
+    // 8s — long enough to read all three rows at leisure; closes on
+    // overlay click or Esc when the player wants to start sooner.
+    kbGuideTimerRef.current = window.setTimeout(() => setShowKbGuide(false), 8000);
   }, []);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
@@ -805,8 +806,9 @@ export default function App() {
         return;
       }
 
-      // Escape: Reset state
+      // Escape: Reset state (+ close the keyboard guide if open)
       if (e.key === 'Escape') {
+        dismissKbGuide();
         audioEngine.stopAll();
         setSynthState(prev => ({
           ...prev,
@@ -820,9 +822,10 @@ export default function App() {
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (keyboardModeRef.current) keyboardSourceRef.current?.handleKey(e, false);
-      // Any key dismisses the first-run keyboard guide (played immediately
-      // — the player wants to start).
-      if (showKbGuideRef.current) dismissKbGuide();
+      // NOTE: no guide dismissal here — the keyup of the very keystroke
+      // that activated the mode button (Enter/Space) used to flash the
+      // first-run guide away before it could be read (bug 2026-08-09).
+      // The guide closes on overlay click, Esc, or its auto-hide timer.
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1477,7 +1480,11 @@ export default function App() {
       const dh = Math.round(sh * scale);
       const dx = Math.round((dispW - dw) / 2);
       const dy = Math.round((dispH - dh) / 2);
-      ctx.drawImage(cam, dx, dy, dw, dh);
+      // Mirror-space correction: after scale(-1,1) the visible canvas is
+      // x ∈ [-dispW, 0], so the source rect that maps back to screen
+      // [dx, dx+dw] starts at -dx-dw. (Bug: using dx here drew the video
+      // off-screen left — black frame with skeleton visible, 2026-08-09.)
+      ctx.drawImage(cam, -dx - dw, dy, dw, dh);
       ctx.restore();
 
       ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
@@ -3069,10 +3076,10 @@ export default function App() {
         {isRunning && (
           <>
             {/* Scale Guide - 8 blocks showing scale degrees.
-                Hidden in keyboard mode: its hints are hand-gesture semantics
-                ('1 finger' / 'idx + pky'), meaningless for key presses, and
-                it would overlap the keyboard guide overlay. */}
-            {synthState.appMode === 'gesture' && !keyboardMode && (
+                Shown in BOTH modes (bug 2026-08-09: keyboard mode hid it
+                entirely — the player still needs the degree map). The hint
+                line switches semantics: key numbers vs finger gestures. */}
+            {synthState.appMode === 'gesture' && (
               <div className="scale-guide" style={{
                 position: 'absolute',
                 bottom: '80px',
@@ -3088,14 +3095,14 @@ export default function App() {
                     return key?.name?.split('/')[0] ?? '?';
                   };
                   const keyNotes = [
-                    { note: mkNote(0),  roman: 'I',   hint: '1 finger' },
-                    { note: mkNote(2),  roman: 'II',  hint: '2 fingers' },
-                    { note: mkNote(4),  roman: 'III', hint: '3 fingers' },
-                    { note: mkNote(5),  roman: 'IV',  hint: '4 fingers' },
-                    { note: mkNote(7),  roman: 'V',   hint: '5 fingers' },
-                    { note: mkNote(9),  roman: 'VI',  hint: 'idx + pky' },
-                    { note: mkNote(11), roman: 'VII', hint: 'i + p + t' },
-                    { note: mkNote(0),  roman: 'I\'', hint: '1 fing (oct)' },
+                    { note: mkNote(0),  roman: 'I',   hint: keyboardMode ? 'key 1' : '1 finger' },
+                    { note: mkNote(2),  roman: 'II',  hint: keyboardMode ? 'key 2' : '2 fingers' },
+                    { note: mkNote(4),  roman: 'III', hint: keyboardMode ? 'key 3' : '3 fingers' },
+                    { note: mkNote(5),  roman: 'IV',  hint: keyboardMode ? 'key 4' : '4 fingers' },
+                    { note: mkNote(7),  roman: 'V',   hint: keyboardMode ? 'key 5' : '5 fingers' },
+                    { note: mkNote(9),  roman: 'VI',  hint: keyboardMode ? 'key 6' : 'idx + pky' },
+                    { note: mkNote(11), roman: 'VII', hint: keyboardMode ? 'key 7' : 'i + p + t' },
+                    { note: mkNote(0),  roman: 'I\'', hint: keyboardMode ? 'Shift = 8vb' : '1 fing (oct)' },
                   ];
                   return keyNotes.map((block, i) => {
                     const isActive = synthState.chordIndex === i && synthState.isPlaying;
@@ -3316,37 +3323,7 @@ export default function App() {
       </section>
 
       {/* ─── Keyboard guide overlay (first-run + replayable) ──────────── */}
-      {showKbGuide && (
-        <div className="kb-guide" onClick={dismissKbGuide}>
-          <div className="kb-guide-title">Keyboard Mode</div>
-          <div className="kb-guide-rows">
-            {/* Degree keys — the held-to-play row */}
-            <div className="kb-guide-row kb-guide-pulse kb-guide-pulse-1">
-              {['1', '2', '3', '4', '5', '6', '7'].map((k, i) => (
-                <div key={k} className="kb-key">
-                  <span className="kb-key-cap">{k}</span>
-                  <span className="kb-key-label">{['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i]}</span>
-                </div>
-              ))}
-              <span className="kb-guide-note">hold to play</span>
-            </div>
-            {/* Control keys — point-toggles */}
-            <div className="kb-guide-row kb-guide-pulse kb-guide-pulse-2">
-              <div className="kb-key"><span className="kb-key-cap">[</span><span className="kb-key-label">Minor</span></div>
-              <div className="kb-key"><span className="kb-key-cap">]</span><span className="kb-key-label">Major</span></div>
-              <div className="kb-key"><span className="kb-key-cap">8 9 0 -</span><span className="kb-key-label">Chord style</span></div>
-              <div className="kb-key"><span className="kb-key-cap">Shift</span><span className="kb-key-label">Octave 8vb</span></div>
-            </div>
-            {/* Expression keys */}
-            <div className="kb-guide-row kb-guide-pulse kb-guide-pulse-3">
-              <div className="kb-key"><span className="kb-key-cap">↑ ↓</span><span className="kb-key-label">Volume</span></div>
-              <div className="kb-key"><span className="kb-key-cap">← →</span><span className="kb-key-label">Filter</span></div>
-              <div className="kb-key"><span className="kb-key-cap">Space</span><span className="kb-key-label">Stop</span></div>
-            </div>
-          </div>
-          <div className="kb-guide-hint">Hold 1-7 to play · any key to start</div>
-        </div>
-      )}
+      {showKbGuide && <KbGuide onDismiss={dismissKbGuide} />}
 
     </div>
   );

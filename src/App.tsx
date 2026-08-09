@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   initHandTracking,
   prefetchModel,
-  detectHands,
   HAND_CONNECTIONS,
 } from './handTracker';
 import { audioEngine, type VocalPolish } from './audioEngine';
+import { CameraSource } from './input/cameraSource';
+import type { HandFrame } from './input/types';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -585,12 +586,11 @@ export default function App() {
   const lastVideoCheckRef = useRef(0);
   const frozenChecksRef = useRef(0);
 
-  // Hand detection smoothing to prevent flickering
-  const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
-    left: [],
-    right: [],
-  });
-  const HAND_STABLE_FRAMES = 3; // Require 3 frames for hand presence
+  // Camera input source: MediaPipe detection + hand-presence smoothing
+  // (moved to input/cameraSource.ts in the 2026-08-09 refactor — pure move,
+  // identical behavior).
+  const cameraSourceRef = useRef<CameraSource | null>(null);
+  if (!cameraSourceRef.current) cameraSourceRef.current = new CameraSource();
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -965,43 +965,16 @@ export default function App() {
 
   /* ─── Process Detected Hands (Two-Hand Logic) ──────────────────────── */
 
-  const processHandsRef = useRef<(hands: HandData[]) => void>();
-  processHandsRef.current = (hands: HandData[]) => {
+  const processHandsRef = useRef<(frame: HandFrame) => void>();
+  processHandsRef.current = (frame: HandFrame) => {
+    const leftHand = frame.left;
+    const rightHand = frame.right;
+
     // First hand detected = the activation moment (funnel event, once per run)
-    if (hands.length > 0 && !firstGestureSentRef.current) {
+    if ((leftHand || rightHand) && !firstGestureSentRef.current) {
       firstGestureSentRef.current = true;
       trackFirstGesture(cameraStartRef.current ? (Date.now() - cameraStartRef.current) / 1000 : 0);
     }
-
-    let leftHand: HandData | null = null;
-    let rightHand: HandData | null = null;
-
-    for (const hand of hands) {
-      if (hand.label === 'Left') {
-        leftHand = hand;
-      } else {
-        rightHand = hand;
-      }
-    }
-
-    // Apply hand detection smoothing to prevent flickering
-    handDetectionHistoryRef.current.left.push(!!leftHand);
-    handDetectionHistoryRef.current.right.push(!!rightHand);
-    if (handDetectionHistoryRef.current.left.length > HAND_STABLE_FRAMES) {
-      handDetectionHistoryRef.current.left.shift();
-    }
-    if (handDetectionHistoryRef.current.right.length > HAND_STABLE_FRAMES) {
-      handDetectionHistoryRef.current.right.shift();
-    }
-
-    // Use majority vote: hand is detected if at least half of recent frames detected it
-    // This prevents flickering while still being responsive
-    const leftDetected = handDetectionHistoryRef.current.left.filter(v => v).length >= Math.ceil(HAND_STABLE_FRAMES / 2);
-    const rightDetected = handDetectionHistoryRef.current.right.filter(v => v).length >= Math.ceil(HAND_STABLE_FRAMES / 2);
-
-    // Use smoothed detection
-    leftHand = leftDetected ? leftHand : null;
-    rightHand = rightDetected ? rightHand : null;
 
     setGesture({ left: leftHand, right: rightHand });
     setHasLeftHand(!!leftHand);
@@ -1009,7 +982,7 @@ export default function App() {
 
     // Onboarding: once per session, celebrate the first stable two-hand
     // detection — a 3s badge, never shown again in this session.
-    if (leftDetected && rightDetected && !handsReadyShown) {
+    if (leftHand && rightHand && !handsReadyShown) {
       setHandsReadyShown(true);
       try { sessionStorage.setItem('gswHandsReady', '1'); } catch { /* private mode */ }
       setShowHandsReady(true);
@@ -1606,8 +1579,8 @@ export default function App() {
         isDetectingRef.current = true;
         const t0 = performance.now();
         try {
-          const hands = detectHands(video, timestamp);
-          processHandsRef.current?.(hands);
+          const frame = cameraSourceRef.current?.getFrame(video, timestamp) ?? { left: null, right: null };
+          processHandsRef.current?.(frame);
         } catch (e) {
           console.warn('Detection frame error:', e);
         } finally {
@@ -1950,7 +1923,7 @@ export default function App() {
     // Reset stabilizer state for clean restart
     stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     rightHandHistoryRef.current = [];
-    handDetectionHistoryRef.current = { left: [], right: [] };
+    cameraSourceRef.current?.reset();
     pinkyMemoryRef.current = 0;
 
     const canvas = canvasRef.current;

@@ -43,10 +43,10 @@ vi.mock('tone', () => {
     gain: typeof gainParam = { ...gainParam };
   };
   const Filter = class {
-    constructor(public frequency = 1200, _type = 'lowpass') {
+    constructor(_freq = 1200, _type = 'lowpass') {
       Object.assign(this, node());
       this.frequency = {
-        value: frequency,
+        value: _freq,
         cancelScheduledValues: vi.fn(),
         setValueAtTime: vi.fn(),
         setTargetAtTime: vi.fn(),

@@ -28,10 +28,15 @@ All Engine methods are idempotent and use smooth transitions:
 - **Theremin**: Right hand Y=pitch, left hand Y=volume (dual-hand)
 - **MonoPiano**: Finger count → note interval (1=root, 2=3rd, 3=5th, 4=octave, 5=9th)
 
-### No-Camera Mode (keyboard & mouse, 2026-08-09 refactor branch)
-- Settings toggle "No camera? Keyboard & mouse mode" (persisted gsw-keyboard-mode); main button becomes "Start Playing (Keyboard & Mouse)" — no getUserMedia, no MediaPipe model download
-- **Input source abstraction** (`src/input/`): every source produces a `HandFrame` (left/right HandData) consumed by ONE pipeline ("every input reaches the same audio engine" — competitor .online principle). CameraSource (detection + presence smoothing) / KeyboardSource (synthetic hands, empty landmarks — skeleton overlay skips them)
-- Keyboard: 1-5 = degrees I-V, 6 = VI, 7 = VII, Q/W = minor/major, 8/9/0/- = chord style 1-4, M = octave down; mouse X = filter sweep, mouse Y = volume
+### No-Camera Mode (keyboard, 2026-08-09 refactor branch)
+- Settings toggle "No camera? Keyboard mode (desktop)" (persisted gsw-keyboard-mode; mobile-hidden — phones have no physical keyboard); main button becomes "Start Playing (Keyboard)" — no getUserMedia, no MediaPipe model download
+- **Input source abstraction** (`src/input/`): every source produces a `HandFrame` (left/right HandData) consumed by ONE pipeline ("every input reaches the same audio engine" — competitor .online principle). CameraSource (detection + presence smoothing) / KeyboardSource (synthetic hands, empty landmarks — skeleton overlay skips them; `frame.source` gates camera-only compensation like pinky memory)
+- Keyboard layout (hold-to-play, release to stop — keyboard-instrument semantics; only the degree key is ever held):
+  - **1-7**: scale degrees I-VII (hold = play, release = silence; VI/VII via synthetic index+pinky/+thumb)
+  - **[ / ]**: minor/major · **Shift**: octave down (8vb) · **8/9/0/-**: chord style (triad/1st inv/7th/9th)
+  - **↑/↓**: volume sweep · **←/→**: filter sweep (competitor .net arrow-key inspiration; replaces the mouse — single-device, keyboard only) · **Space**: stop
+- **First-run keyboard guide** (`src/components/KbGuide.tsx`): REAL physical QWERTY layout — position recognition + live press-to-learn highlighting (pressed key glows, shows degree/function; cyan=harmony, pink=expression, red=stop, unmapped keys dim). Auto-shows once (localStorage gsw-keyboard-guide-seen), 8s auto-hide, closes on click/Esc, replayable from Help. (Abstract mini-keypad retired 2026-08-09 — user feedback: it flashed away too fast and didn't map to real key positions)
+- Scale Guide (8 degree blocks) visible in BOTH modes; hint line switches semantics (key numbers vs finger gestures)
 - Recording in keyboard mode: video modes render stage background + waveform (no feed)
 
 ### Instruments
@@ -81,6 +86,7 @@ src/
 ├── main.tsx            # React entry point
 ├── wavEncoder.ts       # WAV export utility
 ├── input/              # Input source abstraction (2026-08-09): types.ts (HandFrame/HandInputSource), cameraSource.ts, keyboardSource.ts
+├── components/KbGuide.tsx  # Keyboard-mode first-run guide: real QWERTY layout, live press highlighting (2026-08-09)
 ├── hud/draw.ts         # Canvas drawing helpers (extracted 2026-08-09: skeleton/chord HUD/stage/brand)
 ├── __tests__/          # Vitest: chords.test.ts + audioEngine.test.ts (29 tests)
 ├── handArt.ts          # Licensed hand-gesture SVG art for the Help demo (Commons CC BY-SA / Noto Apache-2.0 / OpenClipart CC0, single-color)

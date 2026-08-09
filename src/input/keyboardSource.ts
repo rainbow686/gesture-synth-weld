@@ -7,7 +7,8 @@
  * the same audio engine"). The left hand (harmony) maps to the number
  * keys, the right hand (expression) to the mouse:
  *
- *   Left hand (harmony):
+ *   Left hand (harmony) — HOLD to play, release to stop (keyboard
+ *   instrument semantics: press = sound, release = silence):
  *     1-5      → scale degree I–V        (fingerCount 1–5)
  *     6        → VI                      (index+pinky)
  *     7        → VII                     (index+pinky+thumb)
@@ -17,9 +18,9 @@
  *     mouse Y  → height (volume, top = loud)
  *     8/9/0/-  → chord style 1–4 (triad / 1st inv / 7th / 9th)
  *     M        → thumb (octave down, HUD 8vb badge)
- *   Global:
- *     X        → mute toggle (like the left fist; muted frames report no
- *                hands, so the consume pipeline stops all sound)
+ *
+ * Releasing the held degree key reports no left hand — the consume
+ * pipeline stops all sound (same path as the left fist / hand loss).
  *
  * Synthetic hands have empty landmarks — the skeleton overlay skips them
  * (drawHandSkeleton requires ≥21 points); everything else (HUD chord,
@@ -31,6 +32,8 @@ import type { HandFrame, HandInputSource, InputSource } from './types';
 
 interface KbState {
   left: {
+    /** The degree key currently HELD ('1'-'7'), or null when released. */
+    key: string | null;
     fingerCount: number; // 1-5 → I-V
     vi: boolean; // 6 → VI
     vii: boolean; // 7 → VII
@@ -44,7 +47,7 @@ interface KbState {
 }
 
 const DEFAULT_STATE: KbState = {
-  left: { fingerCount: 1, vi: false, vii: false, tilt: 1 },
+  left: { key: null, fingerCount: 1, vi: false, vii: false, tilt: 1 },
   right: { styleFinger: 1, thumb: false },
   mouse: { x: 0.5, y: 0.5 },
 };
@@ -53,31 +56,27 @@ export class KeyboardSource implements HandInputSource {
   readonly kind: InputSource = 'keyboard';
 
   private state: KbState = structuredClone(DEFAULT_STATE);
-  private muted = false;
-
-  /** Mute state (X key) — mirror of the left-fist mute. */
-  get isMuted(): boolean {
-    return this.muted;
-  }
 
   /** Key handler — call from a window keydown/keyup listener. */
   handleKey(e: KeyboardEvent, down: boolean): void {
     const key = e.key;
     // Only react to our mapped keys; keep default browser behavior otherwise.
     switch (key) {
-      case 'x': case 'X':
-        if (down) this.muted = !this.muted;
-        break;
       case '1': case '2': case '3': case '4': case '5':
         if (down) {
-          this.state.left = { ...this.state.left, fingerCount: Number(key), vi: false, vii: false };
+          this.state.left = { ...this.state.left, key, fingerCount: Number(key), vi: false, vii: false };
+        } else if (key === this.state.left.key) {
+          // Release the held degree → no left hand → silence.
+          this.state.left = { ...this.state.left, key: null };
         }
         break;
       case '6':
-        if (down) this.state.left = { ...this.state.left, vi: true, vii: false };
+        if (down) this.state.left = { ...this.state.left, key, vi: true, vii: false };
+        else if (key === this.state.left.key) this.state.left = { ...this.state.left, key: null };
         break;
       case '7':
-        if (down) this.state.left = { ...this.state.left, vii: true, vi: false };
+        if (down) this.state.left = { ...this.state.left, key, vii: true, vi: false };
+        else if (key === this.state.left.key) this.state.left = { ...this.state.left, key: null };
         break;
       case 'q': case 'Q':
         if (down) this.state.left = { ...this.state.left, tilt: -1 };
@@ -108,11 +107,13 @@ export class KeyboardSource implements HandInputSource {
   }
 
   getFrame(): HandFrame {
-    // Muted (X): report no hands — the consume pipeline stops all sound
-    // (same path as the left fist / hand loss).
-    if (this.muted) return { left: null, right: null, source: 'keyboard' };
-
     const { left, right, mouse } = this.state;
+
+    // No degree key held → no left hand → the consume pipeline silences
+    // (same path as the left fist / hand loss).
+    if (left.key === null) {
+      return { left: null, right: null, source: 'keyboard' };
+    }
 
     // Left hand → harmony. VI/VII express via extended fingers (same
     // detection as the camera: index+pinky / +thumb). Plain 1-5 use
@@ -159,6 +160,5 @@ export class KeyboardSource implements HandInputSource {
 
   reset(): void {
     this.state = structuredClone(DEFAULT_STATE);
-    this.muted = false;
   }
 }

@@ -2952,7 +2952,7 @@ export default function App() {
                 </button>
                 <p className="camera-placeholder-hint">
                   {keyboardMode
-                    ? 'Keys 1-7 chords · Q/W major-minor · 8/9/0/- style · M octave · X mute · mouse X filter · mouse Y volume'
+                    ? 'Hold 1-7 to play chords · Q/W major-minor · 8/9/0/- style · M octave · mouse X filter · mouse Y volume'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
               </>

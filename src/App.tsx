@@ -585,21 +585,13 @@ export default function App() {
   const [showKbGuide, setShowKbGuide] = useState(false);
   const showKbGuideRef = useRef(false);
   useEffect(() => { showKbGuideRef.current = showKbGuide; }, [showKbGuide]);
-  const kbGuideTimerRef = useRef<number | null>(null);
-  const dismissKbGuide = useCallback(() => {
-    setShowKbGuide(false);
-    if (kbGuideTimerRef.current) { window.clearTimeout(kbGuideTimerRef.current); kbGuideTimerRef.current = null; }
-  }, []);
-  const showKbGuideWithAutoHide = useCallback((autoHide: boolean = true) => {
-    setShowKbGuide(true);
-    if (kbGuideTimerRef.current) window.clearTimeout(kbGuideTimerRef.current);
-    // First-run auto-pop: 8s auto-hide (the player may not want it).
-    // Replay from Help: NO auto-hide — the player asked to see it and
-    // may study it for a long time (user feedback 2026-08-09).
-    if (autoHide) {
-      kbGuideTimerRef.current = window.setTimeout(() => setShowKbGuide(false), 8000);
-    }
-  }, []);
+  const dismissKbGuide = useCallback(() => setShowKbGuide(false), []);
+  // NO auto-hide (user decision 2026-08-09): the guide closes only on its
+  // ✕ button, overlay click, or Esc — for BOTH the first-run auto-pop and
+  // the Help replay. A timed dismissal would yank a player mid-lesson, and
+  // key-press dismissal would kill the first practice press (the earlier
+  // "flashed away" bug). Dismissing is always within reach (3 channels).
+  const showKbGuidePanel = useCallback(() => setShowKbGuide(true), []);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
   // toggle needed, and each effect adjusts independently. Stackable.
@@ -1691,9 +1683,9 @@ export default function App() {
     try { guideSeen = localStorage.getItem('gsw-keyboard-guide-seen') === '1'; } catch { /* private mode */ }
     if (!guideSeen) {
       try { localStorage.setItem('gsw-keyboard-guide-seen', '1'); } catch { /* private mode */ }
-      showKbGuideWithAutoHide();
+      showKbGuidePanel();
     }
-  }, [showKbGuideWithAutoHide]);
+  }, [showKbGuidePanel]);
 
   const startCamera = useCallback(async () => {
     trackCameraClicked();
@@ -2771,7 +2763,7 @@ export default function App() {
                 <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Keyboard Mode</span> — no camera? Play with the keyboard.<br/>
                 <span style={{ color: '#b0b0d0' }}>Hold 1-7 = chords (I-VII) · [ ] = minor / major · 8 9 0 - = chord style · Shift = octave down · ↑↓ volume · ←→ filter · Space = stop</span>
                 <button
-                  onClick={() => showKbGuideWithAutoHide(false)}
+                  onClick={showKbGuidePanel}
                   style={{ marginTop: '6px', padding: '4px 10px', background: 'rgba(0,255,204,0.08)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', color: 'var(--neon-cyan)', fontSize: '0.56rem', cursor: 'pointer' }}
                 >
                   ▶ Replay keyboard guide

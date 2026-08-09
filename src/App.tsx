@@ -1,20 +1,37 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   initHandTracking,
   prefetchModel,
-  detectHands,
-  HAND_CONNECTIONS,
 } from './handTracker';
-import { audioEngine, type VocalPolish } from './audioEngine';
+import { audioEngine } from './audioEngine';
+import { CameraSource } from './input/cameraSource';
+import { KeyboardSource } from './input/keyboardSource';
+import type { HandFrame } from './input/types';
+import { KbGuide } from './components/KbGuide';
+import { SettingsPanel } from './components/SettingsPanel';
+import { HelpModal } from './components/HelpModal';
+import { renderHandArt } from './components/HandArt';
+import {
+  roundRectPath,
+  drawUrlPill,
+  drawMetalBrand,
+  drawChordHud,
+  drawChordText,
+  drawStageBackground,
+  drawHandSkeleton,
+} from './hud/draw';
+import { drawWaveform } from './hud/waveform';
+import { useRecording } from './recording/useRecording';
+import { RecSheet } from './recording/RecSheet';
+import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
+import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
 import {
   DIATONIC_CHORDS,
   KEYS,
   getChordName,
   getChordParts,
-  chordNoteCount,
   midiToFreq,
   type ChordStyle,
-  CHORD_STYLE_OPTIONS,
 } from './chords';
 import {
   FINGER_TO_CHORD_INDEX,
@@ -23,16 +40,10 @@ import {
   type HandData,
   type SynthState,
   type AppMode,
-  type LeftHandMode,
-  type RightHandMode,
-  type ArpSpeed,
   type RecMode,
   type RecRatio,
   type RecPhase,
 } from './types';
-import { makeRecordingFilename } from './wavEncoder';
-import { HAND_ART } from './handArt';
-import { injectBrandTags } from './mp4tags';
 import {
   initTrafficSource,
   trackCameraClicked,
@@ -43,358 +54,36 @@ import {
   trackFirstGesture,
   trackHelpButtonClicked,
   trackPageEngaged,
-  trackRecording,
-  trackRecordingModeChanged,
-  trackRecordingViewed,
   trackScrollToPlaybook,
   trackSettingChanged,
-  trackShare,
-  trackRecordButtonClicked,
-  trackMicToggled,
   trackWatchdogTriggered,
+  trackKeyboardModeEntered,
+  trackKeyboardModeExited,
+  trackKeyboardFirstNote,
+  trackKeyboardGuideShown,
+  trackKeyboardGuideDismissed,
+  type KeyboardModeSource,
 } from './analytics';
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
 
-/* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
-
-/* ─── B2: Recording constants & helpers (module level, pure) ────────── */
-
-/** Max recording length in seconds (2026-08-09: 15 → 30, growth plan P0). */
-const RECORD_SECONDS = 30;
-
-const VIDEO_REC_SUPPORTED =
-  typeof MediaRecorder !== 'undefined' &&
-  typeof HTMLCanvasElement !== 'undefined' &&
-  typeof HTMLCanvasElement.prototype.captureStream === 'function';
-
-const REC_RATIO_DIMS: Record<RecRatio, [number, number]> = {
-  '9:16': [720, 1280],
-  '16:9': [1280, 720],
-  '1:1': [1080, 1080],
-};
-
-const REC_RATIO_HINTS: Record<RecRatio, string> = {
-  '9:16': 'TikTok · Instagram Reels · YouTube Shorts',
-  '16:9': 'YouTube · general sharing',
-  '1:1': 'Instagram feed · Discord · Reddit',
-};
-
-const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
-  video: (
-    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
-      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
-      <circle cx="22" cy="14" r="6" fill="#3a3a6a" />
-      <path d="M14 29c0-4.2 3.5-6.5 8-6.5s8 2.3 8 6.5" fill="#3a3a6a" />
-      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
-      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
-      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
-      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
-    </svg>
-  ),
-  skeleton: (
-    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
-      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
-      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
-      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
-      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
-      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
-    </svg>
-  ),
-  audio: (
-    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
-      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
-      {[8, 14, 20, 26, 32, 38, 44, 50, 56].map((x, i) => (
-        <rect key={x} x={x} y={18 - (i % 3) * 4} width="3" height={(i % 3) * 8 + 8} rx="1.5" fill="#00ffcc" opacity={0.85} />
-      ))}
-    </svg>
-  ),
-};
-
-/** Domain URL on a dark pill — white bold, text vertically centered. */
-function drawUrlPill(
-  ctx: CanvasRenderingContext2D,
-  anchorX: number,
-  baseY: number,
-  fontSize: number,
-  centered: boolean,
-): void {
-  const url = 'gesturesynthweld.com';
-  ctx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
-  const w = ctx.measureText(url).width;
-  const pillH = fontSize + 14;
-  const textMid = baseY - fontSize * 0.35; // visual center of the glyphs
-  const pillTop = textMid - pillH / 2; // pill centered on the text
-  const left = centered ? anchorX - w / 2 - 14 : anchorX - w - 14;
-  roundRectPath(ctx, left, pillTop, w + 28, pillH, pillH / 2);
-  ctx.fillStyle = 'rgba(5, 5, 15, 0.72)';
-  ctx.fill();
-  ctx.textAlign = centered ? 'center' : 'right';
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 4;
-  ctx.fillText(url, anchorX, baseY);
-  ctx.shadowBlur = 0;
-}
-
-/** Metallic brand wordmark — cyan-cool chrome, static, no flash. */
-function drawMetalBrand(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  size: number,
-): void {
-  const text = 'GESTURE SYNTH WELD';
-  ctx.font = `800 ${size}px Orbitron, monospace`;
-  ctx.textAlign = 'left';
-  // subtle dark drop for a raised, dimensional look
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-  ctx.fillText(text, x, y + 2);
-  // cyan-cool chrome gradient: white → light cyan → cool mid → bright
-  const g = ctx.createLinearGradient(0, y - size, 0, y + 4);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.35, '#d8ecff');
-  g.addColorStop(0.5, '#7fb8e8');
-  g.addColorStop(0.7, '#eef8ff');
-  g.addColorStop(1, '#a8cde8');
-  ctx.fillStyle = g;
-  ctx.fillText(text, x, y);
-}
-
-// 7 scale-degree colors for the waveform (neon palette, in-key): the
-// degree = harmony identity (left hand), so a chord change glides the
-// waveform's hue through this spectrum.
-const DEGREE_COLORS: [number, number, number][] = [
-  [0, 255, 204],   // I   — brand cyan
-  [0, 224, 138],   // ii  — spring green
-  [102, 255, 102], // iii — green
-  [170, 255, 68],  // IV  — yellow-green
-  [255, 204, 0],   // V   — amber
-  [255, 68, 204],  // vi  — magenta
-  [180, 76, 255],  // vii — violet
+/** Keys KeyboardSource maps — their default browser behavior (page
+ *  scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
+ *  Everything else keeps native behavior (Tab, F5, …). */
+const KEYBOARD_MAPPED_KEYS = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
+  '[', ']', 'Shift',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  ' ',
 ];
 
-/**
- * Recording-HUD chord: root+quality big (soft static, pill-backed look),
- * right-hand extension smaller and dimmer, and the amber 8vb badge —
- * mirrors the live center display (WYSIWYG).
- */
-function drawChordHud(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  baseY: number,
-  size: number,
-  base: string,
-  ext: string,
-  octaveDown: boolean,
-): void {
-  ctx.font = `700 ${size}px Orbitron, monospace`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(0, 255, 204, 0.88)';
-  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-  ctx.shadowBlur = 6;
-  const baseWidth = ctx.measureText(base).width;
-  ctx.fillText(base, cx, baseY);
-  if (ext) {
-    ctx.font = `500 ${Math.round(size * 0.4)}px Orbitron, monospace`;
-    ctx.fillStyle = 'rgba(0, 255, 204, 0.55)';
-    ctx.shadowBlur = 0;
-    ctx.fillText(ext, cx + baseWidth / 2 + Math.round(size * 0.25), baseY);
-  }
-  ctx.shadowBlur = 0;
-  if (octaveDown) {
-    // Amber pill (Inter — never Orbitron: its geometric glyphs turn
-    // "8ve" into "81B"). Anchored to the base text's top-right.
-    const badgeFont = Math.round(size * 0.22);
-    ctx.font = `700 ${badgeFont}px Inter, system-ui, sans-serif`;
-    ctx.textAlign = 'left';
-    const bw = ctx.measureText('8vb').width;
-    const bh = Math.round(size * 0.32);
-    const pad = Math.round(size * 0.12);
-    const bx = cx + baseWidth / 2 + (ext ? Math.round(size * 0.25) + ctx.measureText(ext).width + Math.round(size * 0.1) : Math.round(size * 0.12));
-    const by = baseY - size * 0.95;
-    ctx.fillStyle = 'rgba(255, 140, 0, 0.12)';
-    ctx.strokeStyle = 'rgba(255, 160, 40, 0.4)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(bx, by, bw + pad * 2, bh, bh / 2);
-    } else {
-      ctx.rect(bx, by, bw + pad * 2, bh);
-    }
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#ffb84d';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('8vb', bx + pad, by + bh / 2 + 1);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-  }
-}
+/* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
 
-/** Soft chord text — floats directly, like the on-site display. */
-function drawChordText(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  baseY: number,
-  size: number,
-  text: string,
-): void {
-  ctx.font = `700 ${size}px Orbitron, monospace`;
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(0, 255, 204, 0.88)';
-  ctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-  ctx.shadowBlur = 6;
-  ctx.fillText(text, cx, baseY);
-  ctx.shadowBlur = 0;
-}
-
-/** Skeleton-mode stage: the website's dark cosmos + stage footlight. */
-function drawStageBackground(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-): void {
-  ctx.fillStyle = '#0a0a1a';
-  ctx.fillRect(0, 0, w, h);
-  // website-style radial glows (cyan above, purple mid)
-  let g = ctx.createRadialGradient(w * 0.5, h * 0.35, 0, w * 0.5, h * 0.35, Math.max(w, h) * 0.6);
-  g.addColorStop(0, 'rgba(0, 255, 204, 0.07)');
-  g.addColorStop(1, 'rgba(0, 255, 204, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  g = ctx.createRadialGradient(w * 0.5, h * 0.7, 0, w * 0.5, h * 0.7, Math.max(w, h) * 0.7);
-  g.addColorStop(0, 'rgba(120, 80, 255, 0.06)');
-  g.addColorStop(1, 'rgba(120, 80, 255, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  // stage footlight (merges with the waveform zone)
-  const f = ctx.createLinearGradient(0, h * 0.85, 0, h);
-  f.addColorStop(0, 'rgba(0, 255, 204, 0)');
-  f.addColorStop(1, 'rgba(0, 255, 204, 0.09)');
-  ctx.fillStyle = f;
-  ctx.fillRect(0, Math.round(h * 0.85), w, Math.round(h * 0.15));
-}
-
-/** Square cover art for audio files — the site's visual family:
- * dark cosmos background, neon sound-wave mark (cyan arcs + magenta
- * note dot — the two-hand colors), metal brand, decorative waveform,
- * URL pill, neon inner frame. */
-function makeCoverBlob(): Promise<Blob> {
-  const c = document.createElement('canvas');
-  c.width = 600;
-  c.height = 600;
-  const ctx = c.getContext('2d');
-  if (!ctx) return Promise.resolve(new Blob());
-
-  // background: the site's dark cosmos + footlight
-  drawStageBackground(ctx, 600, 600);
-
-  // neon inner frame (liquid-glass container)
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.28)';
-  ctx.lineWidth = 2;
-  roundRectPath(ctx, 26, 26, 548, 548, 24);
-  ctx.stroke();
-
-  // sound-wave mark: three cyan arcs + magenta note dot
-  ctx.lineCap = 'round';
-  for (let i = 0; i < 3; i++) {
-    ctx.strokeStyle = i === 1 ? 'rgba(0, 255, 204, 0.9)' : 'rgba(0, 255, 204, 0.5)';
-    ctx.lineWidth = i === 1 ? 3.5 : 2.5;
-    ctx.beginPath();
-    ctx.arc(300, 162, 30 + i * 13, Math.PI * 1.08, Math.PI * 1.92);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#ff6ec7';
-  ctx.shadowColor = 'rgba(255, 110, 199, 0.5)';
-  ctx.shadowBlur = 10;
-  ctx.beginPath();
-  ctx.arc(300, 152, 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // brand: metal wordmark centered — auto-shrink so it never touches the edges
-  // (target width = 80% of the canvas, leaving breathing room on both sides)
-  const text = 'GESTURE SYNTH WELD';
-  let size = 44;
-  ctx.font = `800 ${size}px Orbitron, monospace`;
-  ctx.textAlign = 'center';
-  const targetW = 480;
-  const measureW = ctx.measureText(text).width;
-  if (measureW > targetW) {
-    size = Math.floor(size * (targetW / measureW));
-    ctx.font = `800 ${size}px Orbitron, monospace`;
-  }
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-  ctx.fillText(text, 300, 306);
-  const g = ctx.createLinearGradient(0, 304 - size, 0, 310);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.35, '#d8ecff');
-  g.addColorStop(0.5, '#7fb8e8');
-  g.addColorStop(0.7, '#eef8ff');
-  g.addColorStop(1, '#a8cde8');
-  ctx.fillStyle = g;
-  ctx.fillText(text, 300, 304);
-
-  // decorative waveform under the brand (music feel)
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let i = 0; i <= 48; i++) {
-    const x = 110 + (i / 48) * 380;
-    const y = 400 + Math.sin((i / 48) * Math.PI * 4) * 14;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-
-  // URL pill centered
-  drawUrlPill(ctx, 300, 478, 24, true);
-
-  return new Promise((res) => c.toBlob((b) => res(b ?? new Blob()), 'image/jpeg', 0.85));
-}
-
-/** Rounded-rect path helper (canvas native roundRect is recent). */
-function roundRectPath(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-/** Pick the best MediaRecorder mime type (mp4/m4a preferred, webm fallback). */
-function pickRecMimeType(audioOnly: boolean = false): { mime: string; ext: string } {
-  const candidates: [string, string][] = audioOnly
-    ? [
-        ['audio/mp4;codecs=mp4a.40.2', 'm4a'],
-        ['audio/mp4', 'm4a'],
-        ['audio/webm;codecs=opus', 'webm'],
-        ['audio/webm', 'webm'],
-      ]
-    : [
-        ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
-        ['video/mp4', 'mp4'],
-        ['video/webm;codecs=vp9,opus', 'webm'],
-        ['video/webm;codecs=vp8,opus', 'webm'],
-        ['video/webm', 'webm'],
-      ];
-  for (const [mime, ext] of candidates) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) return { mime, ext };
-  }
-  return { mime: '', ext: audioOnly ? 'webm' : 'webm' };
-}
-
+// Recording domain: constants (RECORD_SECONDS, VIDEO_REC_SUPPORTED,
+// REC_RATIO_*, REC_SVG_PREVIEWS) live in src/recording/constants.tsx;
+// cover art + mime picking in src/recording/utils.ts; the whole flow
+// (chooser → countdown → record → result, mic, compositor) in
+// src/recording/useRecording.ts (extracted 2026-08-09, pure move).
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Unknown error';
@@ -455,128 +144,8 @@ export default function App() {
     autoBass: false,
     bassVolume: 0.5,
   });
-  const [isRecording, setIsRecording] = useState(false);
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
-
-  // B2: recording flow (chooser → countdown → recording → result)
-  const [recPhase, setRecPhase] = useState<RecPhase>('idle');
-  // Default: skeleton video (share-ready, privacy-friendly) where the
-  // platform supports it; audio otherwise (iOS Safari lacks captureStream).
-  // A saved choice always wins.
-  const [recMode, setRecMode] = useState<RecMode>(() => {
-    const saved = localStorage.getItem('gsw-rec-mode') as RecMode | null;
-    if (saved === 'audio' || saved === 'video' || saved === 'skeleton') return saved;
-    return VIDEO_REC_SUPPORTED ? 'skeleton' : 'audio';
-  });
-  // Whether this player has ever recorded (i.e. made a choice) — the
-  // "default" tag in the chooser is only meaningful before that.
-  let savedRecModeExists = false;
-  try { savedRecModeExists = !!localStorage.getItem('gsw-rec-mode'); } catch { /* private mode */ }
-  const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
-  const [recCount, setRecCount] = useState(3);
-  const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
-  const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
-  // Result preview: play the take back IN-PAGE (Blob URL — memory only, no
-  // server) so the player watches before deciding to download/share. The
-  // object URL is revoked when the preview unmounts or the blob changes.
-  const recPreviewUrl = useMemo(() => {
-    if (!recBlob) return null;
-    return URL.createObjectURL(recBlob.blob);
-  }, [recBlob]);
-  useEffect(() => {
-    return () => {
-      if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
-    };
-  }, [recPreviewUrl]);
-  const [shareFailed, setShareFailed] = useState(false);
-  const [micOn, setMicOn] = useState(true);
-  const [micLevel, setMicLevel] = useState(0);
-  const [micPermState, setMicPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
-  const [recVoice, setRecVoice] = useState(() => Number(localStorage.getItem('gsw-rec-voice')) || 1.3);
-  // Vocal polish (recording-only voice effects): off/light/standard/strong.
-  // Saved choice wins; 'standard' is the industry-chain default.
-  const [recPolish, setRecPolish] = useState<VocalPolish>(() => {
-    const saved = localStorage.getItem('gsw-rec-polish');
-    if (saved === 'off' || saved === 'light' || saved === 'standard' || saved === 'strong') return saved;
-    return 'standard';
-  });
-  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
-  const [micDeviceId, setMicDeviceId] = useState('');
-  const recVoiceRef = useRef(1.3);
-  const micOnRef = useRef(true);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const micRetriedRef = useRef(false);
-
-  // Reflect Chrome's mic permission state (used to give the right
-  // guidance: prompt → we can ask again; denied → only the browser's
-  // site settings can restore it).
-  const updateMicPermState = useCallback(() => {
-    if (typeof navigator.permissions?.query !== 'function') {
-      setMicPermState('prompt');
-      return;
-    }
-    navigator.permissions
-      .query({ name: 'microphone' as PermissionName })
-      .then((s) => setMicPermState(s.state as 'granted' | 'denied' | 'prompt'))
-      .catch(() => setMicPermState('prompt'));
-  }, []);
-
-  // Request the microphone (camera start + the chooser's "Enable
-  // microphone" button — for first-time users who denied it earlier).
-  const requestMic = useCallback(async (): Promise<boolean> => {
-    try {
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
-      });
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = micStream;
-      audioEngine.setMicStream(micStream);
-      audioEngine.setMicEnabled(micOnRef.current);
-      // List mic devices so the user can pick the real one — Chrome's
-      // permission prompt defaults to a virtual/loopback device on some
-      // Macs (e.g. BlackHole), which records silence.
-      const devs = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
-      setMicDevices(devs.filter((d) => d.kind === 'audioinput'));
-      const cur = micStream.getAudioTracks()[0]?.getSettings().deviceId;
-      if (cur) setMicDeviceId(cur);
-      setMicPermState('granted');
-      return true;
-    } catch {
-      micStreamRef.current = null;
-      updateMicPermState();
-      return false;
-    }
-  }, [updateMicPermState]);
-
-  // Chrome workaround: some Chrome/macOS builds deliver silence from the
-  // mic when echo cancellation is active (Safari is unaffected). Re-request
-  // the mic WITHOUT audio processing and rewire, once.
-  const retryMicRaw = useCallback(async () => {
-    try {
-      const s2 = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = s2;
-      audioEngine.setMicStream(s2);
-      audioEngine.setMicEnabled(micOnRef.current);
-    } catch {
-      // keep the original stream
-    }
-  }, []);
-  const recModeRef = useRef<RecMode>('audio');
-  const recRatioRef = useRef<RecRatio>('9:16');
-  const recCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recChunksRef = useRef<Blob[]>([]);
-  const countdownTimerRef = useRef<number | null>(null);
-  const endCountTimerRef = useRef<number | null>(null);
-  const recordingAbortedRef = useRef(false);
-  // B2: recording compositor helpers (cheap blur buffer + chord-pop timing)
-  const blurBufRef = useRef<HTMLCanvasElement | null>(null);
-  const recBlurAtRef = useRef(0); // last blur-bg redraw (throttled to ~5fps)
 
   // Camera-freeze watchdog: after a long screen lock some Android builds
   // leave the video on the last frame forever. Track the video clock and
@@ -585,15 +154,21 @@ export default function App() {
   const lastVideoCheckRef = useRef(0);
   const frozenChecksRef = useRef(0);
 
-  // Hand detection smoothing to prevent flickering
-  const handDetectionHistoryRef = useRef<{ left: boolean[]; right: boolean[] }>({
-    left: [],
-    right: [],
-  });
-  const HAND_STABLE_FRAMES = 3; // Require 3 frames for hand presence
+  // Camera input source: MediaPipe detection + hand-presence smoothing
+  // (moved to input/cameraSource.ts in the 2026-08-09 refactor — pure move,
+  // identical behavior).
+  const cameraSourceRef = useRef<CameraSource | null>(null);
+  if (!cameraSourceRef.current) cameraSourceRef.current = new CameraSource();
+  // Keyboard input source (no-camera mode).
+  const keyboardSourceRef = useRef<KeyboardSource | null>(null);
+  if (!keyboardSourceRef.current) keyboardSourceRef.current = new KeyboardSource();
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  // What's-new dismissed state — mirrored in React so the landing card
+  // disappears the moment Help opens (localStorage alone can't trigger a
+  // re-render, bug 2026-08-09: the card stayed visible under Help).
+  const [whatsNewDismissedState, setWhatsNewDismissedState] = useState(() => whatsNewDismissed());
 
   // ─── Onboarding (first visit) ─────────────────────────────────────────
   // No popups on first visit — a newcomer's intent is to try, not to
@@ -671,23 +246,6 @@ export default function App() {
     { art: 'VII', row: 6, hint: 'Index + Pinky + Thumb' },
     { art: 'mute', row: 7, hint: 'Fist = mute — notes held' },
   ] as const;
-  const HELP_DEMO_STEPS = [
-    { left: '1', row: 0 },
-    { left: '2', row: 1 },
-    { left: '3', row: 2 },
-    { left: '4', row: 3 },
-    { left: '5', row: 4 },
-    { left: 'VI', row: 5 },
-    { left: 'VII', row: 6 },
-    { left: 'mute', row: 7 },
-  ] as const;
-  const [demoStep, setDemoStep] = useState(0);
-  useEffect(() => {
-    if (!showHelp) return;
-    const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
-    return () => window.clearInterval(t);
-  }, [showHelp]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Chord name in the currently selected key (e.g. key C → "I · C",
   // key G → "I · G"); follows the toolbar key selector.
   const chordNameFor = (chordIndex: number): string => {
@@ -709,19 +267,6 @@ export default function App() {
       ? `${GRADE_NAMES[chordIndex]} · ${chordNameFor(chordIndex)}`
       : 'mute';
 
-  // Renders one of the licensed hand artworks, sized by height.
-  // mirrored flips the hand horizontally (right-hand view: thumb right).
-  const handArt = (key: string, size: number, color: string, mirrored = false): ReactNode => {
-    const a = HAND_ART[key];
-    if (!a) return null;
-    return (
-      <svg viewBox={a.vb} style={{
-        height: size, width: 'auto', color, flexShrink: 0, display: 'block',
-        transform: mirrored ? 'scaleX(-1)' : undefined,
-      }} dangerouslySetInnerHTML={{ __html: a.body }} />
-    );
-  };
-
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isAndroid = /Android/i.test(navigator.userAgent);
@@ -732,6 +277,93 @@ export default function App() {
   // view; the gear lives in the mobile ⋯ panel / desktop toolbar).
   const [showSettings, setShowSettings] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+  // No-camera mode (2026-08-09, refactor branch): keyboard drives the
+  // same consume pipeline via synthetic HandData (see input/keyboardSource).
+  // Persisted so camera-less users stay productive across visits.
+  const [keyboardMode, setKeyboardMode] = useState(() => {
+    try { return localStorage.getItem('gsw-keyboard-mode') === '1'; } catch { return false; }
+  });
+  const keyboardModeRef = useRef(keyboardMode);
+  useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
+  // Data-driven pulse: the ACTIVE entry declares which toolbar control it
+  // teaches (pulseTarget) — future announcements that don't teach a
+  // control simply omit it and nothing pulses (user decision 2026-08-09).
+  const whatsNewEntry = WHATS_NEW[0];
+  // Playing-scene What's-new card visibility — shows in EVERY playing
+  // mode (user decision 2026-08-09: the card is a GENERIC announcement
+  // slot, not a keyboard shortcut, so the old !keyboardMode gate is
+  // gone; future features announce here in any scene). desktopOnly
+  // entries are skipped on mobile (bug 2026-08-09: the announcement
+  // would teach a desktop-only feature and a dead-end switch). Shared
+  // by the card JSX and the toolbar mode-switch pulse (the card teaches
+  // the switch button; the button glows while the card is shown).
+  const whatsNewCardVisible = isRunning && whatsNewActive() && !whatsNewDismissedState
+    && !(whatsNewEntry?.desktopOnly && isMobile);
+  const pulseModeSwitch = whatsNewCardVisible && whatsNewEntry?.pulseTarget === 'mode-switch';
+  // Mobile auto-collapse (iOS floating-pill pattern, user decision
+  // 2026-08-09): after 4s the card tucks into a small NEW dot at the same
+  // corner — the tiny viewfinder stays clear but the announcement keeps
+  // its every-session presence; tap the dot to re-expand. The card
+  // auto-tucks again after every re-expansion (the expanded card must
+  // become quiet on its own — ✕ is only the PERMANENT dismissal; user
+  // decision 2026-08-09). Desktop keeps the card expanded (380px in the
+  // corner blocks nothing).
+  const [whatsNewCollapsed, setWhatsNewCollapsed] = useState(false);
+  useEffect(() => {
+    if (!whatsNewCardVisible || !isMobile) { setWhatsNewCollapsed(false); return; }
+    // Re-runs on every expansion (whatsNewCollapsed flips false on tap):
+    // first show AND each dot-tap re-expansion both auto-tuck after 4s.
+    if (!whatsNewCollapsed) {
+      const t = window.setTimeout(() => setWhatsNewCollapsed(true), 4000);
+      return () => window.clearTimeout(t);
+    }
+  }, [whatsNewCardVisible, isMobile, whatsNewCollapsed]);
+  // First-run keyboard guide overlay: auto-shows once (localStorage flag),
+  // dismisses on any key or after a few seconds; replayable from Help.
+  const [showKbGuide, setShowKbGuide] = useState(false);
+  const showKbGuideRef = useRef(false);
+  useEffect(() => { showKbGuideRef.current = showKbGuide; }, [showKbGuide]);
+  // Whether the performance pipeline was already running when the guide
+  // opened. If it wasn't (Help replay on the landing page), closing the
+  // guide must restore the idle state — and the guide's keypresses still
+  // sound because the guide runs the keyboard pipeline while open
+  // (bug 2026-08-09: guide presses were silent on first ever use, since
+  // audioEngine.init() only ran on camera start).
+  const kbGuideWasRunningRef = useRef(false);
+  // Keyboard-session analytics: one session per keyboard start; exit
+  // (switch back / settings off / page close) reports duration + notes.
+  const kbSessionRef = useRef({ active: false, start: 0, notes: 0, firstNoteSent: false });
+  const dismissKbGuide = useCallback((method: 'close' | 'x' | 'overlay' | 'esc') => {
+    if (!showKbGuideRef.current) return;
+    setShowKbGuide(false);
+    trackKeyboardGuideDismissed(method);
+    if (!kbGuideWasRunningRef.current) {
+      // Guide borrowed the pipeline — hand it back to idle.
+      keyboardSourceRef.current?.reset();
+      audioEngine.stopAll();
+      setIsRunning(false);
+    }
+    kbGuideWasRunningRef.current = false;
+  }, []);
+  // NO auto-hide (user decision 2026-08-09): the guide closes only on its
+  // Close button, overlay click, or Esc — for BOTH the first-run auto-pop
+  // and the Help replay. A timed dismissal would yank a player mid-lesson,
+  // and key-press dismissal would kill the first practice press (the
+  // earlier "flashed away" bug). Dismissing is always within reach.
+  const showKbGuidePanel = useCallback(async () => {
+    kbGuideWasRunningRef.current = isRunning || keyboardModeRef.current;
+    if (!kbGuideWasRunningRef.current) {
+      // Guide runs the keyboard pipeline so its presses sound (first-ever
+      // visit: the audio engine was never initialized — only camera start
+      // used to init it, bug 2026-08-09). The button click is the user
+      // gesture that unlocks the AudioContext.
+      await audioEngine.init();
+      keyboardSourceRef.current?.reset();
+      setIsRunning(true);
+    }
+    trackKeyboardGuideShown('replay');
+    setShowKbGuide(true);
+  }, [isRunning]);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
   // slider (0-100, 0 = off). Dragging a slider is the on/off — no separate
   // toggle needed, and each effect adjusts independently. Stackable.
@@ -757,8 +389,6 @@ export default function App() {
   const scanlinesStrengthRef = useRef(scanlinesStrength);
   useEffect(() => { vignetteStrengthRef.current = vignetteStrength; }, [vignetteStrength]);
   useEffect(() => { scanlinesStrengthRef.current = scanlinesStrength; }, [scanlinesStrength]);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const recordingStartRef = useRef<number | null>(null);
   const cameraStartRef = useRef(0);
   const firstGestureSentRef = useRef(false);
   const loadingStartRef = useRef(0);
@@ -794,73 +424,8 @@ export default function App() {
   // instant. The startCamera flow checks this flag after the awaits.
   const loadCancelledRef = useRef(false);
   const recordingActiveRef = useRef(false);
-
-  useEffect(() => { recModeRef.current = recMode; }, [recMode]);
-  useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
-  useEffect(() => { micOnRef.current = micOn; }, [micOn]);
-  useEffect(() => { audioEngine.setMicEnabled(micOn); }, [micOn]);
-  useEffect(() => { recVoiceRef.current = recVoice; }, [recVoice]);
-  useEffect(() => {
-    audioEngine.setRecordingMix(recVoice);
-    localStorage.setItem('gsw-rec-voice', String(recVoice));
-  }, [recVoice]);
-  useEffect(() => {
-    audioEngine.setVocalPolish(recPolish);
-    localStorage.setItem('gsw-rec-polish', recPolish);
-  }, [recPolish]);
   useEffect(() => { try { localStorage.setItem('gsw-vignette', String(vignetteStrength)); } catch { /* private mode */ } }, [vignetteStrength]);
   useEffect(() => { try { localStorage.setItem('gsw-scanlines', String(scanlinesStrength)); } catch { /* private mode */ } }, [scanlinesStrength]);
-
-  // Re-select the mic device (Chrome's permission prompt defaults to a
-  // virtual/loopback device on some Macs — e.g. BlackHole — which records
-  // silence). Enumerated after mic permission is granted.
-  const switchMicDevice = useCallback(async (deviceId: string) => {
-    if (!deviceId) return;
-    try {
-      const s2 = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = s2;
-      audioEngine.setMicStream(s2);
-      audioEngine.setMicEnabled(micOnRef.current);
-      setMicDeviceId(deviceId);
-      micRetriedRef.current = true;
-    } catch {
-      // device unavailable — keep the current stream
-    }
-  }, []);
-
-  // Reflect the mic permission state whenever the chooser opens
-  useEffect(() => {
-    if (recPhase === 'choosing') updateMicPermState();
-  }, [recPhase, updateMicPermState]);
-
-  // Live mic level while the chooser is open (diagnostic: is the mic
-  // actually receiving sound?). Also triggers the Chrome raw-mic retry:
-  // ~2.5s of silence with the toggle on means the OS granted the mic but
-  // Chrome isn't delivering audio (echo-cancellation bug class).
-  useEffect(() => {
-    if (recPhase !== 'choosing' || !micStreamRef.current) return;
-    let silentFor = 0;
-    const t = window.setInterval(() => {
-      const lvl = audioEngine.getMicLevel();
-      setMicLevel(lvl);
-      if (lvl < 0.005 && micOnRef.current && !micRetriedRef.current) {
-        silentFor += 250;
-        if (silentFor >= 2500) {
-          micRetriedRef.current = true;
-          retryMicRaw();
-        }
-      } else {
-        silentFor = 0;
-      }
-    }, 250);
-    return () => window.clearInterval(t);
-  }, [recPhase, retryMicRaw]);
-  useEffect(() => {
-    recordingActiveRef.current = isRecording;
-  }, [isRecording]);
 
   /* ─── Metronome state ───────────────────────────────────────────────── */
 
@@ -938,6 +503,39 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // No-camera mode: forward mapped keys to the keyboard source
+      // (only while it's the active input).
+      if (keyboardModeRef.current || showKbGuideRef.current) {
+        // The page scrolls (toolbar + SEO content below the fold) — ↑/↓
+        // (and Space) would scroll it mid-play and drag the playing area
+        // out of view (bug 2026-08-09). Block defaults for our keys while
+        // keyboard mode runs OR the keyboard guide is open (the guide can
+        // be replayed from Help while keyboard mode is off — the mapped
+        // keys must not scroll the page there either, bug 2026-08-09).
+        // Everything else (Tab, F5, …) keeps browser behavior.
+        if (KEYBOARD_MAPPED_KEYS.includes(e.key)) e.preventDefault();
+      }
+      if (keyboardModeRef.current || showKbGuideRef.current) {
+        keyboardSourceRef.current?.handleKey(e, true);
+        // Space still stops all notes below (mute convenience).
+      }
+
+      // Keyboard-session analytics: first note = activation (mirror of
+      // first_gesture_detected); every non-repeat mapped press counts
+      // toward the depth reported on session exit. Only while a keyboard
+      // session runs — guide-only presses from a camera-mode Help replay
+      // (keyboardModeRef false) don't count.
+      if (keyboardModeRef.current && !e.repeat && KEYBOARD_MAPPED_KEYS.includes(e.key)) {
+        const s = kbSessionRef.current;
+        if (s.active) {
+          s.notes++;
+          if (!s.firstNoteSent) {
+            s.firstNoteSent = true;
+            trackKeyboardFirstNote((performance.now() - s.start) / 1000);
+          }
+        }
+      }
+
       // Space: Stop all notes
       if (e.key === ' ') {
         e.preventDefault();
@@ -946,8 +544,9 @@ export default function App() {
         return;
       }
 
-      // Escape: Reset state
+      // Escape: Reset state (+ close the keyboard guide if open)
       if (e.key === 'Escape') {
+        dismissKbGuide('esc');
         audioEngine.stopAll();
         setSynthState(prev => ({
           ...prev,
@@ -959,49 +558,38 @@ export default function App() {
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Forward releases while keyboard mode runs OR the guide is open —
+      // the keydown guard already covers the guide, and a release without
+      // this guard left the key "stuck" (note kept sounding) when the
+      // guide was replayed from the camera mode (bug 2026-08-09).
+      if (keyboardModeRef.current || showKbGuideRef.current) keyboardSourceRef.current?.handleKey(e, false);
+      // NOTE: no guide dismissal here — the keyup of the very keystroke
+      // that activated the mode button (Enter/Space) used to flash the
+      // first-run guide away before it could be read (bug 2026-08-09).
+      // The guide closes on overlay click, Esc, or its auto-hide timer.
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []);
 
   /* ─── Process Detected Hands (Two-Hand Logic) ──────────────────────── */
 
-  const processHandsRef = useRef<(hands: HandData[]) => void>();
-  processHandsRef.current = (hands: HandData[]) => {
+  const processHandsRef = useRef<(frame: HandFrame) => void>();
+  processHandsRef.current = (frame: HandFrame) => {
+    const leftHand = frame.left;
+    const rightHand = frame.right;
+
     // First hand detected = the activation moment (funnel event, once per run)
-    if (hands.length > 0 && !firstGestureSentRef.current) {
+    if ((leftHand || rightHand) && !firstGestureSentRef.current) {
       firstGestureSentRef.current = true;
       trackFirstGesture(cameraStartRef.current ? (Date.now() - cameraStartRef.current) / 1000 : 0);
     }
-
-    let leftHand: HandData | null = null;
-    let rightHand: HandData | null = null;
-
-    for (const hand of hands) {
-      if (hand.label === 'Left') {
-        leftHand = hand;
-      } else {
-        rightHand = hand;
-      }
-    }
-
-    // Apply hand detection smoothing to prevent flickering
-    handDetectionHistoryRef.current.left.push(!!leftHand);
-    handDetectionHistoryRef.current.right.push(!!rightHand);
-    if (handDetectionHistoryRef.current.left.length > HAND_STABLE_FRAMES) {
-      handDetectionHistoryRef.current.left.shift();
-    }
-    if (handDetectionHistoryRef.current.right.length > HAND_STABLE_FRAMES) {
-      handDetectionHistoryRef.current.right.shift();
-    }
-
-    // Use majority vote: hand is detected if at least half of recent frames detected it
-    // This prevents flickering while still being responsive
-    const leftDetected = handDetectionHistoryRef.current.left.filter(v => v).length >= Math.ceil(HAND_STABLE_FRAMES / 2);
-    const rightDetected = handDetectionHistoryRef.current.right.filter(v => v).length >= Math.ceil(HAND_STABLE_FRAMES / 2);
-
-    // Use smoothed detection
-    leftHand = leftDetected ? leftHand : null;
-    rightHand = rightDetected ? rightHand : null;
 
     setGesture({ left: leftHand, right: rightHand });
     setHasLeftHand(!!leftHand);
@@ -1009,7 +597,7 @@ export default function App() {
 
     // Onboarding: once per session, celebrate the first stable two-hand
     // detection — a 3s badge, never shown again in this session.
-    if (leftDetected && rightDetected && !handsReadyShown) {
+    if (leftHand && rightHand && !handsReadyShown) {
       setHandsReadyShown(true);
       try { sessionStorage.setItem('gswHandsReady', '1'); } catch { /* private mode */ }
       setShowHandsReady(true);
@@ -1124,10 +712,17 @@ export default function App() {
       const extended = leftHand.extendedFingers;
       // Pinky memory: if detected in last 60 frames (~2s), treat as extended.
       // Long window compensates for unreliable Y-axis pinky detection.
-      if (extended.includes('pinky')) {
-        pinkyMemoryRef.current = 60;
-      } else if (pinkyMemoryRef.current > 0) {
-        pinkyMemoryRef.current--;
+      // Camera-only: the keyboard source reports exact fingers, so a pinky
+      // it already released must not linger (bug: 7→1/2/3/4/5 passed through
+      // VI for ~2s after the camera-style memory).
+      if (frame.source === 'camera') {
+        if (extended.includes('pinky')) {
+          pinkyMemoryRef.current = 60;
+        } else if (pinkyMemoryRef.current > 0) {
+          pinkyMemoryRef.current--;
+        }
+      } else {
+        pinkyMemoryRef.current = 0;
       }
       const pinky = pinkyMemoryRef.current > 0;
       const thumb = extended.includes('thumb');
@@ -1242,25 +837,22 @@ export default function App() {
     };
     setSynthState(newSynth);
 
-    // Create chord fingerprint to detect actual changes
-    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
-
-    // Play chord only if the fingerprint actually changed (volume is
-    // intentionally excluded so height changes don't re-trigger).
+    // Engine-layer deduplication (2026-08-09 refactor): audioEngine.playChord
+    // computes a frequency-based key internally (freqs|arp|arpSpeed) and
+    // skips re-triggering identical chords — App-layer fingerprint removed
+    // (it was redundant; the engine's key covers all dimensions, even more
+    // precisely, since it derives from the actual frequencies).
     if (isPlaying) {
       // Refresh the grace-period clock — sound continues while this holds.
       // (Updating it only here means a missing right hand stops the music
       // after GRACE_MS instead of sustaining forever on a left hand alone.)
       stabilizerRef.current.lastSeen = performance.now();
-      if (chordFingerprint !== lastChordRef.current) {
-        lastChordRef.current = chordFingerprint;
-        audioEngine.playChord(
-          chordIndex, 'sine',
-          mode === 'neutral' ? undefined : mode,
-          0, s.keyOffset, chordStyle,
-          s.arpeggiate, s.arpSpeed, thumbDown,
-        );
-      }
+      audioEngine.playChord(
+        chordIndex, 'sine',
+        mode === 'neutral' ? undefined : mode,
+        0, s.keyOffset, chordStyle,
+        s.arpeggiate, s.arpSpeed, thumbDown,
+      );
       audioEngine.setVolume(volume);
       if (rightHand) audioEngine.updateFilterSweep(rightHand.tiltAngle);
 
@@ -1291,12 +883,20 @@ export default function App() {
 
   /* ─── Draw helpers ──────────────────────────────────────────────────── */
 
-  const drawOverlayRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number) => void>();
-  drawOverlayRef.current = (ctx, w, h) => {
+  const drawOverlayRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number, crop?: { dx: number; dy: number; dw: number; dh: number }) => void>();
+  drawOverlayRef.current = (ctx, w, h, crop) => {
     if (!showSkeleton) return;
     const g = gestureRef.current;
-    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)');
-    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)');
+    // Live canvas bitmap is display-size × dpr; skeleton params were tuned
+    // for a 640px-wide canvas (video native, pre-refactor). Without the
+    // rescale the lines shrink to hairlines after CSS downscaling
+    // (bug 2026-08-09: "skeleton lines thinner than before").
+    const s = w / 640;
+    // crop = the video's cover-crop rect (from the loop's drawImage math)
+    // — without it the skeleton maps to the full canvas and drifts toward
+    // the center on cropped frames (bug 2026-08-09, mobile).
+    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)', 3, 8, s, crop);
+    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)', 3, 8, s, crop);
   };
 
   // Video version of the skeleton: soft palette + thinner lines + weak
@@ -1310,263 +910,50 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff6ec7', 'rgba(255,110,199,0.3)', 2, 4);
   };
 
-  // Draw waveform visualization — three-channel HUD:
-  //   color  = scale degree (left hand; 7-hue neon spectrum, smooth lerp),
-  //   lines  = chord note count (right hand: 3 triad / 4 seventh / 5 ninth),
-  //   width  = volume; right-hand tilt (filter sweep) brightens/darkens.
-  // Gray when muted, invisible when silent.
+  // Draw waveform visualization — three-channel HUD. The drawing body
+  // lives in src/hud/waveform.ts (drawWaveform — extracted 2026-08-09,
+  // pure move); this ref wires the App-owned inputs.
   const drawWaveformRef = useRef<() => void>();
   drawWaveformRef.current = () => {
-    const canvas = waveformCanvasRef.current;
-    const analyser = audioEngine.getAnalyser();
-    if (!canvas || !analyser) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (canvas.width !== canvas.clientWidth * 2 || canvas.height !== canvas.clientHeight * 2) {
-      canvas.width = canvas.clientWidth * 2;
-      canvas.height = canvas.clientHeight * 2;
-    }
-
-    const waveform = analyser.getValue() as Float32Array;
-    const bufferLength = waveform.length;
-
-    // Compute RMS amplitude from waveform data
-    let sumSq = 0;
-    for (let i = 0; i < bufferLength; i++) sumSq += waveform[i] * waveform[i];
-    const rms = Math.sqrt(sumSq / bufferLength); // 0 (silent) … ~0.7 (loud)
-
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const hands = gestureRef.current;
-    const handsPresent = !!(hands.left || hands.right);
-    // No hands in frame at all → hide waveform entirely
-    if (!handsPresent && rms < 0.005) return;
-
-    // Muted (hands present but silent) → thin gray line
-    const muted = rms < 0.005;
-    const lineW = muted ? 2 : 1 + rms * 8;
-
-    // ── Color = scale degree (left-hand harmony), lerped so a chord
-    //    change glides through the neon spectrum instead of snapping. ──
-    const s = synthRef.current;
-    const degree = s.chordIndex >= 0 && s.chordIndex < DEGREE_COLORS.length ? s.chordIndex : 0;
-    const target = DEGREE_COLORS[degree];
-    const cur = degreeColorRef.current;
-    cur.r += (target[0] - cur.r) * 0.12;
-    cur.g += (target[1] - cur.g) * 0.12;
-    cur.b += (target[2] - cur.b) * 0.12;
-
-    // ── Tilt (filter sweep) → brightness ±25% (right-hand expression) ──
-    const tilt = Math.max(-1, Math.min(1, hands.right?.tiltAngle ?? 0));
-    const brightness = 1 + 0.25 * tilt;
-    const R = Math.max(0, Math.min(255, Math.round(cur.r * brightness)));
-    const G = Math.max(0, Math.min(255, Math.round(cur.g * brightness)));
-    const B = Math.max(0, Math.min(255, Math.round(cur.b * brightness)));
-
-    // ── Line count = chord note count (right-hand thickness). The echoes
-    //    recede like a floor grid: front line at the bottom, each echo
-    //    higher, smaller, dimmer, with spacing compressing toward the
-    //    horizon and a slight horizontal convergence — so 3-5 lines read
-    //    as clearly separate strands in depth, not one blurry line. ──
-    const lineCount = muted ? 1 : Math.max(1, chordNoteCount(s.chordStyle));
-    const alphaBase = muted ? 0.25 : 0.2 + rms * 0.8;
-    const H = canvas.height;
-    const baseY = H * 0.78;    // front line (closest)
-    const horizonY = H * 0.16; // far echoes converge toward here
-    const cx = canvas.width / 2;
-    const ampH = H * 0.55;
-
-    for (let k = 0; k < lineCount; k++) {
-      const depth = k;
-      const t = 1 - Math.pow(0.55, depth); // 0 (front) → ~0.9 (far)
-      const yCenter = baseY + (horizonY - baseY) * t;
-      const scale = Math.pow(0.7, depth);       // amplitude shrinks with depth
-      const hScale = 1 - 0.06 * depth;          // slight horizontal convergence
-      const a = muted ? alphaBase : alphaBase * Math.pow(0.62, depth);
-      ctx.lineWidth = lineW * (0.5 + 0.5 * scale);
-      ctx.strokeStyle = muted
-        ? `rgba(120, 120, 120, ${alphaBase})`
-        : `rgba(${R}, ${G}, ${B}, ${a})`;
-      ctx.shadowColor = muted ? 'transparent' : `rgb(${R}, ${G}, ${B})`;
-      ctx.shadowBlur = muted ? 0 : Math.max(2, Math.round(8 * scale));
-      ctx.beginPath();
-      for (let i = 0; i < bufferLength; i++) {
-        const v = (waveform[i] + 1) / 2 - 0.5; // -0.5..0.5
-        const x = cx + (i / (bufferLength - 1) - 0.5) * canvas.width * hScale;
-        const y = yCenter + v * ampH * scale;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-    ctx.shadowBlur = 0;
+    drawWaveform({
+      canvas: waveformCanvasRef.current,
+      analyser: audioEngine.getAnalyser(),
+      hands: gestureRef.current,
+      synth: synthRef.current,
+      degreeColor: degreeColorRef.current,
+    });
   };
 
-  /* ─── B2: recording compositor ──────────────────────────────────────── */
-
-  // Composites the current performance (live canvas, or skeleton canvas in
-  // skeleton mode) into the recording canvas at the chosen aspect ratio.
-  //
-  // 9:16 — vertical share frame: blur-fill background (the performance
-  // itself, enlarged + blurred + darkened — the industry standard for
-  // landscape→vertical), sharp content window, brand name (gradient,
-  // breathing glow), huge live chord name (pops on change), mode · key,
-  // live waveform + level bars, and the domain URL (the traffic driver).
-  // 16:9 — cover-fill with a small HUD. 1:1 — blur-fill + simple HUD.
-  const drawRecFrame = useCallback(() => {
-    const rec = recCanvasRef.current;
-    const mode = recModeRef.current;
-    const src = skeletonCanvasRef.current; // recording-source canvas (stage or camera + soft skeleton)
-    if (!rec || !src || !src.width || !src.height) return;
-    const rctx = rec.getContext('2d');
-    if (!rctx) return;
-
-    const W = rec.width;
-    const H = rec.height;
-    const sw = src.width;
-    const sh = src.height;
-    const ratio = recRatioRef.current;
-    const s = synthRef.current;
-    const modeLabel = s.appMode === 'gesture' ? 'Gesture' : s.appMode === 'theremin' ? 'Theremin' : 'Piano';
-    const now = performance.now();
-
-    // ── Blur-fill background (cheap: draw via a tiny copy, then upscale) ──
-    // Redrawn at ~5fps — it's visually stable, and this is the heaviest
-    // draw (a full-frame upscale), so throttling it removes most of the
-    // recording-compositor load that can cause jank.
-    {
-      rctx.fillStyle = '#050510';
-      rctx.fillRect(0, 0, W, H);
-      const bw = Math.max(32, Math.round(W / 10));
-      const bh = Math.max(56, Math.round(H / 10));
-      if (!blurBufRef.current) blurBufRef.current = document.createElement('canvas');
-      const bb = blurBufRef.current;
-      if (bb.width !== bw || bb.height !== bh) {
-        bb.width = bw;
-        bb.height = bh;
-      }
-      const bctx = bb.getContext('2d');
-      if (bctx) {
-        const scale = Math.max(bw / sw, bh / sh);
-        const dw = sw * scale;
-        const dh = sh * scale;
-        bctx.imageSmoothingEnabled = true;
-        bctx.imageSmoothingQuality = 'medium';
-        bctx.drawImage(src, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
-      }
-      rctx.imageSmoothingEnabled = true;
-      rctx.imageSmoothingQuality = 'medium';
-      rctx.drawImage(bb, 0, 0, W, H);
-      rctx.fillStyle = 'rgba(5, 5, 15, 0.55)';
-      rctx.fillRect(0, 0, W, H);
-    }
-
-    // ── Design language (all ratios):
-    //   Brand = cyan-cool metal (top-left, static); URL = white bold on
-    //   pill (bottom-right, clarity first). Everything else is placed per
-    //   ratio:
-    //   All ratios are now FULL-FRAME (immersive, like 16:9): the content
-    //   cover-crops or fits to fill the entire canvas; brand/URL float on
-    //   top as small badges. (9:16 used to be a "poster" with design bands —
-    //   removed 2026-08-04 after real-user feedback: vertical video should
-    //   be full-bleed like TikTok/Reels, not a letterboxed strip.)
-    //   1:1 and 9:16 — full frame; portrait sources cover-crop (a fit-width
-    //   portrait would overflow the frame), landscape sources fit by width.
-    let wy = 0;
-    let winH = H;
-    if (ratio === '16:9') {
-      // 16:9 canvas, landscape source: fit fills the frame exactly.
-      const ch = Math.round((W * sh) / sw);
-      const dy = Math.round((H - ch) / 2);
-      rctx.drawImage(src, 0, dy, W, ch);
-    } else {
-      // 1:1 / 9:16 canvases: cover-crop the source to FILL the frame —
-      // always. (A fit-width landscape source would leave letterbox
-      // strips, i.e. the old poster look; immersive vertical/square
-      // video covers instead — TikTok/IG convention.)
-      const scale = Math.max(W / sw, H / sh);
-      const dw = Math.round(sw * scale);
-      const dh = Math.round(sh * scale);
-      const dx = Math.round((W - dw) / 2);
-      const dy = Math.round((H - dh) / 2);
-      rctx.drawImage(src, dx, dy, dw, dh);
-      wy = 0;
-      winH = H;
-      rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
-      rctx.lineWidth = 2;
-      rctx.strokeRect(0, wy, W, winH);
-    }
-
-    // ── Inside the window: chord name (the green note) + live waveform.
-    //    Immersive video keeps the performance, chord, waveform and the
-    //    brand/URL badges — the mode·key line was removed per user
-    //    feedback 2026-08-04. ──
-    const chordSize = ratio === '16:9' ? 46 : 48;
-    // 1:1 / 9:16: push the chord down by ~a note-height so it never crowds
-    // the top-left brand wordmark (16:9 keeps its tighter 84px slot).
-    const chordY = ratio === '16:9' ? 84 : wy + 114;
-    drawChordHud(rctx, W / 2, chordY, chordSize, s.chordBase || '—', s.chordExt || '', !!s.octaveDown);
-
-    if (ratio !== '16:9') {
-      rctx.font = '500 16px Inter, system-ui, sans-serif';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 28);
-    }
-
-    if (mode !== 'skeleton') {
-      const analyser = audioEngine.getAnalyser();
-      if (analyser) {
-        const wf = analyser.getValue() as Float32Array;
-        const n = wf.length;
-        const waveBase = ratio === '16:9' ? H - 34 : wy + winH - 40;
-        rctx.beginPath();
-        for (let i = 0; i < n; i++) {
-          const x = W * 0.06 + (i / (n - 1)) * W * 0.88;
-          const wy2 = waveBase - wf[i] * (ratio === '16:9' ? 20 : 22);
-          if (i === 0) rctx.moveTo(x, wy2);
-          else rctx.lineTo(x, wy2);
-        }
-        rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-        rctx.lineWidth = 2;
-        rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-        rctx.shadowBlur = 6;
-        rctx.stroke();
-        rctx.shadowBlur = 0;
-
-      }
-    }
-
-    drawMetalBrand(rctx, 24, 40, 26);
-    drawUrlPill(rctx, W - 26, H - 24, 22, false);
-
-    // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
-    //    clean so brand/URL keep full clarity. Matches the live overlay
-    //    (base effect × user strength/100); both effects can stack. ──
-    // Base effect × strength: base 1.0 (vignette) / 0.3 (scanlines) makes
-    // 100% deliberately "too much" — users settle around 40-70%, where 50%
-    // ≈ the old 100% look. Mirrors the live CSS overlay.
-    const vStrength = vignetteStrengthRef.current / 100;
-    const sStrength = scanlinesStrengthRef.current / 100;
-    if (vStrength > 0) {
-      const cx = W / 2;
-      const cy = wy + winH / 2;
-      const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
-      g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, `rgba(0,0,0,${1.0 * vStrength})`);
-      rctx.fillStyle = g;
-      rctx.fillRect(0, wy, W, winH);
-    }
-    if (sStrength > 0) {
-      rctx.fillStyle = `rgba(255,255,255,${0.3 * sStrength})`;
-      for (let y = wy; y < wy + winH; y += 4) {
-        rctx.fillRect(0, y, W, 2);
-      }
-    }
-  }, []);
+  /* ─── Recording domain (chooser → countdown → record → result, mic,
+         compositor) — lives in src/recording/useRecording.ts (extracted
+         2026-08-09, pure move). App keeps the rAF loop and rendering; the
+         hook owns every recording state/ref and exposes the API below. ── */
+  const rec = useRecording({
+    isRunning,
+    keyboardMode,
+    videoRef,
+    canvasRef,
+    waveformCanvasRef,
+    synthRef,
+    vignetteStrengthRef,
+    scanlinesStrengthRef,
+    drawOverlayVideoRef,
+    onCloseMenus: () => { setMoreOpen(false); setShowSettings(false); },
+  });
+  const {
+    recPhase, setRecPhase, recMode, setRecMode, recRatio, setRecRatio, recCount, endCount,
+    savedRecModeExists, recBlob, recPreviewUrl, shareFailed,
+    isRecording, recordingTime, micOn, setMicOn, micLevel, micPermState,
+    micDevices, micDeviceId, recVoice, setRecVoice, recPolish, setRecPolish,
+    micStreamRef, recModeRef, skeletonCanvasRef, recDownloadedRef,
+    mediaRecorderRef, recordingAbortedRef, countdownTimerRef,
+    requestMic, switchMicDevice, downloadRec, shareRec, canFileShare,
+    onRecordButton, handleStartRecording, drawRecFrame,
+  } = rec;
+  // rAF-loop mirror of isRecording (avoid re-running the loop on change)
+  useEffect(() => {
+    recordingActiveRef.current = isRecording;
+  }, [isRecording]);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */
 
@@ -1575,7 +962,11 @@ export default function App() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    if (!canvas) return;
+    // The keyboard guide can run the keyboard pipeline while keyboard mode
+    // itself is off (Help replay on the landing page) — bug 2026-08-09:
+    // guide keypresses were silent.
+    if (!keyboardModeRef.current && !showKbGuideRef.current && !video) return;
 
     runningRef.current = true;
     lastDetectRef.current = 0;
@@ -1588,14 +979,53 @@ export default function App() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
+      // No-camera mode: synthetic hands + stage background (no video feed).
+      // Also used while the keyboard guide is open (its presses must sound).
+      if (keyboardModeRef.current || showKbGuideRef.current) {
+        if (canvas.width !== 640 || canvas.height !== 480) {
+          canvas.width = 640;
+          canvas.height = 480;
+        }
+        drawStageBackground(ctx, canvas.width, canvas.height);
+        try {
+          const frame = keyboardSourceRef.current?.getFrame() ?? { left: null, right: null, source: 'keyboard' as const };
+          processHandsRef.current?.(frame);
+        } catch (e) {
+          console.warn('Keyboard frame error:', e);
+        }
+        drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
+        drawWaveformRef.current?.();
+        return;
+      }
+
+      const cam = video as HTMLVideoElement; // camera branch (keyboardMode returned above)
+      // Canvas bitmap = display size (device pixels). The video is drawn
+      // with the SAME cover-crop math as the recording compositor, so the
+      // live view and the recording show identical framing (WYSIWYG —
+      // reported 2026-08-09: 9:16 live vs recording widths differed because
+      // CSS object-fit:cover and the recorder's cover formula disagreed).
+      const dpr = window.devicePixelRatio || 1;
+      const dispW = Math.max(1, Math.round(canvas.clientWidth * dpr));
+      const dispH = Math.max(1, Math.round(canvas.clientHeight * dpr));
+      if (canvas.width !== dispW || canvas.height !== dispH) {
+        canvas.width = dispW;
+        canvas.height = dispH;
       }
 
       ctx.save();
       ctx.scale(-1, 1);
-      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      const sw = cam.videoWidth || 640;
+      const sh = cam.videoHeight || 480;
+      const scale = Math.max(dispW / sw, dispH / sh);
+      const dw = Math.round(sw * scale);
+      const dh = Math.round(sh * scale);
+      const dx = Math.round((dispW - dw) / 2);
+      const dy = Math.round((dispH - dh) / 2);
+      // Mirror-space correction: after scale(-1,1) the visible canvas is
+      // x ∈ [-dispW, 0], so the source rect that maps back to screen
+      // [dx, dx+dw] starts at -dx-dw. (Bug: using dx here drew the video
+      // off-screen left — black frame with skeleton visible, 2026-08-09.)
+      ctx.drawImage(cam, -dx - dw, dy, dw, dh);
       ctx.restore();
 
       ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
@@ -1606,8 +1036,9 @@ export default function App() {
         isDetectingRef.current = true;
         const t0 = performance.now();
         try {
-          const hands = detectHands(video, timestamp);
-          processHandsRef.current?.(hands);
+          // Camera branch only (keyboardMode returned above), so video is present.
+          const frame = cameraSourceRef.current?.getFrame(video as HTMLVideoElement, timestamp) ?? { left: null, right: null, source: 'camera' as const };
+          processHandsRef.current?.(frame);
         } catch (e) {
           console.warn('Detection frame error:', e);
         } finally {
@@ -1621,13 +1052,13 @@ export default function App() {
         }
       }
 
-      drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
+      drawOverlayRef.current?.(ctx, canvas.width, canvas.height, { dx, dy, dw, dh });
       drawWaveformRef.current?.();
 
       // B2: camera-freeze watchdog — while visible, if the video clock
       // hasn't advanced for ~4s the OS killed the stream (long screen
       // lock on Android). Restart it so the picture comes back.
-      if (document.visibilityState === 'visible' && !video.paused && video.videoWidth > 0) {
+      if (document.visibilityState === 'visible' && video && !video.paused && video.videoWidth > 0) {
         const now = performance.now();
         if (now - lastVideoCheckRef.current > 2000) {
           lastVideoCheckRef.current = now;
@@ -1653,9 +1084,15 @@ export default function App() {
         const mode = recModeRef.current;
         const sc = skeletonCanvasRef.current;
         if (sc) {
-          if (sc.width !== canvas.width || sc.height !== canvas.height) {
-            sc.width = canvas.width;
-            sc.height = canvas.height;
+          // Video-NATIVE size (never the live screen-size canvas) — see
+          // beginRecording for why; a screen-size source shrank the 9:16
+          // crop from 42% to 32% of the video (bug 2026-08-09).
+          const srcV = videoRef.current;
+          const sw = srcV?.videoWidth || 640;
+          const sh = srcV?.videoHeight || 480;
+          if (sc.width !== sw || sc.height !== sh) {
+            sc.width = sw;
+            sc.height = sh;
           }
           const sctx = sc.getContext('2d');
           if (sctx) {
@@ -1669,15 +1106,23 @@ export default function App() {
               // Camera frame (mirrored like the live view) + soft skeleton.
               // NO waveform here — camera layouts draw their own HUD
               // waveform (bottom band / frame bottom).
+              // No-camera mode (keyboard): no feed — stage + waveform.
+              const v0 = videoRef.current;
+              if (!v0) {
+                drawStageBackground(sctx, sc.width, sc.height);
+                const wf = waveformCanvasRef.current;
+                if (wf) sctx.drawImage(wf, 0, 0, sc.width, sc.height);
+              } else {
               sctx.fillStyle = '#050510';
               sctx.fillRect(0, 0, sc.width, sc.height);
               sctx.save();
               sctx.scale(-1, 1);
-              sctx.drawImage(video, -sc.width, 0, sc.width, sc.height);
+              sctx.drawImage(v0, -sc.width, 0, sc.width, sc.height);
               sctx.restore();
               sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
               sctx.fillRect(0, 0, sc.width, sc.height);
               drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
+              }
             }
           }
         }
@@ -1741,6 +1186,39 @@ export default function App() {
     }
     if (video.paused) video.play().catch(() => {});
   }, [restartCameraStream]);
+
+  // No-camera mode: no getUserMedia, no model download — the keyboard
+  // source drives the same pipeline from the rAF loop. Persist the choice.
+  // First run auto-shows the keyboard guide (once); replay lives in Help.
+  const startKeyboardMode = useCallback(async (source: KeyboardModeSource = 'main_button') => {
+    try { localStorage.setItem('gsw-keyboard-mode', '1'); } catch { /* private mode */ }
+    setKeyboardMode(true);
+    setError(null);
+    setCameraErrorType(null);
+    firstGestureSentRef.current = false;
+    setIsLoading(false);
+    // First-ever keyboard start (no camera history): the engine was never
+    // initialized — only camera start used to init it, so the keyboard
+    // was silently silent (bug 2026-08-09). The click is the user gesture.
+    await audioEngine.init();
+    setIsRunning(true);
+    // Keyboard-session analytics: fresh session per start; kb_mode_exit
+    // (switch back / settings off / page close) carries duration + notes.
+    kbSessionRef.current = { active: true, start: performance.now(), notes: 0, firstNoteSent: false };
+    trackKeyboardModeEntered(source);
+    let guideSeen = false;
+    try { guideSeen = localStorage.getItem('gsw-keyboard-guide-seen') === '1'; } catch { /* private mode */ }
+    if (!guideSeen) {
+      try { localStorage.setItem('gsw-keyboard-guide-seen', '1'); } catch { /* private mode */ }
+      trackKeyboardGuideShown('auto');
+      // Open directly (not via showKbGuidePanel): the pipeline is ALREADY
+      // running above, and its isRunning closure would still read false
+      // here (state settles after this call) — which would make the guide
+      // tear the keyboard mode down on close.
+      kbGuideWasRunningRef.current = true;
+      setShowKbGuide(true);
+    }
+  }, []);
 
   const startCamera = useCallback(async () => {
     trackCameraClicked();
@@ -1950,7 +1428,8 @@ export default function App() {
     // Reset stabilizer state for clean restart
     stabilizerRef.current = { committed: null, pending: null, pendingSince: 0, lastSeen: 0 };
     rightHandHistoryRef.current = [];
-    handDetectionHistoryRef.current = { left: [], right: [] };
+    cameraSourceRef.current?.reset();
+    keyboardSourceRef.current?.reset();
     pinkyMemoryRef.current = 0;
 
     const canvas = canvasRef.current;
@@ -1966,256 +1445,72 @@ export default function App() {
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
   }, [handleVisibility]);
 
-  /* ─── Recording (B2 flow: chooser → countdown → record → result) ───── */
-
-  const downloadRec = useCallback(() => {
-    if (!recBlob) return;
-    const url = URL.createObjectURL(recBlob.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = recBlob.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // Delay revocation to avoid Firefox download race
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-  }, [recBlob]);
-
-  const shareRec = useCallback(async () => {
-    if (!recBlob) return;
-    // The File MUST carry an explicit MIME type — Android Chrome rejects
-    // typeless File objects during share() validation (canShare passes but
-    // share throws NotSupportedError).
-    const file = new File([recBlob.blob], recBlob.filename, {
-      type: recBlob.blob.type || 'application/octet-stream',
-    });
-    const brandText = 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com';
-    try {
-      await navigator.share({
-        files: [file],
-        title: 'Gesture Synth Weld — hand gesture music synthesizer',
-        text: brandText,
-      });
-      setShareFailed(false);
-      trackShare('success', 'file');
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') {
-        trackShare('canceled', 'file');
-        return; // user cancelled
-      }
-      // Files share rejected (NotSupportedError etc.) — retry text-only so
-      // the brand message still reaches the share sheet.
-      try {
-        await navigator.share({
-          title: 'Gesture Synth Weld — hand gesture music synthesizer',
-          text: brandText,
-          url: 'https://gesturesynthweld.com',
+  // Settings-panel keyboard toggle — owns persistence + mode lifecycle
+  // (the panel component stays presentation-only).
+  // Symmetric behavior (user decision 2026-08-09): ENABLING keyboard mode
+  // starts playing at once; DISABLING it starts the camera at once —
+  // no idle hop through the Enable Camera landing, the player keeps
+  // operating. (First camera start still shows the loading flow with the
+  // model download.)
+  // source is the ENTRY/EXIT surface: only toolbar/settings can toggle off
+  // (main_button / landing_hint are enter-only), so the exit event's source
+  // type is the narrow union.
+  const handleKeyboardToggle = useCallback((on: boolean, source: 'toolbar' | 'settings' = 'settings') => {
+    trackSettingChanged('keyboard_mode', on ? 'on' : 'off');
+    try { localStorage.setItem('gsw-keyboard-mode', on ? '1' : '0'); } catch { /* private mode */ }
+    setKeyboardMode(on);
+    if (on && !isRunning) {
+      // Start immediately when enabled from idle
+      startKeyboardMode(source);
+    } else if (on && isRunning) {
+      // Camera → keyboard: stop the camera pipeline CLEANLY first —
+      // flipping the mode alone left the camera stream live (LED on,
+      // stream held) and the old session resident. Restart the keyboard
+      // pipeline fresh (stopCamera → isRunning false → startKeyboardMode).
+      stopCamera();
+      void startKeyboardMode(source);
+    } else if (!on && isRunning) {
+      // Keyboard → camera: stop the keyboard pipeline cleanly first, then
+      // start the camera — the direct-start path left the old stream and
+      // loop resident and gestures came back DEAD (bug 2026-08-09:
+      // landing→camera worked, switch-back didn't; MediaPipe's session
+      // was still bound to the pre-swap state). This mirrors the
+      // provably-working fresh path exactly (isRunning false → true).
+      // The keyboard session's exit event (duration + notes played) closes
+      // the funnel for this run.
+      const s = kbSessionRef.current;
+      if (s.active) {
+        s.active = false;
+        trackKeyboardModeExited({
+          source,
+          durationSec: (performance.now() - s.start) / 1000,
+          notesPlayed: s.notes,
         });
-        setShareFailed(false);
-        trackShare('success', 'text');
-      } catch (e2) {
-        if (e2 instanceof DOMException && e2.name === 'AbortError') {
-          trackShare('canceled', 'text');
-          return;
-        }
-        setShareFailed(true);
-        trackShare('failed', 'text');
       }
+      stopCamera();
+      void startCamera();
     }
-  }, [recBlob]);
+    // (!on && !isRunning): just flips the mode on the landing — no start.
+  }, [isRunning, startKeyboardMode, startCamera, stopCamera]);
 
-  const canFileShare = !!recBlob &&
-    typeof navigator.share === 'function' &&
-    (typeof navigator.canShare !== 'function' ||
-      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename, { type: recBlob.blob.type || 'application/octet-stream' })] }));
-
-  // Start the actual recording (audio via Tone.Recorder; video/skeleton via
-  // MediaRecorder on the composited recording canvas + audio tap).
-  const beginRecording = useCallback(() => {
-    const mode = recModeRef.current;
-    // Sing-along: mix the mic into the recording tap while recording
-    audioEngine.setRecordingMix(recVoiceRef.current);
-    audioEngine.setMicEnabled(micOnRef.current && !!micStreamRef.current);
-
-    // Video/skeleton modes need the composited recording canvas as source.
-    // (Skeleton mode composites an offscreen canvas: dark bg + skeleton +
-    // waveform, no camera feed — created here so beginRecording sees a
-    // valid source before the draw loop starts painting it.)
-    let rec: HTMLCanvasElement | null = null;
-    if (mode !== 'audio') {
-      const live = canvasRef.current;
-      if (!live || !live.width) {
-        setRecPhase('idle');
-        return;
-      }
-      // The recording-source canvas (stage or camera + soft skeleton) is
-      // the source for BOTH video modes
-      if (!skeletonCanvasRef.current) {
-        skeletonCanvasRef.current = document.createElement('canvas');
-      }
-      skeletonCanvasRef.current.width = live.width;
-      skeletonCanvasRef.current.height = live.height;
-      const srcCanvas = skeletonCanvasRef.current;
-      if (!srcCanvas || !srcCanvas.width) {
-        setRecPhase('idle');
-        return;
-      }
-      const [rw, rh] = REC_RATIO_DIMS[recRatioRef.current];
-      rec = recCanvasRef.current;
-      if (!rec) {
-        rec = document.createElement('canvas');
-        recCanvasRef.current = rec;
-      }
-      rec.width = rw;
-      rec.height = rh;
-      recBlurAtRef.current = 0; // force the first blur-bg paint
-      // Paint the source once BEFORE the first composite — otherwise the
-      // video's first keyframe shows an empty (black) window.
-      {
-        const sc = skeletonCanvasRef.current;
-        if (sc) {
-          const sctx = sc.getContext('2d');
-          if (sctx) {
-            if (mode === 'skeleton') {
-              drawStageBackground(sctx, sc.width, sc.height);
-              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
-              const wf0 = waveformCanvasRef.current;
-              if (wf0) sctx.drawImage(wf0, 0, 0, sc.width, sc.height);
-            } else {
-              sctx.fillStyle = '#050510';
-              sctx.fillRect(0, 0, sc.width, sc.height);
-              sctx.save();
-              sctx.scale(-1, 1);
-              const v0 = videoRef.current;
-              if (v0) sctx.drawImage(v0, -sc.width, 0, sc.width, sc.height);
-              sctx.restore();
-              sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
-              sctx.fillRect(0, 0, sc.width, sc.height);
-              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
-            }
-          }
-        }
-      }
-      drawRecFrame(); // first paint before captureStream
-    }
-
-    // Unified recording stream: the audio tap (synth + mic when enabled),
-    // plus canvas video tracks for video/skeleton modes.
-    const stream = new MediaStream();
-    const aTrack = audioEngine.getRecordingAudioTrack();
-    if (aTrack) stream.addTrack(aTrack);
-    if (rec) {
-      try {
-        // 24fps instead of 30 — nearly invisible, ~20% less encoder load
-        rec.captureStream(24).getVideoTracks().forEach((t) => stream.addTrack(t));
-      } catch {
-        setRecPhase('idle');
-        return;
-      }
-    }
-
-    const { mime } = pickRecMimeType(mode === 'audio');
-    const recorder = new MediaRecorder(stream, {
-      mimeType: mime || undefined,
-      videoBitsPerSecond: 3_000_000,
-    });
-    const finalMime = recorder.mimeType || mime || (mode === 'audio' ? 'audio/webm' : 'video/webm');
-    const ext = finalMime.includes('mp4') || finalMime.includes('m4a')
-      ? (finalMime.includes('audio') ? 'm4a' : 'mp4')
-      : 'webm';
-      recChunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
-      };
-      recorder.onstop = async () => {
-        if (recordingAbortedRef.current) {
-          recordingAbortedRef.current = false;
-          recChunksRef.current = [];
-          return;
-        }
-        const raw = new Blob(recChunksRef.current, { type: finalMime.split(';')[0] || 'video/webm' });
-        recChunksRef.current = [];
-        // Brand the file: mp4/m4a get iTunes-style tags (title/artist/
-        // comment) so players show the site; webm keeps the branded name
-        let blob = raw;
-        if (ext === 'mp4' || ext === 'm4a') {
-          // Audio files also carry branded cover art so players show it
-          const cover = ext === 'm4a'
-            ? new Uint8Array(await (await makeCoverBlob()).arrayBuffer())
-            : undefined;
-          blob = await injectBrandTags(
-            raw,
-            'Gesture Synth Weld',
-            'gesturesynthweld.com',
-            'Created with Gesture Synth Weld — gesturesynthweld.com',
-            cover
-          );
-        }
-        setShareFailed(false);
-        setRecBlob({ blob, filename: makeRecordingFilename(ext) });
-        setRecPhase('result');
-      };
-      recorder.start(500);
-      mediaRecorderRef.current = recorder;
-
-    setIsRecording(true);
-    recordingStartRef.current = Date.now();
-    setRecPhase('recording');
-  }, [drawRecFrame]);
-
-  // 3-2-1 countdown before recording starts (time to get hands back up)
-  const startCountdown = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-    setRecPhase('countdown');
-    setRecCount(3);
-    let n = 3;
-    countdownTimerRef.current = window.setInterval(() => {
-      n -= 1;
-      if (n <= 0) {
-        if (countdownTimerRef.current) {
-          clearInterval(countdownTimerRef.current);
-          countdownTimerRef.current = null;
-        }
-        beginRecording();
-      } else {
-        setRecCount(n);
-      }
-    }, 1000);
-  }, [beginRecording]);
-
-  // Stop recording and produce the result panel (unified MediaRecorder
-  // path for audio, video and skeleton modes)
-  const finishRecording = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-    if (endCountTimerRef.current) {
-      clearInterval(endCountTimerRef.current);
-      endCountTimerRef.current = null;
-    }
-    setEndCount(null);
-    audioEngine.setMicEnabled(false);
-    const rec = mediaRecorderRef.current;
-    if (rec && rec.state === 'recording') {
-      rec.stop();
-    } else {
-      setRecPhase('idle');
-    }
-    if (recordingStartRef.current) {
-      const dur = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-      trackRecording('completed', dur, dur >= RECORD_SECONDS ? 'timeout' : 'user');
-    }
-    setIsRecording(false);
-    setRecordingTime(0);
-    recordingStartRef.current = null;
+  // Keyboard session end on tab close/reload: visibilitychange fires
+  // reliably on both, so the exit event's page_close source completes the
+  // funnel (sessions otherwise only close on a mode switch).
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'hidden') return;
+      const s = kbSessionRef.current;
+      if (!s.active) return;
+      s.active = false;
+      trackKeyboardModeExited({
+        source: 'page_close',
+        durationSec: (performance.now() - s.start) / 1000,
+        notesPlayed: s.notes,
+      });
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
-
-  const finishRecordingRef = useRef<() => void>(() => {});
-  finishRecordingRef.current = finishRecording;
 
   // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
   // after the section stays ≥50% visible for 3s (a quick scroll-through does
@@ -2256,95 +1551,6 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Paywall signal: user previewed the result ≥5s without downloading.
-  const recDownloadedRef = useRef(false);
-  useEffect(() => {
-    if (recPhase === 'result' && recBlob) {
-      recDownloadedRef.current = false;
-      const t = setTimeout(() => {
-        if (!recDownloadedRef.current) trackRecordingViewed();
-      }, 5000);
-      return () => clearTimeout(t);
-    }
-  }, [recPhase, recBlob]);
-
-  // Record button: idle → open chooser; recording → stop;
-  // countdown/result phases ignore the button (use the panel buttons)
-  const onRecordButton = useCallback(() => {
-    if (!isRunning) return;
-    if (isRecording) {
-      finishRecording();
-      return;
-    }
-    // Recording = the player is about to perform — drop any open menus
-    // (⋯ panel and settings panel must not appear in the recording)
-    setMoreOpen(false);
-    setShowSettings(false);
-    // Platforms without canvas.captureStream (iOS Safari) can't record
-    // video — fall back to audio before showing the chooser.
-    if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
-      setRecMode('audio');
-    }
-    setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
-    // Funnel entry: only when the chooser actually opens (idle → choosing).
-    if (recPhase === 'idle') trackRecordButtonClicked();
-  }, [isRunning, isRecording, finishRecording, recMode, recPhase]);
-
-  const handleStartRecording = useCallback(() => {
-    localStorage.setItem('gsw-rec-mode', recMode);
-    localStorage.setItem('gsw-rec-ratio', recRatio);
-    setRecPhase('idle'); // close the chooser
-    trackRecording('started');
-    startCountdown();
-  }, [recMode, recRatio, startCountdown]);
-
-  // Recording timer: countdown of remaining seconds + 3-2-1 wrap-up overlay
-  // (RECORD_SECONDS-3s in → show 3,2,1 at the center, DOM-only so it never enters the video)
-  useEffect(() => {
-    if (!isRecording) return;
-
-    const interval = setInterval(() => {
-      if (recordingStartRef.current) {
-        const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        setRecordingTime(Math.max(0, RECORD_SECONDS - elapsed));
-      }
-    }, 100);
-
-    // Auto-stop at RECORD_SECONDS
-    const timeout = setTimeout(() => {
-      finishRecordingRef.current();
-    }, RECORD_SECONDS * 1000);
-
-    // Start the wrap-up countdown with 3s left
-    const endTimeout = setTimeout(() => {
-      setEndCount(3);
-      let n = 3;
-      endCountTimerRef.current = window.setInterval(() => {
-        n -= 1;
-        if (n <= 0) {
-          if (endCountTimerRef.current) {
-            clearInterval(endCountTimerRef.current);
-            endCountTimerRef.current = null;
-          }
-          setEndCount(null);
-        } else {
-          setEndCount(n);
-        }
-      }, 1000);
-    }, (RECORD_SECONDS - 3) * 1000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-      clearTimeout(endTimeout);
-      if (endCountTimerRef.current) {
-        clearInterval(endCountTimerRef.current);
-        endCountTimerRef.current = null;
-      }
-      setEndCount(null);
-    };
-  }, [isRecording]);
-
   /* ─── Render ───────────────────────────────────────────────────────── */
 
   const isCameraError = !!error;
@@ -2368,13 +1574,36 @@ export default function App() {
         {isRunning && scanlinesStrength > 0 && <div className="theme-overlay theme-scanlines" style={{ opacity: scanlinesStrength / 100 }} />}
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
-        {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (
-          <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}>
-            {recRatio === '16:9' && <><div className="rec-strip top" /><div className="rec-strip bottom" /></>}
-            <div className="rec-window" />
-            <div className="rec-tag">REC {recRatio}</div>
-          </div>
-        )}
+        {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (() => {
+          // Viewfinder = the recorded region mapped onto the screen. Both
+          // are cover-fits of the same video, so per dimension:
+          //   visible on the video = min(1, screenAspect / videoAspect)
+          //   recorded on the video = min(1, ratioAspect / videoAspect)
+          //   window size = recorded / visible, capped at the screen.
+          // The old single-fraction formula (ratio × videoH/videoW)
+          // assumed a landscape screen — on portrait phones it drew narrow
+          // strips while the recording covered the full screen, and 16:9
+          // had no sync at all (static 12.5% strips — recorded hands were
+          // invisible in the frame; bugs 2026-08-09).
+          const rv = videoRef.current;
+          const rvw = rv?.videoWidth || 640;
+          const rvh = rv?.videoHeight || 480;
+          const rw = recRatio === '9:16' ? 9 / 16 : recRatio === '1:1' ? 1 : 16 / 9;
+          const screenAspect = window.innerWidth / window.innerHeight;
+          const videoAspect = rvw / rvh;
+          const wFrac = Math.min(1, Math.min(1, rw / videoAspect) / Math.min(1, screenAspect / videoAspect));
+          const hFrac = Math.min(1, Math.min(1, videoAspect / rw) / Math.min(1, videoAspect / screenAspect));
+          return (
+            <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : 'ratio-169'}`}
+                 style={{
+                   ['--rec-win-w' as string]: `${(wFrac * 100).toFixed(2)}%`,
+                   ['--rec-win-h' as string]: `${(hFrac * 100).toFixed(2)}%`,
+                 }}>
+              <div className="rec-window" />
+              <div className="rec-tag">REC {recRatio}</div>
+            </div>
+          );
+        })()}
 
         {/* ─── Top Toolbar — always visible ─────────────────────────── */}
         <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', zIndex: 20 }}>
@@ -2402,7 +1631,62 @@ export default function App() {
               </svg>
             </button>
             <span className="divider mobile-collapse" />
-            <button className="icon-btn mobile-collapse" onClick={stopCamera} data-tip="Stop camera and audio">
+            {/* Camera ↔ keyboard mode switch — the PERMANENT, prominent
+                way to change input source (the NEW card and the settings
+                toggle are the other paths; the card expires after the
+                announce window, this button doesn't — user decision
+                2026-08-09: keyboard-mode players must always be able to
+                find their way back to the camera). Always a labeled
+                capsule, both states — one control, two shapes would read
+                as two different things (user decision 2026-08-09): in
+                keyboard mode "📷 Camera", in camera mode "⌨ Keyboard".
+                Text labels avoid any icon confusion with the stop-camera
+                button; the pulse draws the eye while the What's-new card
+                teaches the switch. */}
+            {!isMobile && (
+            <button
+              className={`icon-btn mobile-collapse mode-switch-btn${pulseModeSwitch ? ' help-pulse' : ''}`}
+              onClick={() => handleKeyboardToggle(!keyboardMode, 'toolbar')}
+              data-tip={keyboardMode
+                ? 'Switch to camera mode — play with hand gestures'
+                : 'Switch to keyboard mode — no camera needed'}
+            >
+              {keyboardMode ? (
+                <>
+                  {/* Camera pictogram (Apple-style) — no magenta slash
+                      (that slash marks STOP on the button next to it) */}
+                  <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                    <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                    <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                  </svg>
+                  <span className="mode-switch-label">Camera</span>
+                </>
+              ) : (
+                <>
+                  {/* Keyboard pictogram — same glyph as the landing button */}
+                  <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
+                  </svg>
+                  <span className="mode-switch-label">Keyboard</span>
+                </>
+              )}
+            </button>
+            )}
+            {/* Stop is CAMERA-mode only (user decision 2026-08-09): in
+                keyboard mode there's no camera to stop and the Camera
+                capsule takes its role (leaving keyboard mode), so the
+                misleading stop-camera button is hidden there. In camera
+                mode it stays — the only way to leave the playing scene
+                back to the landing. HIDDEN with visibility (not unmount)
+                in keyboard mode — the centered toolbar must not shift
+                when toggling modes (user decision 2026-08-09). */}
+            <button
+              className="icon-btn mobile-collapse"
+              onClick={stopCamera}
+              data-tip="Stop camera and audio"
+              style={keyboardMode ? { visibility: 'hidden' } : undefined}
+            >
               {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
               <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
@@ -2518,108 +1802,19 @@ export default function App() {
               (the gear that opened it may be folded away on portrait
               phones — never leave the panel without a close path). */}
           {showSettings && synthState.appMode === 'gesture' && (
-            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
-              <button
-                onClick={() => setShowSettings(false)}
-                style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}
-                data-tip="Close settings"
-              >✕</button>
-              {/* Performance settings (wraps on narrow screens) */}
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', flexWrap: 'wrap' }}>
-              {/* Left Hand */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
-                <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
-                <select value={synthState.leftHandMode} onChange={(e) => { trackSettingChanged('left_hand_mode', e.target.value); setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode })); }}>
-                  <option value="scaleTilt">Scale notes + tilt major/minor</option>
-                  <option value="scaleLocked">Scale notes only (lock mode)</option>
-                </select>
-                {synthState.leftHandMode === 'scaleTilt' ? (
-                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
-                ) : (
-                  <>
-                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => { trackSettingChanged('locked_mode', e.target.value); setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' })); }}>
-                      <option value="major">Major</option>
-                      <option value="minor">Minor</option>
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree only. Mode is locked above.</p>
-                  </>
-                )}
-              </div>
-
-              <span className="divider" style={{ height: 'auto', alignSelf: 'stretch' }} />
-
-              {/* Right Hand */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
-                <label style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand — Expression</label>
-                <select value={synthState.rightHandMode} onChange={(e) => { trackSettingChanged('right_hand_mode', e.target.value); setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode })); }}>
-                  <option value="fingerLayout">Finger layout = chord style</option>
-                  <option value="fixedChordStyle">Fixed chord style</option>
-                </select>
-                {synthState.rightHandMode === 'fingerLayout' ? (
-                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
-                ) : (
-                  <>
-                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => { trackSettingChanged('chord_style', e.target.value); setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle })); }}>
-                      {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
-                  </>
-                )}
-              </div>
-
-              {/* Arp / Bass extras */}
-              {(synthState.arpeggiate || synthState.autoBass) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px' }}>
-                  {synthState.arpeggiate && (
-                    <div>
-                      <label style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Arpeggiator</label>
-                      <select value={synthState.arpSpeed} onChange={(e) => { trackSettingChanged('arp_speed', e.target.value); setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed })); }} style={{ width: '100%' }}>
-                        <option value="slow">Slow (120ms)</option>
-                        <option value="normal">Normal (80ms)</option>
-                        <option value="fast">Fast (50ms)</option>
-                      </select>
-                    </div>
-                  )}
-                  {synthState.autoBass && (
-                    <div>
-                      <label style={{ color: 'var(--neon-amber)', fontWeight: 600 }}>Bass Volume</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => { trackSettingChanged('bass_volume', e.target.value); setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) })); }} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
-                        <span style={{ fontSize: '0.6rem', width: '24px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              </div>
-
-              {/* Visual atmosphere — stage lighting, WYSIWYG with the live
-                  view and the recording window (window only; design bands
-                  stay clean). */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', flexWrap: 'wrap' }}>
-                <label style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Visual — Atmosphere</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: vignetteStrength > 0 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '0.6rem', width: '62px' }}>Vignette</span>
-                    <input
-                      type="range" min="0" max="100" step="5" value={vignetteStrength}
-                      onChange={(e) => { trackSettingChanged('vignette', e.target.value); setVignetteStrength(Number(e.target.value)); }}
-                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
-                    />
-                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{vignetteStrength}%</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: scanlinesStrength > 0 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '0.6rem', width: '62px' }}>Scanlines</span>
-                    <input
-                      type="range" min="0" max="100" step="5" value={scanlinesStrength}
-                      onChange={(e) => { trackSettingChanged('scanlines', e.target.value); setScanlinesStrength(Number(e.target.value)); }}
-                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
-                    />
-                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{scanlinesStrength}%</span>
-                  </label>
-                </div>
-              </div>
-            </div>
+            <SettingsPanel
+              onClose={() => setShowSettings(false)}
+              synthState={synthState}
+              setSynthState={setSynthState}
+              vignetteStrength={vignetteStrength}
+              setVignetteStrength={setVignetteStrength}
+              scanlinesStrength={scanlinesStrength}
+              setScanlinesStrength={setScanlinesStrength}
+              isMobile={isMobile}
+              keyboardMode={keyboardMode}
+              isRunning={isRunning}
+              onKeyboardToggle={handleKeyboardToggle}
+            />
           )}
         </div>
 
@@ -2631,306 +1826,107 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── Help Modal ────────────────────────────────────────────── */}
-        {showHelp && (
-          <div style={{
-            position: 'absolute', top: '12px', left: '12px', width: 'min(360px, calc(100vw - 24px))',
-            maxHeight: 'min(80vh, 560px)', overflowY: 'auto',
-            background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
-            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
-            padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,
-            fontSize: '0.68rem', color: '#d0d0e8', lineHeight: 1.45,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
-              <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-            </div>
-
-            {/* How it works — two-hand demo: the left hand raises the
-                chord degree (real gesture art), the right hand the chord
-                type by finger count; together as in real play. The
-                matching table row highlights. */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px', minHeight: '58px' }}>
-                {handArt(HELP_DEMO_STEPS[demoStep].left, 52, 'var(--neon-cyan)')}
-                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chord</div>
-                  <div key={demoStep} className="demo-step-text" style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff' }}>{gradeNameFor(HELP_DEMO_STEPS[demoStep].row)}</div>
-                </div>
-              </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px', minHeight: '58px' }}>
-                {handArt('1', 52, 'var(--neon-magenta)', true)}
-                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
-                  <div style={{ color: '#d0d0e8' }}>height = volume</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '14px', marginBottom: '8px', alignItems: 'flex-start' }}>
-              {/* Left hand → chord degree (the one that picks the note) */}
-              <table style={{ borderCollapse: 'collapse', flex: 1 }}>
-                <thead>
-                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <th style={{ textAlign: 'left', padding: '3px 10px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Left hand</th>
-                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Chord</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {HELP_DEMO_STEPS.map((s, row) => {
-                    const active = row === HELP_DEMO_STEPS[demoStep].row;
-                    return (
-                      <tr key={s.left} style={{
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
-                        boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
-                        transition: 'background 0.25s ease',
-                      }}>
-                        <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {handArt(s.left, 24, active ? 'var(--neon-cyan)' : '#8fbfd0')}
-                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', color: 'var(--text-muted)' }}>{s.left}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.7rem' : '0.62rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {/* Right hand → chord type (independent of the chord) */}
-              <table style={{ borderCollapse: 'collapse', flexShrink: 0 }}>
-                <thead>
-                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <th style={{ textAlign: 'left', padding: '3px 8px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
-                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(['1', '2', '3', '4', 'mute'] as const).map((k) => (
-                    <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {handArt(k, 24, 'var(--neon-magenta)', true)}
-                          {k !== 'mute' && (
-                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '3px 0', fontSize: '0.6rem', whiteSpace: 'nowrap', color: '#d0d0e8' }}>
-                        {k === 'mute' ? 'mute' : ({ '1': '3-note', '2': 'inverted', '3': '4-note', '4': '5-note' } as Record<string, string>)[k]}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ fontSize: '0.54rem', color: '#a0a0c8', lineHeight: 1.5, marginTop: '2px' }}>
-                finger count → chord type<br/>enable in Settings · Right hand
-              </div>
-            </div>
-
-            <div style={{ fontSize: '0.56rem', color: '#b0b0d0', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '6px', paddingTop: '6px' }}>
-              <div style={{ color: '#a0a0c8', fontWeight: 600, marginBottom: '4px' }}>Other gestures</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                {handArt('thumb', 24, 'var(--neon-magenta)', true)}
-                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right thumb</span> out = octave down</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
-                <span style={{ color: '#a0a0c8' }}>↔</span>
-                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
-                <span><span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left wrist tilt</span> = major ↔ minor (Settings · Scale+Tilt)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
-                <span style={{ color: '#a0a0c8' }}>↔</span>
-                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
-                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right wrist tilt</span> = tone sweep</span>
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
-              <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor (Scale+Tilt mode)<br/>
-              <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
-              <span style={{ color: '#b0b0d0' }}>Both hands required · Left fist mutes · Right fist continues · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
-            </div>
-
-            <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
-              Full guide & tips below ↓
-            </a>
-          </div>
-        )}
-
-        {/* ─── B2: recording UI — chooser, countdown, result ──────────── */}
-
-        {/* 3-2-1 countdown overlay */}
-        {recPhase === 'countdown' && (
-          <div className="countdown-overlay">
-            <div className="countdown-hint">Get ready</div>
-            <div key={recCount} className="countdown-num">{recCount}</div>
-          </div>
-        )}
-
-        {/* Wrap-up 3-2-1 during the last 3s — same language as the opening,
-            lighter dim so the hands stay visible; DOM-only, never in the video */}
-        {endCount !== null && (
-          <div className="countdown-overlay" style={{ background: 'rgba(5, 5, 15, 0.42)' }}>
-            <div className="countdown-hint">Wrap up</div>
-            <div key={endCount} className="countdown-num wrap-up">{endCount}</div>
-          </div>
-        )}
-
-        {/* Mode + ratio chooser (bottom sheet on mobile, card on desktop) */}
-        {recPhase === 'choosing' && (
-          <div className="rec-sheet">
-            <div className="rec-body">
-              <div className="rec-sheet-title">Record performance</div>
-              <div className="rec-sheet-sub">What should the recording capture?</div>
-              <div className="rec-options">
-                {(['video', 'skeleton', 'audio'] as RecMode[]).map((id) => (
-                  <button
-                    key={id}
-                    className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
-                    onClick={() => { if ((id === 'audio' || VIDEO_REC_SUPPORTED) && id !== recMode) { trackRecordingModeChanged(recMode, id); setRecMode(id); } }}
-                  >
-                    {REC_SVG_PREVIEWS[id]}
-                    <span>
-                      <strong>
-                        {id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}
-                        {/* "default" only makes sense for first-time choosers —
-                            returning players see their own saved choice */}
-                        {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
-                      </strong>
-                      {/* Intent labels — kept short enough to fit ONE line
-                          on mobile buttons (~160px), so the chooser doesn't
-                          grow rows. */}
-                      <em>{id === 'video' ? 'Real you — best for sharing' : id === 'skeleton' ? 'Privacy-friendly' : 'Just the sound'}</em>
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {recMode !== 'audio' && (
-                <>
-                  <div className="rec-sheet-sub">Aspect ratio</div>
-                  <div className="rec-ratios">
-                    {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
-                      <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
-                    ))}
-                  </div>
-                  <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
-                </>
-              )}
-              {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
-                <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
-              )}
-              {/* Mic section: ALWAYS visible so users know the sing-along
-                  feature exists — grayed out until the mic is enabled */}
-              <div className={`rec-mic-section ${micStreamRef.current ? '' : 'disabled'}`}>
-                <label className="rec-mic-toggle">
-                  <input type="checkbox" checked={micOn} onChange={(e) => { trackMicToggled(e.target.checked); setMicOn(e.target.checked); }} disabled={!micStreamRef.current} />
-                  <span>🎤 Include my voice — sing along with the chords</span>
-                </label>
-                {micStreamRef.current ? (
-                  <>
-                    {/* Liquid-glass mic level meter */}
-                    <div className="rec-mic-meter" title="Microphone level — speak to test">
-                      {Array.from({ length: 14 }, (_, i) => {
-                        const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
-                        return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
-                      })}
-                    </div>
-                    {micDevices.length > 1 && (
-                      <>
-                        <div className="rec-sheet-sub">Microphone</div>
-                        <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
-                          {micDevices.map((d) => (
-                            <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                    <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
-                    <div className="rec-mix-row">
-                      <span>Voice</span>
-                      <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
-                      <span>Chords</span>
-                    </div>
-                    <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
-                    <div className="rec-sheet-sub">Vocal polish <span className="rec-mix-desc">— voice effects in the recording</span></div>
-                    <select
-                      className="rec-device-select"
-                      value={recPolish}
-                      onChange={(e) => { trackSettingChanged('vocal_polish', e.target.value); setRecPolish(e.target.value as VocalPolish); }}
-                    >
-                      <option value="off">Off — raw voice</option>
-                      <option value="light">Light — subtle</option>
-                      <option value="standard">Standard — recommended</option>
-                      <option value="strong">Strong — roomy</option>
-                    </select>
-                  </>
-                ) : micPermState === 'denied' ? (
-                  <div className="rec-mic-notice">
-                    <strong>Sing along?</strong> You can record your voice over the chords — but the
-                    microphone is <strong>blocked for this site</strong>. Click the <strong>🔒 lock icon</strong> in the
-                    address bar → Site settings → Microphone → <strong>Allow</strong>, then come back here.
-                  </div>
-                ) : (
-                  <>
-                    <div className="rec-mic-notice">
-                      <strong>Sing along?</strong> You can record your voice over the chords — but the
-                      microphone isn't enabled yet.
-                    </div>
-                    <button className="rec-mic-enable-btn" onClick={() => requestMic()}>🎤 Enable microphone</button>
-                  </>
+        {/* ─── What's-new card in the PLAYING scene — camera modes only
+                (keyboard-mode players ARE the new feature; camera-less
+                users get the landing hint instead). Bottom-left, above
+                the status bar (user decision 2026-08-09). DISMISSAL-based:
+                shows every session while active (14-day window) until the
+                player closes it with ✕ (gsw-whatsnew-dismissed).
+                TEACHING card, NOT a shortcut (user decision 2026-08-09):
+                the body doesn't jump to keyboard mode — it points at the
+                toolbar mode-switch button, which pulses while the card is
+                visible, so the player learns the permanent switch (the
+                card expires after 14 days; the button doesn't). ───────── */}
+        {whatsNewCardVisible && whatsNewEntry && (
+          whatsNewCollapsed ? (
+            /* Collapsed mobile dot (iOS floating-pill pattern): keeps the
+               every-session presence without occupying the tiny
+               viewfinder; tap to re-expand the card. */
+            <button
+              className="whatsnew-dot"
+              onClick={() => setWhatsNewCollapsed(false)}
+              aria-label="What's new"
+              title={whatsNewEntry.title}
+            >
+              NEW
+            </button>
+          ) : (
+          <div className="whatsnew-card whatsnew-card--scene">
+            <button
+              className="whatsnew-close"
+              onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); }}
+              aria-label="Dismiss what's new"
+              title="Dismiss"
+            >
+              {/* Feather X (MIT) */}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <div className="whatsnew-body">
+              <span className="whatsnew-badge">NEW</span>
+              <span>
+                <strong>{whatsNewEntry.title}</strong>
+                {/* Teaching line (from the entry, per-mode): points at the
+                    toolbar control's ACTUAL label in the current mode —
+                    reinforcing the habit both ways. No entry teach = no
+                    line (and no pulse, via pulseTarget). */}
+                {whatsNewEntry.teach && (
+                  <span className="whatsnew-teach">
+                    {whatsNewEntry.teach[keyboardMode ? 'keyboard' : 'camera'] ?? whatsNewEntry.teach.camera}
+                  </span>
                 )}
-              </div>
-            </div>
-            <div className="rec-actions">
-              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
-              <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
+              </span>
             </div>
           </div>
+          )
         )}
 
-        {/* Result panel: download (all), share (mobile via Web Share API) */}
-        {recPhase === 'result' && recBlob && (
-          <div className="rec-sheet">
-            <div className="rec-sheet-title">✓ Recording ready</div>
-            <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
-            {/* In-page playback of the take — video plays immediately
-                (muted for autoplay policy; tap the controls for sound).
-                WYSIWYG: atmosphere, crop and watermarks all visible here.
-                Audio-only takes get an <audio> player (no autoplay —
-                playing sound unprompted is rude). */}
-            {recPreviewUrl && (recMode === 'audio' ? (
-              <audio src={recPreviewUrl} className="rec-preview rec-preview-audio" controls />
-            ) : (
-              <video
-                src={recPreviewUrl}
-                className="rec-preview"
-                autoPlay
-                muted
-                playsInline
-                controls
-              />
-            ))}
-            <div className="rec-actions">
-              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
-              <button className="rec-btn primary" onClick={() => { recDownloadedRef.current = true; trackDownload(); downloadRec(); }}>💾 Download</button>
-              {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
-            </div>
-            {canFileShare && (
-              <div className="rec-sheet-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
-                Share directly: WhatsApp · WeChat · Telegram<br />
-                TikTok · Instagram · 抖音: Save to Photos, then upload in-app
-              </div>
-            )}
-            {shareFailed && (
-              <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
-            )}
-          </div>
+        {/* ─── Help Modal (component: demo animation, mapping tables,
+                keyboard-mode section — owns its demo step state) ──────── */}
+        {showHelp && (
+          <HelpModal
+            onClose={() => setShowHelp(false)}
+            isMobile={isMobile}
+            gradeNameFor={gradeNameFor}
+            onReplayKeyboardGuide={showKbGuidePanel}
+          />
         )}
+
+        {/* ─── B2: recording UI — chooser, countdown, result (RecSheet) ── */}
+        <RecSheet
+          recPhase={recPhase}
+          setRecPhase={setRecPhase}
+          recCount={recCount}
+          endCount={endCount}
+          recMode={recMode}
+          setRecMode={setRecMode}
+          recRatio={recRatio}
+          setRecRatio={setRecRatio}
+          savedRecModeExists={savedRecModeExists}
+          keyboardMode={keyboardMode}
+          micStreamRef={micStreamRef}
+          micOn={micOn}
+          setMicOn={setMicOn}
+          micLevel={micLevel}
+          micPermState={micPermState}
+          micDevices={micDevices}
+          micDeviceId={micDeviceId}
+          recVoice={recVoice}
+          setRecVoice={setRecVoice}
+          recPolish={recPolish}
+          setRecPolish={setRecPolish}
+          requestMic={requestMic}
+          switchMicDevice={switchMicDevice}
+          recBlob={recBlob}
+          recPreviewUrl={recPreviewUrl}
+          shareFailed={shareFailed}
+          canFileShare={canFileShare}
+          downloadRec={() => { recDownloadedRef.current = true; downloadRec(); }}
+          shareRec={shareRec}
+          handleStartRecording={handleStartRecording}
+        />
 
         {/* ─── Hand tags on sides (running only) ─────────────────────── */}
         {isRunning && (
@@ -2982,8 +1978,8 @@ export default function App() {
                     panel), since the right hand plays volume by height. */}
                 <div className="loading-zone-label">How to play</div>
                 <div className="loading-demo-row">
-                  {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
-                  {handArt('1', 26, 'var(--neon-magenta)', true)}
+                  {renderHandArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                  {renderHandArt('1', 26, 'var(--neon-magenta)', true)}
                   <div>
                     <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
                     <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint} · Right: height = volume</div>
@@ -3016,18 +2012,42 @@ export default function App() {
               <>
                 <button
                   className="enable-camera-btn"
-                  onClick={startCamera}
+                  onClick={keyboardMode ? () => startKeyboardMode('main_button') : startCamera}
                   disabled={isLoading}
                   onMouseEnter={prefetchTracking}
                   onFocus={prefetchTracking}
                   onTouchStart={prefetchTracking}
                 >
                   <svg className="enable-camera-btn-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-                    <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                    {keyboardMode ? (
+                      <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
+                    ) : (
+                      <path fillRule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2H4zm10 1.5l3.5-2.25A.75.75 0 0118.5 5v10a.75.75 0 01-1 .69L14 13.5V6.5z" clipRule="evenodd" />
+                    )}
                   </svg>
-                  <span>Enable Camera</span>
+                  <span>{keyboardMode ? 'Start Playing (Keyboard)' : 'Enable Camera'}</span>
                 </button>
-                <p className="camera-placeholder-hint">Allow camera access to start playing with hand gestures</p>
+                <p className="camera-placeholder-hint">
+                  {keyboardMode
+                    ? 'Hold 1-7 to play · [ ] major-minor · 8/9/0/- style · Shift octave · arrows volume/filter · Space stop'
+                    : 'Allow camera access to start playing with hand gestures'}
+                </p>
+                {/* LANDING hint — TIME-based conversion assist: shows
+                    while the announcement is active (14-day window), then
+                    stops on its own. No ✕, no dismissal — it can't be
+                    "seen once and lost", and the player never has to
+                    close it. Click = enter keyboard mode. The PLAYING
+                    card below is the dismissal-based announcement. */}
+                {!keyboardMode && !(whatsNewEntry?.desktopOnly && isMobile) && whatsNewActive() && (
+                  <div className="whatsnew-card">
+                    <button className="whatsnew-body" onClick={() => startKeyboardMode('landing_hint')}>
+                      <span className="whatsnew-badge">NEW</span>
+                      <span>
+                        <strong>Keyboard mode</strong> — no camera needed
+                      </span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
             </div>
@@ -3104,7 +2124,10 @@ export default function App() {
         {/* ─── Running-state overlays ────────────────────────────────── */}
         {isRunning && (
           <>
-            {/* Scale Guide - 8 blocks showing scale degrees */}
+            {/* Scale Guide - 8 blocks showing scale degrees.
+                Shown in BOTH modes (bug 2026-08-09: keyboard mode hid it
+                entirely — the player still needs the degree map). The hint
+                line switches semantics: key numbers vs finger gestures. */}
             {synthState.appMode === 'gesture' && (
               <div className="scale-guide" style={{
                 position: 'absolute',
@@ -3121,14 +2144,14 @@ export default function App() {
                     return key?.name?.split('/')[0] ?? '?';
                   };
                   const keyNotes = [
-                    { note: mkNote(0),  roman: 'I',   hint: '1 finger' },
-                    { note: mkNote(2),  roman: 'II',  hint: '2 fingers' },
-                    { note: mkNote(4),  roman: 'III', hint: '3 fingers' },
-                    { note: mkNote(5),  roman: 'IV',  hint: '4 fingers' },
-                    { note: mkNote(7),  roman: 'V',   hint: '5 fingers' },
-                    { note: mkNote(9),  roman: 'VI',  hint: 'idx + pky' },
-                    { note: mkNote(11), roman: 'VII', hint: 'i + p + t' },
-                    { note: mkNote(0),  roman: 'I\'', hint: '1 fing (oct)' },
+                    { note: mkNote(0),  roman: 'I',   hint: keyboardMode ? 'key 1' : '1 finger' },
+                    { note: mkNote(2),  roman: 'II',  hint: keyboardMode ? 'key 2' : '2 fingers' },
+                    { note: mkNote(4),  roman: 'III', hint: keyboardMode ? 'key 3' : '3 fingers' },
+                    { note: mkNote(5),  roman: 'IV',  hint: keyboardMode ? 'key 4' : '4 fingers' },
+                    { note: mkNote(7),  roman: 'V',   hint: keyboardMode ? 'key 5' : '5 fingers' },
+                    { note: mkNote(9),  roman: 'VI',  hint: keyboardMode ? 'key 6' : 'idx + pky' },
+                    { note: mkNote(11), roman: 'VII', hint: keyboardMode ? 'key 7' : 'i + p + t' },
+                    { note: mkNote(0),  roman: 'I\'', hint: keyboardMode ? 'Shift = 8vb' : '1 fing (oct)' },
                   ];
                   return keyNotes.map((block, i) => {
                     const isActive = synthState.chordIndex === i && synthState.isPlaying;
@@ -3348,58 +2371,10 @@ export default function App() {
 
       </section>
 
+      {/* ─── Keyboard guide overlay (first-run + replayable) ──────────── */}
+      {showKbGuide && <KbGuide onDismiss={dismissKbGuide} />}
+
     </div>
   );
 }
 
-/* ─── Drawing Utilities ──────────────────────────────────────────────── */
-
-function drawHandSkeleton(
-  ctx: CanvasRenderingContext2D,
-  hand: HandData,
-  canvasW: number,
-  canvasH: number,
-  color: string,
-  glowColor: string,
-  lineWidth: number = 3,
-  tipGlow: number = 8,
-) {
-  const pts = hand.landmarks;
-  if (!pts || pts.length < 21) return;
-
-  const toCanvas = (lm: { x: number; y: number }) => ({
-    x: (1 - lm.x) * canvasW,
-    y: lm.y * canvasH,
-  });
-
-  ctx.strokeStyle = glowColor;
-  ctx.lineWidth = lineWidth;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  for (const [a, b] of HAND_CONNECTIONS) {
-    const pA = toCanvas(pts[a]);
-    const pB = toCanvas(pts[b]);
-    ctx.beginPath();
-    ctx.moveTo(pA.x, pA.y);
-    ctx.lineTo(pB.x, pB.y);
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < pts.length; i++) {
-    const p = toCanvas(pts[i]);
-    const isTip = [4, 8, 12, 16, 20].includes(i);
-
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, isTip ? 5 : 3, 0, Math.PI * 2);
-    ctx.fillStyle = isTip ? color : 'rgba(255,255,255,0.5)';
-    ctx.fill();
-
-    if (isTip) {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = tipGlow;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-  }
-}

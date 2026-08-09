@@ -84,13 +84,16 @@ export function trackFirstGesture(secondsSinceLoad: number): void {
 
 export function trackRecording(
   event: 'started' | 'completed',
-  durationSec?: number,
-  ended?: 'timeout' | 'user',
+  opts?: { durationSec?: number; ended?: 'timeout' | 'user'; mode?: 'camera' | 'keyboard' },
 ): void {
   track(
     'recording_' + event,
-    durationSec !== undefined
-      ? { duration_seconds: Math.round(durationSec), ...(ended ? { ended } : {}) }
+    opts
+      ? {
+          ...(opts.durationSec !== undefined ? { duration_seconds: Math.round(opts.durationSec) } : {}),
+          ...(opts.ended ? { ended: opts.ended } : {}),
+          ...(opts.mode ? { mode: opts.mode } : {}),
+        }
       : undefined,
   );
 }
@@ -185,6 +188,49 @@ export function trackMicToggled(on: boolean): void {
 /** User scrolled the SEO content (Playbook) into view — ad placement signal. */
 export function trackScrollToPlaybook(): void {
   track('scroll_to_playbook');
+}
+
+/* ─── Keyboard mode funnel (added 2026-08-09, see docs/analytics-events.md) ──
+ *
+ * Measures interest in the no-camera feature: which surface converts
+ * (entry source), whether users actually play (first note + notes on
+ * exit), and bounce (session duration on exit). Session = one keyboard
+ * start; exit fires on switch-back, settings-off, or page close. */
+
+export type KeyboardModeSource = 'main_button' | 'landing_hint' | 'toolbar' | 'settings';
+
+/** Keyboard mode started — which surface converted the user. */
+export function trackKeyboardModeEntered(source: KeyboardModeSource): void {
+  track('kb_mode_enter', { source });
+}
+
+/** Keyboard session ended — bounce and depth in one low-frequency event. */
+export function trackKeyboardModeExited(params: {
+  source: 'toolbar' | 'settings' | 'page_close';
+  durationSec: number;
+  notesPlayed: number;
+}): void {
+  track('kb_mode_exit', {
+    source: params.source,
+    duration_s: Math.round(params.durationSec),
+    notes_played: params.notesPlayed,
+  });
+}
+
+/** First note pressed in a keyboard session (activation, mirror of
+ *  first_gesture_detected — the "actually tried it" signal). */
+export function trackKeyboardFirstNote(secondsSinceStart: number): void {
+  track('kb_first_note', { seconds_since_start: Math.round(secondsSinceStart) });
+}
+
+/** Keyboard guide shown — first-run auto-pop or Help replay. */
+export function trackKeyboardGuideShown(source: 'auto' | 'replay'): void {
+  track('kb_guide_shown', { source });
+}
+
+/** Guide dismissed — which path closed it (health of the teaching moment). */
+export function trackKeyboardGuideDismissed(method: 'close' | 'x' | 'overlay' | 'esc'): void {
+  track('kb_guide_dismissed', { method });
 }
 
 function isMobileDevice(): boolean {

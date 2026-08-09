@@ -1,0 +1,242 @@
+/**
+ * Recording UI sheet (extracted from App.tsx Render 2026-08-09, pure
+ * move): 3-2-1 countdown + wrap-up overlays, the mode/ratio/mic chooser,
+ * and the result panel (in-page preview, download, share).
+ *
+ * Pure presentation — every value comes from useRecording's returned
+ * surface (the App passes the same object it destructured), so the sheet
+ * never touches recording internals.
+ */
+
+import type { Dispatch, SetStateAction } from 'react';
+import type { RecMode, RecPhase, RecRatio } from '../types';
+import type { VocalPolish } from '../audioEngine';
+import {
+  trackDownload,
+  trackMicToggled,
+  trackRecordingModeChanged,
+  trackSettingChanged,
+} from '../analytics';
+import { REC_RATIO_HINTS, REC_SVG_PREVIEWS, VIDEO_REC_SUPPORTED } from './constants';
+
+export interface RecSheetProps {
+  recPhase: RecPhase;
+  setRecPhase: Dispatch<SetStateAction<RecPhase>>;
+  recCount: number;
+  endCount: number | null;
+  recMode: RecMode;
+  setRecMode: Dispatch<SetStateAction<RecMode>>;
+  recRatio: RecRatio;
+  setRecRatio: Dispatch<SetStateAction<RecRatio>>;
+  savedRecModeExists: boolean;
+  keyboardMode: boolean;
+  // mic (sing-along)
+  micStreamRef: { current: MediaStream | null };
+  micOn: boolean;
+  setMicOn: (v: boolean) => void;
+  micLevel: number;
+  micPermState: 'unknown' | 'granted' | 'denied' | 'prompt';
+  micDevices: MediaDeviceInfo[];
+  micDeviceId: string;
+  recVoice: number;
+  setRecVoice: (v: number) => void;
+  recPolish: VocalPolish;
+  setRecPolish: (v: VocalPolish) => void;
+  requestMic: () => Promise<boolean>;
+  switchMicDevice: (deviceId: string) => void;
+  // result
+  recBlob: { blob: Blob; filename: string } | null;
+  recPreviewUrl: string | null;
+  shareFailed: boolean;
+  canFileShare: boolean;
+  downloadRec: () => void;
+  shareRec: () => void;
+  handleStartRecording: () => void;
+}
+
+export function RecSheet(props: RecSheetProps) {
+  const {
+    recPhase, setRecPhase, recCount, endCount,
+    recMode, setRecMode, recRatio, setRecRatio, savedRecModeExists, keyboardMode,
+    micStreamRef, micOn, setMicOn, micLevel, micPermState, micDevices, micDeviceId,
+    recVoice, setRecVoice, recPolish, setRecPolish, requestMic, switchMicDevice,
+    recBlob, recPreviewUrl, shareFailed, canFileShare, downloadRec, shareRec,
+    handleStartRecording,
+  } = props;
+
+  return (
+    <>
+      {/* 3-2-1 countdown overlay */}
+      {recPhase === 'countdown' && (
+        <div className="countdown-overlay">
+          <div className="countdown-hint">Get ready</div>
+          <div key={recCount} className="countdown-num">{recCount}</div>
+        </div>
+      )}
+
+      {/* Wrap-up 3-2-1 during the last 3s — same language as the opening,
+          lighter dim so the hands stay visible; DOM-only, never in the video */}
+      {endCount !== null && (
+        <div className="countdown-overlay" style={{ background: 'rgba(5, 5, 15, 0.42)' }}>
+          <div className="countdown-hint">Wrap up</div>
+          <div key={endCount} className="countdown-num wrap-up">{endCount}</div>
+        </div>
+      )}
+
+      {/* Mode + ratio chooser (bottom sheet on mobile, card on desktop) */}
+      {recPhase === 'choosing' && (
+        <div className="rec-sheet">
+          <div className="rec-body">
+            <div className="rec-sheet-title">Record performance</div>
+            <div className="rec-sheet-sub">
+              {keyboardMode
+                ? 'Keyboard mode records audio only — no camera feed to capture'
+                : 'What should the recording capture?'}
+            </div>
+            <div className="rec-options">
+              {((keyboardMode ? ['audio'] : ['video', 'skeleton', 'audio']) as RecMode[]).map((id) => (
+                <button
+                  key={id}
+                  className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
+                  onClick={() => { if ((id === 'audio' || VIDEO_REC_SUPPORTED) && id !== recMode) { trackRecordingModeChanged(recMode, id); setRecMode(id); } }}
+                >
+                  {REC_SVG_PREVIEWS[id]}
+                  <span>
+                    <strong>
+                      {id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}
+                      {/* "default" only makes sense for first-time choosers —
+                          returning players see their own saved choice */}
+                      {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
+                    </strong>
+                    {/* Intent labels — kept short enough to fit ONE line
+                        on mobile buttons (~160px), so the chooser doesn't
+                        grow rows. */}
+                    <em>{id === 'video' ? 'Real you — best for sharing' : id === 'skeleton' ? 'Privacy-friendly' : 'Just the sound'}</em>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {recMode !== 'audio' && (
+              <>
+                <div className="rec-sheet-sub">Aspect ratio</div>
+                <div className="rec-ratios">
+                  {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
+                    <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
+                  ))}
+                </div>
+                <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
+              </>
+            )}
+            {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
+              <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
+            )}
+            {/* Mic section: ALWAYS visible so users know the sing-along
+                feature exists — grayed out until the mic is enabled */}
+            <div className={`rec-mic-section ${micStreamRef.current ? '' : 'disabled'}`}>
+              <label className="rec-mic-toggle">
+                <input type="checkbox" checked={micOn} onChange={(e) => { trackMicToggled(e.target.checked); setMicOn(e.target.checked); }} disabled={!micStreamRef.current} />
+                <span>🎤 Include my voice — sing along with the chords</span>
+              </label>
+              {micStreamRef.current ? (
+                <>
+                  {/* Liquid-glass mic level meter */}
+                  <div className="rec-mic-meter" title="Microphone level — speak to test">
+                    {Array.from({ length: 14 }, (_, i) => {
+                      const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
+                      return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
+                    })}
+                  </div>
+                  {micDevices.length > 1 && (
+                    <>
+                      <div className="rec-sheet-sub">Microphone</div>
+                      <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
+                        {micDevices.map((d) => (
+                          <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
+                  <div className="rec-mix-row">
+                    <span>Voice</span>
+                    <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
+                    <span>Chords</span>
+                  </div>
+                  <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
+                  <div className="rec-sheet-sub">Vocal polish <span className="rec-mix-desc">— voice effects in the recording</span></div>
+                  <select
+                    className="rec-device-select"
+                    value={recPolish}
+                    onChange={(e) => { trackSettingChanged('vocal_polish', e.target.value); setRecPolish(e.target.value as VocalPolish); }}
+                  >
+                    <option value="off">Off — raw voice</option>
+                    <option value="light">Light — subtle</option>
+                    <option value="standard">Standard — recommended</option>
+                    <option value="strong">Strong — roomy</option>
+                  </select>
+                </>
+              ) : micPermState === 'denied' ? (
+                <div className="rec-mic-notice">
+                  <strong>Sing along?</strong> You can record your voice over the chords — but the
+                  microphone is <strong>blocked for this site</strong>. Click the <strong>🔒 lock icon</strong> in the
+                  address bar → Site settings → Microphone → <strong>Allow</strong>, then come back here.
+                </div>
+              ) : (
+                <>
+                  <div className="rec-mic-notice">
+                    <strong>Sing along?</strong> You can record your voice over the chords — but the
+                    microphone isn't enabled yet.
+                  </div>
+                  <button className="rec-mic-enable-btn" onClick={() => requestMic()}>🎤 Enable microphone</button>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="rec-actions">
+            <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
+            <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
+          </div>
+        </div>
+      )}
+
+      {/* Result panel: download (all), share (mobile via Web Share API) */}
+      {recPhase === 'result' && recBlob && (
+        <div className="rec-sheet">
+          <div className="rec-sheet-title">✓ Recording ready</div>
+          <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
+          {/* In-page playback of the take — video plays immediately
+              (muted for autoplay policy; tap the controls for sound).
+              WYSIWYG: atmosphere, crop and watermarks all visible here.
+              Audio-only takes get an <audio> player (no autoplay —
+              playing sound unprompted is rude). */}
+          {recPreviewUrl && (recMode === 'audio' ? (
+            <audio src={recPreviewUrl} className="rec-preview rec-preview-audio" controls />
+          ) : (
+            <video
+              src={recPreviewUrl}
+              className="rec-preview"
+              autoPlay
+              muted
+              playsInline
+              controls
+            />
+          ))}
+          <div className="rec-actions">
+            <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
+            <button className="rec-btn primary" onClick={() => { trackDownload(); downloadRec(); }}>💾 Download</button>
+            {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
+          </div>
+          {canFileShare && (
+            <div className="rec-sheet-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
+              Share directly: WhatsApp · WeChat · Telegram<br />
+              TikTok · Instagram · 抖音: Save to Photos, then upload in-app
+            </div>
+          )}
+          {shareFailed && (
+            <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}

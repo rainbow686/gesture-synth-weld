@@ -26,6 +26,16 @@
   --font-display: 'Orbitron', monospace;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Bottom status-bar height — the What's-new playing-scene card anchors
+     above it (bottom: calc(var(--status-bar-h) + 10px), left corner). */
+  --status-bar-h: 42px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --status-bar-h: 36px;
+  }
 }
 
 *, *::before, *::after {
@@ -109,6 +119,12 @@ body {
 
 .camera-placeholder-brand {
   margin-bottom: 0.5rem;
+  /* Pure display — never intercept clicks. On smaller screens the brand
+     can overlap the settings panel / main button; with pointer-events
+     off, clicks pass through to whatever is underneath (resolution-proof,
+     bug 2026-08-09: brand wordmark covered the keyboard toggle on a
+     13" Mac). */
+  pointer-events: none;
 }
 
 .camera-placeholder-brand-text {
@@ -225,6 +241,189 @@ body {
   color: var(--text-secondary);
   font-size: 0.9rem;
   max-width: 360px;
+}
+
+/* New-feature announcement card. Two touchpoints (src/whatsNew.ts):
+   - LANDING: below the main button, TIME-based — shows while the
+     announcement is active (14-day window), then stops on its own; no ✕,
+     no dismissal (the player never has to close it, and it can't be
+     "seen once and lost"). Click = enter keyboard mode.
+   - PLAYING SCENE (--scene variant): floats below the top toolbar at the
+     same top-left corner Help uses — Help (z 100) covers it while open,
+     so the two never overlap at any resolution; DISMISSAL-based — shows
+     every session until the player closes it with the ✕. Desktop only
+     height-safe: toolbar is one nowrap row (~34px) at top 12px, so
+     top 64px clears it at every viewport width. */
+.whatsnew-card {
+  position: relative;
+  margin-top: 14px;
+  max-width: min(380px, 88vw);
+  background: rgba(255, 110, 199, 0.08);
+  border: 1px solid rgba(255, 110, 199, 0.3);
+  border-radius: 14px;
+  box-shadow: 0 0 18px rgba(255, 110, 199, 0.12);
+  transition: all 0.15s ease;
+}
+.whatsnew-card:hover {
+  background: rgba(255, 110, 199, 0.12);
+  border-color: rgba(255, 110, 199, 0.5);
+}
+.whatsnew-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.whatsnew-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+.whatsnew-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 34px 12px 14px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 14px;
+  color: var(--neon-cyan);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.whatsnew-body:hover {
+  color: #7dffe6;
+}
+.whatsnew-badge {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ff6ec7;
+  border: 1px solid rgba(255, 110, 199, 0.45);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* Playing-scene variant (user decision 2026-08-09): DESKTOP anchors at
+   the screen's BOTTOM-LEFT, above the status bar (bottom = status-bar
+   height + 10px) — clear of the toolbar, Help (top-left), the centered
+   Scale Guide and the waveform band. MOBILE moves it TOP-LEFT below the
+   toolbar (media query below): the mobile toolbar shows only
+   Record/Help/⋯ so the top-left is free, while the bottom area is taken
+   by the Scale Guide's 8 degree blocks (bottom: 80px centered) — a
+   bottom card would cover them at near-full width. No backdrop-filter:
+   blurring the live canvas behind the card is a known mobile compositor
+   hog (suspected of starving the detection loop, 2026-08-09) — the
+   near-opaque background looks the same. TEACHING card: the body is NOT
+   clickable — it points at the toolbar control the entry declares
+   (pulseTarget), which pulses while the card is visible. */
+.whatsnew-card--scene {
+  position: absolute;
+  bottom: calc(var(--status-bar-h) + 10px);
+  left: 12px;
+  z-index: 90; /* under HelpModal (100), over canvas HUD */
+  width: min(360px, calc(100vw - 24px));
+  margin-top: 0;
+  background: rgba(8, 8, 20, 0.92);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+/* Informational (not a button) — no pointer cursor */
+.whatsnew-card--scene .whatsnew-body {
+  cursor: default;
+}
+/* Mobile (kept directly after the base rule — same-specificity overrides
+   must come later in the file, bug 2026-08-09: the earlier media-query
+   copy lost to the base rule and the card stretched between top+bottom):
+   the card can't sit at the bottom — the Scale Guide's 8 degree blocks
+   own that area (bottom: 80px, centered). EXPANDED: centered below the
+   compact mobile toolbar (Record/Help/⋯ only) — looks tidier than the
+   left corner (user decision 2026-08-09); the collapsed DOT stays
+   top-left (see .whatsnew-dot). */
+@media (max-width: 768px) {
+  .whatsnew-card--scene {
+    bottom: auto;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* Collapsed mobile dot — iOS floating-pill pattern (user decision
+   2026-08-09): after 4s the mobile card tucks into this small NEW pill
+   at the same corner; tap to re-expand. Desktop never collapses, so this
+   renders mobile-only. */
+.whatsnew-dot {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  z-index: 90;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ff6ec7;
+  border: 1px solid rgba(255, 110, 199, 0.45);
+  background: rgba(8, 8, 20, 0.92);
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 110, 199, 0.25);
+  transition: all 0.15s ease;
+}
+.whatsnew-dot:hover {
+  background: rgba(255, 110, 199, 0.12);
+  border-color: rgba(255, 110, 199, 0.7);
+}
+.whatsnew-teach {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  color: #b0b0d0;
+}
+
+/* Camera ↔ keyboard mode switch (toolbar). ALWAYS a labeled capsule in
+   both states — one control must have one shape (user decision
+   2026-08-09: circle in one mode + capsule in the other read as two
+   different controls). FIXED min-width so 'Keyboard' and 'Camera' render
+   the SAME width — the centered toolbar must not shift when the label
+   changes (user decision 2026-08-09). Full specificity like rec-capsule
+   (the base .frost-toolbar button.icon-btn is a 32×32 circle — without
+   the override the label overflows the frame, bug 2026-08-09). Text
+   labels also avoid any icon confusion with the stop-camera button. */
+.frost-toolbar button.icon-btn.mode-switch-btn {
+  width: auto;
+  min-width: 96px;
+  height: 27px;
+  border-radius: 14px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--neon-cyan);
+  border-color: rgba(0, 255, 204, 0.3);
+  background: rgba(0, 255, 204, 0.08);
+}
+.frost-toolbar button.icon-btn.mode-switch-btn:hover {
+  color: #7dffe6;
+}
+.mode-switch-btn .mode-switch-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .camera-error-message {
@@ -770,7 +969,9 @@ body {
   border: 1px solid var(--frost-border);
   border-radius: 16px;
   box-shadow: var(--frost-shadow);
-  z-index: 19;
+  /* Above .camera-placeholder (30): the brand wordmark used to cover the
+     panel's bottom toggle on the landing view (reported 2026-08-09). */
+  z-index: 35;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1669,45 +1870,33 @@ body {
   pointer-events: none;
   z-index: 6;
 }
-.rec-strip {
-  position: absolute;
-  background: rgba(5, 5, 15, 0.55);
-}
-.rec-strip.top { top: 0; left: 0; right: 0; height: 12.5%; }
-.rec-strip.bottom { bottom: 0; left: 0; right: 0; height: 12.5%; }
-.rec-strip.left { left: 0; top: 0; bottom: 0; width: 12.5%; }
-.rec-strip.right { right: 0; top: 0; bottom: 0; width: 12.5%; }
 .rec-window {
   position: absolute;
-  inset: 12.5% 0;
   border: 1px solid rgba(0, 255, 204, 0.4);
   border-radius: 6px;
   /* Dim everything OUTSIDE the window (camera-viewfinder convention:
      dark outside = not captured, inside stays full brightness so the
-     player keeps seeing their hands clearly). */
+     player keeps seeing their hands clearly). When the window equals the
+     full screen (full-frame recording) the shadow falls off-screen and
+     nothing dims — correct. */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
-/* 1:1 and 9:16 are immersive (full-frame content) — the viewfinder shows
-   the exact cover-crop window so the player sees what gets cropped:
-   9:16 → a vertical strip (width = 9/16 of the frame height), sides dimmed;
-   1:1 → a centered square, edges dimmed. The dim-outside box-shadow on
-   .rec-window does the darkening automatically. */
-.rec-frame-overlay.ratio-1x1 .rec-window {
+/* All ratios: the window is the recorded region mapped onto the screen,
+   per dimension (--rec-win-w/h from App.tsx — cover-fit of the video
+   into the ratio canvas ∩ the screen's cover-fit of the same video).
+   Portrait phone + portrait camera → full screen for 9:16, full-width
+   square for 1:1, full-width middle band for 16:9; landscape webcam on
+   a portrait screen → full screen everywhere (the recording contains
+   the whole visible view). Desktop 9:16 from a 4:3 webcam → 42% × 100%
+   (the 42%/32% strip math, preserved). */
+.rec-frame-overlay.ratio-1x1 .rec-window,
+.rec-frame-overlay.ratio-916 .rec-window,
+.rec-frame-overlay.ratio-169 .rec-window {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(100vw, 100vh);
-  height: min(100vw, 100vh);
-}
-.rec-frame-overlay.ratio-916 .rec-window {
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  transform: translateX(-50%);
-  /* A 9:16 frame is 9/16 of the viewport HEIGHT wide — but never wider
-     than the screen itself (portrait phones are already ~9:16, so the
-     strip becomes ≈ full-width there). */
-  width: min(100vw, calc(100vh * 9 / 16));
+  width: var(--rec-win-w, 100%);
+  height: var(--rec-win-h, 100%);
 }
 .rec-tag {
   position: absolute;
@@ -1841,4 +2030,212 @@ body {
 }
 .rec-mic-enable-btn:hover {
   background: rgba(0, 255, 204, 0.22);
+}
+
+/* ─── Keyboard-mode guide overlay (first-run + replay) ────────────────
+   REAL physical keyboard layout (2026-08-09 user feedback): full QWERTY
+   rows so position recognition is instant, mapped keys glow by function
+   (cyan = harmony, pink = expression, red = stop), unmapped keys stay
+   dim, and the pressed key highlights live (window keydown/keyup).
+   Auto-dismisses after 8s; closes on click or Esc. */
+.kb-guide {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(5, 5, 15, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  animation: kb-fade-in 0.25s ease;
+}
+
+@keyframes kb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.kb-guide-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 14px rgba(0, 255, 204, 0.5);
+}
+
+/* Dismissal (no auto-hide, no key-press close; user decision 2026-08-09:
+   the first keypress is the lesson and must not dismiss it):
+   — .kb-guide-close-btn: explicit "Close" text button under the caption
+     (primary dismissal)
+   — .kb-guide-close: ✕ in the screen's top-right corner (standard
+     position; the explicit Close button frees it from needing to sit
+     by the keyboard, where it crowded the number row)
+   — overlay click + Esc as the third/fourth channel. */
+.kb-guide-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #c8c8e8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  z-index: 1;
+}
+.kb-guide-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: rgba(0, 255, 204, 0.5);
+  box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+}
+
+.kb-guide-close-btn {
+  padding: 7px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 204, 0.45);
+  background: rgba(0, 255, 204, 0.08);
+  color: var(--neon-cyan);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.kb-guide-close-btn:hover {
+  background: rgba(0, 255, 204, 0.16);
+  border-color: rgba(0, 255, 204, 0.8);
+  box-shadow: 0 0 14px rgba(0, 255, 204, 0.3);
+}
+
+.kb-guide-sub {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: #9a9ac0;
+  margin-top: -10px;
+}
+
+/* The keyboard — one flex row per physical row. */
+.kb-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
+  border: 1px solid var(--frost-border);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--frost-shadow);
+  max-width: min(720px, 92vw);
+}
+
+.kb-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.kb-key {
+  flex: 1 1 0;
+  min-width: 42px;
+  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px 2px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  transition: all 0.12s ease;
+  cursor: pointer;
+}
+
+.kb-key-cap {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.kb-key-label {
+  font-size: 0.48rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+/* Accent groups — brand colors: harmony cyan, expression pink, stop red. */
+.kb-key-harmony {
+  background: rgba(0, 255, 204, 0.10);
+  border-color: rgba(0, 255, 204, 0.35);
+}
+.kb-key-harmony .kb-key-label { color: #6effe0; }
+
+.kb-key-expression {
+  background: rgba(255, 46, 158, 0.10);
+  border-color: rgba(255, 46, 158, 0.35);
+}
+.kb-key-expression .kb-key-label { color: #ff8ac4; }
+
+.kb-key-stop {
+  background: rgba(255, 80, 80, 0.10);
+  border-color: rgba(255, 80, 80, 0.35);
+}
+.kb-key-stop .kb-key-label { color: #ff9a9a; }
+
+/* Live pressed key — the press-to-learn highlight. */
+.kb-key-active {
+  transform: translateY(1px) scale(1.06);
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 22px rgba(0, 255, 204, 0.65), inset 0 0 12px rgba(0, 255, 204, 0.25);
+}
+.kb-key-active .kb-key-cap { color: var(--neon-cyan); text-shadow: 0 0 10px rgba(0, 255, 204, 0.9); }
+.kb-key-active .kb-key-label { color: var(--neon-cyan) !important; }
+
+/* Auto-demo highlight (distinct from the pressed state): white glow with
+   a soft scale pop, so the eye follows the teaching animation. */
+.kb-key-demo {
+  transform: translateY(1px) scale(1.08);
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.75), inset 0 0 14px rgba(0, 255, 204, 0.35);
+  border-color: #ffffff !important;
+}
+
+/* Demo caption line — the "按 3 → III 级" teaching text. */
+.kb-guide-demo {
+  min-height: 1.5em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(0, 255, 204, 0.6);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.kb-guide-demo.visible {
+  opacity: 1;
+}
+
+.kb-guide-hint {
+  font-size: 0.62rem;
+  color: #b0b0d0;
+  letter-spacing: 0.06em;
+  text-align: center;
+  max-width: 560px;
 }

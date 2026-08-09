@@ -1655,7 +1655,6 @@ export default function App() {
             isMobile={isMobile}
             gradeNameFor={gradeNameFor}
             onReplayKeyboardGuide={showKbGuidePanel}
-            onWhatsNewDismissed={() => setWhatsNewDismissedState(true)}
           />
         )}
 
@@ -1799,9 +1798,9 @@ export default function App() {
                 </p>
                 {/* New-feature announcement card — shows on EVERY visit
                     while the announcement is active (14-day window) until
-                    the player dismisses it (✕ / click = enter the feature /
-                    open Help). The player decides when they've seen it
-                    (user decision 2026-08-09: once-only hints get missed). */}
+                    the player closes it with the ✕ (reading the full
+                    announcement in Help does NOT dismiss it; user decision
+                    2026-08-09: the player decides when they've seen it). */}
                 {!keyboardMode && whatsNewActive() && !whatsNewDismissedState && (
                   <div className="whatsnew-card">
                     <button
@@ -1816,10 +1815,10 @@ export default function App() {
                         <line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
                     </button>
-                    <button className="whatsnew-body" onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); startKeyboardMode(); }}>
+                    <button className="whatsnew-body" onClick={startKeyboardMode}>
                       <span className="whatsnew-badge">NEW</span>
                       <span>
-                        <strong>Keyboard mode</strong> — no camera? Play with your keyboard.
+                        <strong>Keyboard mode</strong> — no camera needed
                       </span>
                     </button>
                   </div>

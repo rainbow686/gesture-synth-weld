@@ -5,13 +5,15 @@
  *  - Add the newest entry at the TOP of WHATS_NEW (with releasedAt).
  *  - Landing page: shows a "NEW" card under the main button while the
  *    announcement is ACTIVE (within the ANNOUNCE_DAYS window) and the
- *    player hasn't dismissed it. It reappears on EVERY visit until
- *    dismissed — the player decides when they've seen it (a one-time or
- *    once-per-session hint proved too easy to miss; user decision
- *    2026-08-09).
- *  - Dismissal = clicking the card (entering the feature), its ✕ button,
- *    or opening Help (which shows the full announcement) — all mark it
- *    told forever (localStorage gsw-whatsnew-seen).
+ *    player hasn't dismissed it. It reappears on EVERY visit until the
+ *    player closes it themselves — reading the full announcement in Help
+ *    does NOT dismiss it (user decision 2026-08-09: "view once" hints get
+ *    missed; the Help changelog block is permanent anyway).
+ *  - Dismissal = ONLY the card's ✕ button. Clicking the card (entering
+ *    the feature) and opening Help leave it active — it comes back on
+ *    the next visit until ✕ (localStorage gsw-whatsnew-dismissed).
+ *    (Key renamed from gsw-whatsnew-seen on 2026-08-09 to invalidate
+ *    markers written under the old "Help dismisses" rule.)
  *  - After the announce window the card disappears on its own.
  *  - Help modal: shows "New in this version" permanently (changelog role).
  */
@@ -50,12 +52,12 @@ export function whatsNewActive(): boolean {
   return Date.now() - released <= ANNOUNCE_DAYS * msPerDay;
 }
 
-/** The player dismissed/told — never show the card again. */
+/** The player dismissed the card — never show it again. */
 export function whatsNewDismissed(): boolean {
-  try { return localStorage.getItem('gsw-whatsnew-seen') === LATEST_VERSION; } catch { return true; }
+  try { return localStorage.getItem('gsw-whatsnew-dismissed') === LATEST_VERSION; } catch { return true; }
 }
 
 export function markWhatsNewDismissed(): void {
   if (!LATEST_VERSION) return;
-  try { localStorage.setItem('gsw-whatsnew-seen', LATEST_VERSION); } catch { /* private mode */ }
+  try { localStorage.setItem('gsw-whatsnew-dismissed', LATEST_VERSION); } catch { /* private mode */ }
 }

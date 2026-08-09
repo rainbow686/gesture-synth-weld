@@ -1,32 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   initHandTracking,
   prefetchModel,
 } from './handTracker';
-import { audioEngine, type VocalPolish } from './audioEngine';
+import { audioEngine } from './audioEngine';
 import { CameraSource } from './input/cameraSource';
 import { KeyboardSource } from './input/keyboardSource';
 import type { HandFrame } from './input/types';
 import { KbGuide } from './components/KbGuide';
 import { SettingsPanel } from './components/SettingsPanel';
+import { HelpModal } from './components/HelpModal';
+import { renderHandArt } from './components/HandArt';
 import {
   roundRectPath,
   drawUrlPill,
   drawMetalBrand,
-  DEGREE_COLORS,
   drawChordHud,
   drawChordText,
   drawStageBackground,
   drawHandSkeleton,
 } from './hud/draw';
+import { drawWaveform } from './hud/waveform';
 import { useRecording } from './recording/useRecording';
-import { RECORD_SECONDS, VIDEO_REC_SUPPORTED, REC_RATIO_HINTS, REC_SVG_PREVIEWS } from './recording/constants';
+import { RecSheet } from './recording/RecSheet';
+import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
 import {
   DIATONIC_CHORDS,
   KEYS,
   getChordName,
   getChordParts,
-  chordNoteCount,
   midiToFreq,
   type ChordStyle,
 } from './chords';
@@ -41,7 +43,6 @@ import {
   type RecRatio,
   type RecPhase,
 } from './types';
-import { HAND_ART } from './handArt';
 import {
   initTrafficSource,
   trackCameraClicked,
@@ -54,8 +55,6 @@ import {
   trackPageEngaged,
   trackScrollToPlaybook,
   trackSettingChanged,
-  trackMicToggled,
-  trackRecordingModeChanged,
   trackWatchdogTriggered,
 } from './analytics';
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
@@ -236,23 +235,6 @@ export default function App() {
     { art: 'VII', row: 6, hint: 'Index + Pinky + Thumb' },
     { art: 'mute', row: 7, hint: 'Fist = mute — notes held' },
   ] as const;
-  const HELP_DEMO_STEPS = [
-    { left: '1', row: 0 },
-    { left: '2', row: 1 },
-    { left: '3', row: 2 },
-    { left: '4', row: 3 },
-    { left: '5', row: 4 },
-    { left: 'VI', row: 5 },
-    { left: 'VII', row: 6 },
-    { left: 'mute', row: 7 },
-  ] as const;
-  const [demoStep, setDemoStep] = useState(0);
-  useEffect(() => {
-    if (!showHelp) return;
-    const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
-    return () => window.clearInterval(t);
-  }, [showHelp]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Chord name in the currently selected key (e.g. key C → "I · C",
   // key G → "I · G"); follows the toolbar key selector.
   const chordNameFor = (chordIndex: number): string => {
@@ -273,19 +255,6 @@ export default function App() {
     chordIndex < DIATONIC_CHORDS.length
       ? `${GRADE_NAMES[chordIndex]} · ${chordNameFor(chordIndex)}`
       : 'mute';
-
-  // Renders one of the licensed hand artworks, sized by height.
-  // mirrored flips the hand horizontally (right-hand view: thumb right).
-  const handArt = (key: string, size: number, color: string, mirrored = false): ReactNode => {
-    const a = HAND_ART[key];
-    if (!a) return null;
-    return (
-      <svg viewBox={a.vb} style={{
-        height: size, width: 'auto', color, flexShrink: 0, display: 'block',
-        transform: mirrored ? 'scaleX(-1)' : undefined,
-      }} dangerouslySetInnerHTML={{ __html: a.body }} />
-    );
-  };
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -869,99 +838,18 @@ export default function App() {
     if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff6ec7', 'rgba(255,110,199,0.3)', 2, 4);
   };
 
-  // Draw waveform visualization — three-channel HUD:
-  //   color  = scale degree (left hand; 7-hue neon spectrum, smooth lerp),
-  //   lines  = chord note count (right hand: 3 triad / 4 seventh / 5 ninth),
-  //   width  = volume; right-hand tilt (filter sweep) brightens/darkens.
-  // Gray when muted, invisible when silent.
+  // Draw waveform visualization — three-channel HUD. The drawing body
+  // lives in src/hud/waveform.ts (drawWaveform — extracted 2026-08-09,
+  // pure move); this ref wires the App-owned inputs.
   const drawWaveformRef = useRef<() => void>();
   drawWaveformRef.current = () => {
-    const canvas = waveformCanvasRef.current;
-    const analyser = audioEngine.getAnalyser();
-    if (!canvas || !analyser) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (canvas.width !== canvas.clientWidth * 2 || canvas.height !== canvas.clientHeight * 2) {
-      canvas.width = canvas.clientWidth * 2;
-      canvas.height = canvas.clientHeight * 2;
-    }
-
-    const waveform = analyser.getValue() as Float32Array;
-    const bufferLength = waveform.length;
-
-    // Compute RMS amplitude from waveform data
-    let sumSq = 0;
-    for (let i = 0; i < bufferLength; i++) sumSq += waveform[i] * waveform[i];
-    const rms = Math.sqrt(sumSq / bufferLength); // 0 (silent) … ~0.7 (loud)
-
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const hands = gestureRef.current;
-    const handsPresent = !!(hands.left || hands.right);
-    // No hands in frame at all → hide waveform entirely
-    if (!handsPresent && rms < 0.005) return;
-
-    // Muted (hands present but silent) → thin gray line
-    const muted = rms < 0.005;
-    const lineW = muted ? 2 : 1 + rms * 8;
-
-    // ── Color = scale degree (left-hand harmony), lerped so a chord
-    //    change glides through the neon spectrum instead of snapping. ──
-    const s = synthRef.current;
-    const degree = s.chordIndex >= 0 && s.chordIndex < DEGREE_COLORS.length ? s.chordIndex : 0;
-    const target = DEGREE_COLORS[degree];
-    const cur = degreeColorRef.current;
-    cur.r += (target[0] - cur.r) * 0.12;
-    cur.g += (target[1] - cur.g) * 0.12;
-    cur.b += (target[2] - cur.b) * 0.12;
-
-    // ── Tilt (filter sweep) → brightness ±25% (right-hand expression) ──
-    const tilt = Math.max(-1, Math.min(1, hands.right?.tiltAngle ?? 0));
-    const brightness = 1 + 0.25 * tilt;
-    const R = Math.max(0, Math.min(255, Math.round(cur.r * brightness)));
-    const G = Math.max(0, Math.min(255, Math.round(cur.g * brightness)));
-    const B = Math.max(0, Math.min(255, Math.round(cur.b * brightness)));
-
-    // ── Line count = chord note count (right-hand thickness). The echoes
-    //    recede like a floor grid: front line at the bottom, each echo
-    //    higher, smaller, dimmer, with spacing compressing toward the
-    //    horizon and a slight horizontal convergence — so 3-5 lines read
-    //    as clearly separate strands in depth, not one blurry line. ──
-    const lineCount = muted ? 1 : Math.max(1, chordNoteCount(s.chordStyle));
-    const alphaBase = muted ? 0.25 : 0.2 + rms * 0.8;
-    const H = canvas.height;
-    const baseY = H * 0.78;    // front line (closest)
-    const horizonY = H * 0.16; // far echoes converge toward here
-    const cx = canvas.width / 2;
-    const ampH = H * 0.55;
-
-    for (let k = 0; k < lineCount; k++) {
-      const depth = k;
-      const t = 1 - Math.pow(0.55, depth); // 0 (front) → ~0.9 (far)
-      const yCenter = baseY + (horizonY - baseY) * t;
-      const scale = Math.pow(0.7, depth);       // amplitude shrinks with depth
-      const hScale = 1 - 0.06 * depth;          // slight horizontal convergence
-      const a = muted ? alphaBase : alphaBase * Math.pow(0.62, depth);
-      ctx.lineWidth = lineW * (0.5 + 0.5 * scale);
-      ctx.strokeStyle = muted
-        ? `rgba(120, 120, 120, ${alphaBase})`
-        : `rgba(${R}, ${G}, ${B}, ${a})`;
-      ctx.shadowColor = muted ? 'transparent' : `rgb(${R}, ${G}, ${B})`;
-      ctx.shadowBlur = muted ? 0 : Math.max(2, Math.round(8 * scale));
-      ctx.beginPath();
-      for (let i = 0; i < bufferLength; i++) {
-        const v = (waveform[i] + 1) / 2 - 0.5; // -0.5..0.5
-        const x = cx + (i / (bufferLength - 1) - 0.5) * canvas.width * hScale;
-        const y = yCenter + v * ampH * scale;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-    ctx.shadowBlur = 0;
+    drawWaveform({
+      canvas: waveformCanvasRef.current,
+      analyser: audioEngine.getAnalyser(),
+      hands: gestureRef.current,
+      synth: synthRef.current,
+      degreeColor: degreeColorRef.current,
+    });
   };
 
   /* ─── Recording domain (chooser → countdown → record → result, mic,
@@ -1746,324 +1634,50 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── Help Modal ────────────────────────────────────────────── */}
+        {/* ─── Help Modal (component: demo animation, mapping tables,
+                keyboard-mode section — owns its demo step state) ──────── */}
         {showHelp && (
-          <div style={{
-            position: 'absolute', top: '12px', left: '12px', width: 'min(360px, calc(100vw - 24px))',
-            maxHeight: 'min(80vh, 560px)', overflowY: 'auto',
-            background: 'rgba(8, 8, 20, 0.85)', backdropFilter: 'var(--frost-blur)',
-            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px',
-            padding: '14px 18px', boxShadow: 'var(--frost-shadow)', zIndex: 100,
-            fontSize: '0.68rem', color: '#d0d0e8', lineHeight: 1.45,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
-              <button onClick={() => setShowHelp(false)} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-            </div>
-
-            {/* How it works — two-hand demo: the left hand raises the
-                chord degree (real gesture art), the right hand the chord
-                type by finger count; together as in real play. The
-                matching table row highlights. */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(0,255,204,0.05)', border: '1px solid rgba(0,255,204,0.15)', borderRadius: '10px', minHeight: '58px' }}>
-                {handArt(HELP_DEMO_STEPS[demoStep].left, 52, 'var(--neon-cyan)')}
-                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left hand — chord</div>
-                  <div key={demoStep} className="demo-step-text" style={{ fontSize: '0.68rem', fontWeight: 700, color: '#fff' }}>{gradeNameFor(HELP_DEMO_STEPS[demoStep].row)}</div>
-                </div>
-              </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: 'rgba(255,110,199,0.05)', border: '1px solid rgba(255,110,199,0.15)', borderRadius: '10px', minHeight: '58px' }}>
-                {handArt('1', 52, 'var(--neon-magenta)', true)}
-                <div style={{ fontSize: '0.58rem', lineHeight: 1.5 }}>
-                  <div style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right hand — sound</div>
-                  <div style={{ color: '#d0d0e8' }}>height = volume</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '14px', marginBottom: '8px', alignItems: 'flex-start' }}>
-              {/* Left hand → chord degree (the one that picks the note) */}
-              <table style={{ borderCollapse: 'collapse', flex: 1 }}>
-                <thead>
-                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <th style={{ textAlign: 'left', padding: '3px 10px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Left hand</th>
-                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Chord</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {HELP_DEMO_STEPS.map((s, row) => {
-                    const active = row === HELP_DEMO_STEPS[demoStep].row;
-                    return (
-                      <tr key={s.left} style={{
-                        borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        background: active ? 'rgba(0,255,204,0.09)' : 'transparent',
-                        boxShadow: active ? 'inset 2px 0 0 var(--neon-cyan)' : 'none',
-                        transition: 'background 0.25s ease',
-                      }}>
-                        <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {handArt(s.left, 24, active ? 'var(--neon-cyan)' : '#8fbfd0')}
-                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.6rem', color: 'var(--text-muted)' }}>{s.left}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '3px 0', color: 'var(--neon-cyan)', fontWeight: active ? 800 : 600, fontSize: active ? '0.7rem' : '0.62rem', whiteSpace: 'nowrap' }}>{gradeNameFor(s.row)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {/* Right hand → chord type (independent of the chord) */}
-              <table style={{ borderCollapse: 'collapse', flexShrink: 0 }}>
-                <thead>
-                  <tr style={{ color: '#a0a0c8', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <th style={{ textAlign: 'left', padding: '3px 8px 3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Right hand</th>
-                    <th style={{ textAlign: 'left', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(['1', '2', '3', '4', 'mute'] as const).map((k) => (
-                    <tr key={k} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '2px 0', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {handArt(k, 24, 'var(--neon-magenta)', true)}
-                          {k !== 'mute' && (
-                            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.58rem', color: 'var(--text-muted)' }}>{k}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '3px 0', fontSize: '0.6rem', whiteSpace: 'nowrap', color: '#d0d0e8' }}>
-                        {k === 'mute' ? 'mute' : ({ '1': '3-note', '2': 'inverted', '3': '4-note', '4': '5-note' } as Record<string, string>)[k]}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ fontSize: '0.54rem', color: '#a0a0c8', lineHeight: 1.5, marginTop: '2px' }}>
-                finger count → chord type<br/>enable in Settings · Right hand
-              </div>
-            </div>
-
-            <div style={{ fontSize: '0.56rem', color: '#b0b0d0', lineHeight: 1.6, borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: '6px', paddingTop: '6px' }}>
-              <div style={{ color: '#a0a0c8', fontWeight: 600, marginBottom: '4px' }}>Other gestures</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                {handArt('thumb', 24, 'var(--neon-magenta)', true)}
-                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right thumb</span> out = octave down</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
-                <span style={{ color: '#a0a0c8' }}>↔</span>
-                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-cyan)')}</span>
-                <span><span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left wrist tilt</span> = major ↔ minor (Settings · Scale+Tilt)</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                <span style={{ display: 'inline-block', transform: 'rotate(-16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
-                <span style={{ color: '#a0a0c8' }}>↔</span>
-                <span style={{ display: 'inline-block', transform: 'rotate(16deg)' }}>{handArt('1', 24, 'var(--neon-magenta)', true)}</span>
-                <span><span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right wrist tilt</span> = tone sweep</span>
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
-              <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand</span> — Fingers = scale degree, wrist tilt = major / minor (Scale+Tilt mode)<br/>
-              <span style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand</span> — Height = volume, fingers = chord type<br/>
-              <span style={{ color: '#b0b0d0' }}>Both hands required · Left fist mutes · Right fist continues · ⟿ Arp  ∿ Bass  ● Rec  ♪ Metronome</span>
-            </div>
-
-            <a href="#gesture-guide" onClick={() => setShowHelp(false)} style={{ color: 'var(--neon-cyan)', fontSize: '0.58rem', textDecoration: 'underline' }}>
-              Full guide & tips below ↓
-            </a>
-
-            {/* Keyboard mode (no-camera fallback, desktop only) */}
-            {!isMobile && (
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
-                <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Keyboard Mode</span> — no camera? Play with the keyboard.<br/>
-                <span style={{ color: '#b0b0d0' }}>Hold 1-7 = chords (I-VII) · [ ] = minor / major · 8 9 0 - = chord style · Shift = octave down · ↑↓ volume · ←→ filter · Space = stop</span>
-                <button
-                  onClick={showKbGuidePanel}
-                  style={{ marginTop: '6px', padding: '4px 10px', background: 'rgba(0,255,204,0.08)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', color: 'var(--neon-cyan)', fontSize: '0.56rem', cursor: 'pointer' }}
-                >
-                  ▶ Replay keyboard guide
-                </button>
-              </div>
-            )}
-          </div>
+          <HelpModal
+            onClose={() => setShowHelp(false)}
+            isMobile={isMobile}
+            gradeNameFor={gradeNameFor}
+            onReplayKeyboardGuide={showKbGuidePanel}
+          />
         )}
 
-        {/* ─── B2: recording UI — chooser, countdown, result ──────────── */}
-
-        {/* 3-2-1 countdown overlay */}
-        {recPhase === 'countdown' && (
-          <div className="countdown-overlay">
-            <div className="countdown-hint">Get ready</div>
-            <div key={recCount} className="countdown-num">{recCount}</div>
-          </div>
-        )}
-
-        {/* Wrap-up 3-2-1 during the last 3s — same language as the opening,
-            lighter dim so the hands stay visible; DOM-only, never in the video */}
-        {endCount !== null && (
-          <div className="countdown-overlay" style={{ background: 'rgba(5, 5, 15, 0.42)' }}>
-            <div className="countdown-hint">Wrap up</div>
-            <div key={endCount} className="countdown-num wrap-up">{endCount}</div>
-          </div>
-        )}
-
-        {/* Mode + ratio chooser (bottom sheet on mobile, card on desktop) */}
-        {recPhase === 'choosing' && (
-          <div className="rec-sheet">
-            <div className="rec-body">
-              <div className="rec-sheet-title">Record performance</div>
-              <div className="rec-sheet-sub">
-                {keyboardMode
-                  ? 'Keyboard mode records audio only — no camera feed to capture'
-                  : 'What should the recording capture?'}
-              </div>
-              <div className="rec-options">
-                {((keyboardMode ? ['audio'] : ['video', 'skeleton', 'audio']) as RecMode[]).map((id) => (
-                  <button
-                    key={id}
-                    className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}
-                    onClick={() => { if ((id === 'audio' || VIDEO_REC_SUPPORTED) && id !== recMode) { trackRecordingModeChanged(recMode, id); setRecMode(id); } }}
-                  >
-                    {REC_SVG_PREVIEWS[id]}
-                    <span>
-                      <strong>
-                        {id === 'video' ? 'Full' : id === 'skeleton' ? 'Skeleton' : 'Audio only'}
-                        {/* "default" only makes sense for first-time choosers —
-                            returning players see their own saved choice */}
-                        {id === 'skeleton' && !savedRecModeExists && <span className="rec-default-tag">default</span>}
-                      </strong>
-                      {/* Intent labels — kept short enough to fit ONE line
-                          on mobile buttons (~160px), so the chooser doesn't
-                          grow rows. */}
-                      <em>{id === 'video' ? 'Real you — best for sharing' : id === 'skeleton' ? 'Privacy-friendly' : 'Just the sound'}</em>
-                    </span>
-                  </button>
-                ))}
-              </div>
-              {recMode !== 'audio' && (
-                <>
-                  <div className="rec-sheet-sub">Aspect ratio</div>
-                  <div className="rec-ratios">
-                    {(['9:16', '16:9', '1:1'] as RecRatio[]).map((r) => (
-                      <button key={r} className={`rec-ratio-btn ${recRatio === r ? 'active' : ''}`} onClick={() => setRecRatio(r)}>{r}</button>
-                    ))}
-                  </div>
-                  <div className="rec-ratio-hint">{REC_RATIO_HINTS[recRatio]}</div>
-                </>
-              )}
-              {recMode !== 'audio' && !VIDEO_REC_SUPPORTED && (
-                <div className="rec-warn">Video recording isn't supported in this browser — choose Audio only.</div>
-              )}
-              {/* Mic section: ALWAYS visible so users know the sing-along
-                  feature exists — grayed out until the mic is enabled */}
-              <div className={`rec-mic-section ${micStreamRef.current ? '' : 'disabled'}`}>
-                <label className="rec-mic-toggle">
-                  <input type="checkbox" checked={micOn} onChange={(e) => { trackMicToggled(e.target.checked); setMicOn(e.target.checked); }} disabled={!micStreamRef.current} />
-                  <span>🎤 Include my voice — sing along with the chords</span>
-                </label>
-                {micStreamRef.current ? (
-                  <>
-                    {/* Liquid-glass mic level meter */}
-                    <div className="rec-mic-meter" title="Microphone level — speak to test">
-                      {Array.from({ length: 14 }, (_, i) => {
-                        const h = micLevel > 0.02 ? Math.max(14, Math.min(100, micLevel * 100 * (0.55 + 0.45 * ((i % 3) / 2)))) : 5;
-                        return <span key={i} style={{ height: `${h}%`, opacity: micLevel > 0.02 ? 1 : 0.25 }} />;
-                      })}
-                    </div>
-                    {micDevices.length > 1 && (
-                      <>
-                        <div className="rec-sheet-sub">Microphone</div>
-                        <select className="rec-device-select" value={micDeviceId} onChange={(e) => switchMicDevice(e.target.value)}>
-                          {micDevices.map((d) => (
-                            <option key={d.deviceId} value={d.deviceId}>{d.label || 'Microphone'}</option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                    <div className="rec-sheet-sub">Recording mix <span className="rec-mix-desc">— balance your voice against the chords</span></div>
-                    <div className="rec-mix-row">
-                      <span>Voice</span>
-                      <input type="range" min={50} max={200} value={Math.round(recVoice * 100)} onChange={(e) => setRecVoice(Number(e.target.value) / 100)} className="rec-mix-slider" />
-                      <span>Chords</span>
-                    </div>
-                    <div className="rec-mix-value">Voice {Math.round(recVoice * 100)}% in the final video</div>
-                    <div className="rec-sheet-sub">Vocal polish <span className="rec-mix-desc">— voice effects in the recording</span></div>
-                    <select
-                      className="rec-device-select"
-                      value={recPolish}
-                      onChange={(e) => { trackSettingChanged('vocal_polish', e.target.value); setRecPolish(e.target.value as VocalPolish); }}
-                    >
-                      <option value="off">Off — raw voice</option>
-                      <option value="light">Light — subtle</option>
-                      <option value="standard">Standard — recommended</option>
-                      <option value="strong">Strong — roomy</option>
-                    </select>
-                  </>
-                ) : micPermState === 'denied' ? (
-                  <div className="rec-mic-notice">
-                    <strong>Sing along?</strong> You can record your voice over the chords — but the
-                    microphone is <strong>blocked for this site</strong>. Click the <strong>🔒 lock icon</strong> in the
-                    address bar → Site settings → Microphone → <strong>Allow</strong>, then come back here.
-                  </div>
-                ) : (
-                  <>
-                    <div className="rec-mic-notice">
-                      <strong>Sing along?</strong> You can record your voice over the chords — but the
-                      microphone isn't enabled yet.
-                    </div>
-                    <button className="rec-mic-enable-btn" onClick={() => requestMic()}>🎤 Enable microphone</button>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="rec-actions">
-              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
-              <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
-            </div>
-          </div>
-        )}
-
-        {/* Result panel: download (all), share (mobile via Web Share API) */}
-        {recPhase === 'result' && recBlob && (
-          <div className="rec-sheet">
-            <div className="rec-sheet-title">✓ Recording ready</div>
-            <div className="rec-sheet-sub">{recBlob.filename} · {(recBlob.blob.size / 1048576).toFixed(1)} MB</div>
-            {/* In-page playback of the take — video plays immediately
-                (muted for autoplay policy; tap the controls for sound).
-                WYSIWYG: atmosphere, crop and watermarks all visible here.
-                Audio-only takes get an <audio> player (no autoplay —
-                playing sound unprompted is rude). */}
-            {recPreviewUrl && (recMode === 'audio' ? (
-              <audio src={recPreviewUrl} className="rec-preview rec-preview-audio" controls />
-            ) : (
-              <video
-                src={recPreviewUrl}
-                className="rec-preview"
-                autoPlay
-                muted
-                playsInline
-                controls
-              />
-            ))}
-            <div className="rec-actions">
-              <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
-              <button className="rec-btn primary" onClick={() => { recDownloadedRef.current = true; trackDownload(); downloadRec(); }}>💾 Download</button>
-              {canFileShare && <button className="rec-btn primary" onClick={shareRec}>📤 Share</button>}
-            </div>
-            {canFileShare && (
-              <div className="rec-sheet-sub" style={{ marginTop: 10, lineHeight: 1.6 }}>
-                Share directly: WhatsApp · WeChat · Telegram<br />
-                TikTok · Instagram · 抖音: Save to Photos, then upload in-app
-              </div>
-            )}
-            {shareFailed && (
-              <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
-            )}
-          </div>
-        )}
+        {/* ─── B2: recording UI — chooser, countdown, result (RecSheet) ── */}
+        <RecSheet
+          recPhase={recPhase}
+          setRecPhase={setRecPhase}
+          recCount={recCount}
+          endCount={endCount}
+          recMode={recMode}
+          setRecMode={setRecMode}
+          recRatio={recRatio}
+          setRecRatio={setRecRatio}
+          savedRecModeExists={savedRecModeExists}
+          keyboardMode={keyboardMode}
+          micStreamRef={micStreamRef}
+          micOn={micOn}
+          setMicOn={setMicOn}
+          micLevel={micLevel}
+          micPermState={micPermState}
+          micDevices={micDevices}
+          micDeviceId={micDeviceId}
+          recVoice={recVoice}
+          setRecVoice={setRecVoice}
+          recPolish={recPolish}
+          setRecPolish={setRecPolish}
+          requestMic={requestMic}
+          switchMicDevice={switchMicDevice}
+          recBlob={recBlob}
+          recPreviewUrl={recPreviewUrl}
+          shareFailed={shareFailed}
+          canFileShare={canFileShare}
+          downloadRec={() => { recDownloadedRef.current = true; downloadRec(); }}
+          shareRec={shareRec}
+          handleStartRecording={handleStartRecording}
+        />
 
         {/* ─── Hand tags on sides (running only) ─────────────────────── */}
         {isRunning && (
@@ -2115,8 +1729,8 @@ export default function App() {
                     panel), since the right hand plays volume by height. */}
                 <div className="loading-zone-label">How to play</div>
                 <div className="loading-demo-row">
-                  {handArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
-                  {handArt('1', 26, 'var(--neon-magenta)', true)}
+                  {renderHandArt(LOADING_STEPS[loadingDemoStep].art, 26, 'var(--neon-cyan)')}
+                  {renderHandArt('1', 26, 'var(--neon-magenta)', true)}
                   <div>
                     <div className="loading-demo-name">{gradeNameFor(LOADING_STEPS[loadingDemoStep].row)}</div>
                     <div className="loading-demo-hint">{LOADING_STEPS[loadingDemoStep].hint} · Right: height = volume</div>

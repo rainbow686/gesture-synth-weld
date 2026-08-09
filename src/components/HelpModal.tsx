@@ -187,7 +187,7 @@ export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGui
       {!isMobile && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
           <span style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Keyboard Mode</span> — no camera? Play with the keyboard.<br/>
-          <span style={{ color: '#b0b0d0' }}>Hold 1-7 = chords (I-VII) · [ ] = minor / major · 8 9 0 - = chord style · Shift = octave down · ↑↓ volume · ←→ filter · Space = stop<br/>Switch back to camera anytime — the camera button in the top toolbar</span>
+          <span style={{ color: '#b0b0d0' }}>Hold 1-7 = chords (I-VII) · [ ] = minor / major · 8 9 0 - = chord style · Shift = octave down · ↑↓ volume · ←→ filter · Space = stop<br/>Switch anytime with the top toolbar: <b>⌨ Keyboard</b> in camera mode, <b>📷 Camera</b> in keyboard mode — or the Settings toggle</span>
           <button
             onClick={onReplayKeyboardGuide}
             style={{ marginTop: '6px', padding: '4px 10px', background: 'rgba(0,255,204,0.08)', border: '1px solid rgba(0,255,204,0.3)', borderRadius: '8px', color: 'var(--neon-cyan)', fontSize: '0.56rem', cursor: 'pointer' }}

@@ -159,6 +159,9 @@ export function SettingsPanel({
             No camera? Keyboard mode (desktop)
           </span>
         </label>
+        <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+          — or switch anytime with the ⌨ Keyboard / 📷 Camera button in the top toolbar
+        </span>
       </div>
       )}
     </div>

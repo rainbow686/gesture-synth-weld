@@ -2279,6 +2279,12 @@ export default function App() {
     if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
       setRecMode('audio');
     }
+    // Keyboard mode records AUDIO ONLY: its video modes would capture a
+    // feed-less stage + waveform — no gestures, no face (user decision
+    // 2026-08-09: "a video of keys jumping — what's the point?").
+    if (keyboardMode && recMode !== 'audio') {
+      setRecMode('audio');
+    }
     setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
     // Funnel entry: only when the chooser actually opens (idle → choosing).
     if (recPhase === 'idle') trackRecordButtonClicked();
@@ -2839,9 +2845,13 @@ export default function App() {
           <div className="rec-sheet">
             <div className="rec-body">
               <div className="rec-sheet-title">Record performance</div>
-              <div className="rec-sheet-sub">What should the recording capture?</div>
+              <div className="rec-sheet-sub">
+                {keyboardMode
+                  ? 'Keyboard mode records audio only — no camera feed to capture'
+                  : 'What should the recording capture?'}
+              </div>
               <div className="rec-options">
-                {(['video', 'skeleton', 'audio'] as RecMode[]).map((id) => (
+                {((keyboardMode ? ['audio'] : ['video', 'skeleton', 'audio']) as RecMode[]).map((id) => (
                   <button
                     key={id}
                     className={`rec-option ${recMode === id ? 'active' : ''} ${id !== 'audio' && !VIDEO_REC_SUPPORTED ? 'disabled' : ''}`}

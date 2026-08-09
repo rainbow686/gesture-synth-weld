@@ -1877,16 +1877,18 @@ body {
 
 /* Dismissal (no auto-hide, no key-press close; user decision 2026-08-09:
    the first keypress is the lesson and must not dismiss it):
-   — .kb-guide-close: ✕ inside the keyboard panel's corner (the player's
-     eye is on the keyboard; a screen-corner ✕ was hard to find)
    — .kb-guide-close-btn: explicit "Close" text button under the caption
+     (primary dismissal)
+   — .kb-guide-close: ✕ in the screen's top-right corner (standard
+     position; the explicit Close button frees it from needing to sit
+     by the keyboard, where it crowded the number row)
    — overlay click + Esc as the third/fourth channel. */
 .kb-guide-close {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 30px;
-  height: 30px;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1930,10 +1932,8 @@ body {
   margin-top: -10px;
 }
 
-/* The keyboard — one flex row per physical row. Relative so the in-panel
-   ✕ close button anchors to the panel, not the screen. */
+/* The keyboard — one flex row per physical row. */
 .kb-keyboard {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;

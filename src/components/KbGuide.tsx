@@ -240,25 +240,24 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
 
   return (
     <div className="kb-guide" onClick={onDismiss}>
+      {/* Screen-corner ✕ (standard position — the explicit "Close" button
+          below is the primary dismissal, so the ✕ is free to sit where
+          users expect it; the in-panel corner crowded the number row). */}
+      <button
+        className="kb-guide-close"
+        onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+        aria-label="Close keyboard guide"
+        title="Close"
+      >
+        {/* Feather X (MIT) — consistent with the rest of the UI, no emoji */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
       <div className="kb-guide-title">Keyboard Mode — how to play</div>
       <div className="kb-guide-sub">Watch the demo, then press the keys yourself — they light up as you play</div>
       <div className="kb-keyboard">
-        {/* Close inside the keyboard panel — the player's eye is on the
-            keyboard, so the ✕ sits at its corner, not the screen's far
-            corner (user feedback 2026-08-09: the screen-corner ✕ was hard
-            to find). The Close button below is the explicit fallback. */}
-        <button
-          className="kb-guide-close"
-          onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-          aria-label="Close keyboard guide"
-          title="Close"
-        >
-          {/* Feather X (MIT) — consistent with the rest of the UI, no emoji */}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
         {renderRow(ROW_0)}
         {renderRow(ROW_1)}
         {renderRow(ROW_2)}

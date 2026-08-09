@@ -294,14 +294,21 @@ export default function App() {
   // Mobile auto-collapse (iOS floating-pill pattern, user decision
   // 2026-08-09): after 4s the card tucks into a small NEW dot at the same
   // corner — the tiny viewfinder stays clear but the announcement keeps
-  // its every-session presence; tap the dot to re-expand. Desktop keeps
-  // the card expanded (380px in the corner blocks nothing).
+  // its every-session presence; tap the dot to re-expand. The card
+  // auto-tucks again after every re-expansion (the expanded card must
+  // become quiet on its own — ✕ is only the PERMANENT dismissal; user
+  // decision 2026-08-09). Desktop keeps the card expanded (380px in the
+  // corner blocks nothing).
   const [whatsNewCollapsed, setWhatsNewCollapsed] = useState(false);
   useEffect(() => {
     if (!whatsNewCardVisible || !isMobile) { setWhatsNewCollapsed(false); return; }
-    const t = window.setTimeout(() => setWhatsNewCollapsed(true), 4000);
-    return () => window.clearTimeout(t);
-  }, [whatsNewCardVisible, isMobile]);
+    // Re-runs on every expansion (whatsNewCollapsed flips false on tap):
+    // first show AND each dot-tap re-expansion both auto-tuck after 4s.
+    if (!whatsNewCollapsed) {
+      const t = window.setTimeout(() => setWhatsNewCollapsed(true), 4000);
+      return () => window.clearTimeout(t);
+    }
+  }, [whatsNewCardVisible, isMobile, whatsNewCollapsed]);
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
@@ -1575,18 +1582,23 @@ export default function App() {
                 capsule takes its role (leaving keyboard mode), so the
                 misleading stop-camera button is hidden there. In camera
                 mode it stays — the only way to leave the playing scene
-                back to the landing. */}
-            {!keyboardMode && (
-              <button className="icon-btn mobile-collapse" onClick={stopCamera} data-tip="Stop camera and audio">
-                {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
-                <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
-                  <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
-                  <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                  <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-                  <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </button>
-            )}
+                back to the landing. HIDDEN with visibility (not unmount)
+                in keyboard mode — the centered toolbar must not shift
+                when toggling modes (user decision 2026-08-09). */}
+            <button
+              className="icon-btn mobile-collapse"
+              onClick={stopCamera}
+              data-tip="Stop camera and audio"
+              style={keyboardMode ? { visibility: 'hidden' } : undefined}
+            >
+              {/* video.slash — camera pictogram + magenta cross (Apple-style) */}
+              <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
+                <line x1="21" y1="3" x2="3.5" y2="21" stroke="var(--neon-magenta)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
             <button className="icon-btn mobile-collapse" onClick={() => { setShowSettings(!showSettings); }} data-tip={showSettings ? 'Hide settings panel' : 'Show settings panel'} style={showSettings ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
               {/* Gear like the iOS Settings / clockwork cog: a thick ring
                   with many short fat teeth and an open center */}

@@ -348,13 +348,16 @@ body {
    must come later in the file, bug 2026-08-09: the earlier media-query
    copy lost to the base rule and the card stretched between top+bottom):
    the card can't sit at the bottom — the Scale Guide's 8 degree blocks
-   own that area (bottom: 80px, centered). Top-left, below the compact
-   mobile toolbar (Record/Help/⋯ only), is free. */
+   own that area (bottom: 80px, centered). EXPANDED: centered below the
+   compact mobile toolbar (Record/Help/⋯ only) — looks tidier than the
+   left corner (user decision 2026-08-09); the collapsed DOT stays
+   top-left (see .whatsnew-dot). */
 @media (max-width: 768px) {
   .whatsnew-card--scene {
     bottom: auto;
     top: 64px;
-    left: 12px;
+    left: 50%;
+    transform: translateX(-50%);
   }
 }
 

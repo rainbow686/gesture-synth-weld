@@ -1215,25 +1215,22 @@ export default function App() {
     };
     setSynthState(newSynth);
 
-    // Create chord fingerprint to detect actual changes
-    const chordFingerprint = `${chordIndex}|${mode}|${chordStyle || ''}|${s.keyOffset}|${s.arpeggiate}|${s.arpSpeed}|${thumbDown ? '8vdn' : ''}`;
-
-    // Play chord only if the fingerprint actually changed (volume is
-    // intentionally excluded so height changes don't re-trigger).
+    // Engine-layer deduplication (2026-08-09 refactor): audioEngine.playChord
+    // computes a frequency-based key internally (freqs|arp|arpSpeed) and
+    // skips re-triggering identical chords — App-layer fingerprint removed
+    // (it was redundant; the engine's key covers all dimensions, even more
+    // precisely, since it derives from the actual frequencies).
     if (isPlaying) {
       // Refresh the grace-period clock — sound continues while this holds.
       // (Updating it only here means a missing right hand stops the music
       // after GRACE_MS instead of sustaining forever on a left hand alone.)
       stabilizerRef.current.lastSeen = performance.now();
-      if (chordFingerprint !== lastChordRef.current) {
-        lastChordRef.current = chordFingerprint;
-        audioEngine.playChord(
-          chordIndex, 'sine',
-          mode === 'neutral' ? undefined : mode,
-          0, s.keyOffset, chordStyle,
-          s.arpeggiate, s.arpSpeed, thumbDown,
-        );
-      }
+      audioEngine.playChord(
+        chordIndex, 'sine',
+        mode === 'neutral' ? undefined : mode,
+        0, s.keyOffset, chordStyle,
+        s.arpeggiate, s.arpSpeed, thumbDown,
+      );
       audioEngine.setVolume(volume);
       if (rightHand) audioEngine.updateFilterSweep(rightHand.tiltAngle);
 

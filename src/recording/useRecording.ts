@@ -508,7 +508,11 @@ export function useRecording(deps: UseRecordingDeps) {
     }
     if (recordingStartRef.current) {
       const dur = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-      trackRecording('completed', dur, dur >= RECORD_SECONDS ? 'timeout' : 'user');
+      trackRecording('completed', {
+        durationSec: dur,
+        ended: dur >= RECORD_SECONDS ? 'timeout' : 'user',
+        mode: keyboardMode ? 'keyboard' : 'camera',
+      });
     }
     setIsRecording(false);
     setRecordingTime(0);
@@ -549,9 +553,9 @@ export function useRecording(deps: UseRecordingDeps) {
     localStorage.setItem('gsw-rec-mode', recMode);
     localStorage.setItem('gsw-rec-ratio', recRatio);
     setRecPhase('idle'); // close the chooser
-    trackRecording('started');
+    trackRecording('started', { mode: keyboardMode ? 'keyboard' : 'camera' });
     startCountdown();
-  }, [recMode, recRatio, startCountdown]);
+  }, [recMode, recRatio, keyboardMode, startCountdown]);
 
   /* ─── Effects: recording lifecycle ──────────────────────────────────── */
 

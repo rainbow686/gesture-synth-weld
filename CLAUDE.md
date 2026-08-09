@@ -86,7 +86,7 @@ Single sawtooth synth — intentionally minimal
 src/
 ├── analytics.ts        # Clarity + GA4 custom events (low-frequency UI tracking; hostname-guarded — forks of this repo must replace the tracking IDs in index.html)
 ├── audioEngine.ts      # Tone.js wrapper, all methods idempotent; Engine-layer dedup (frequency key)
-├── App.tsx             # Main component, two-hand logic, input orchestration (3150 lines, refactor in progress)
+├── App.tsx             # Main component, two-hand logic, input orchestration + mode switch/analytics wiring (2380 lines; input/recording/hud/components extracted — see below)
 ├── handTracker.ts      # MediaPipe integration, finger detection
 ├── types.ts            # Type definitions, FINGER_TO_CHORD_INDEX, FINGER_TO_NOTE_INTERVAL
 ├── chords.ts           # 12 keys, DIATONIC_CHORDS, getChordFreqs()

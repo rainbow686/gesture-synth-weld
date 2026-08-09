@@ -158,7 +158,7 @@ const ROW_4: KbKey[] = [
 ];
 
 interface KbGuideProps {
-  onDismiss: () => void;
+  onDismiss: (method: 'close' | 'x' | 'overlay' | 'esc') => void;
 }
 
 export function KbGuide({ onDismiss }: KbGuideProps) {
@@ -173,10 +173,9 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onDismiss();
-        return;
-      }
+      // NOTE: Escape dismissal lives in App's global handler (it also
+      // resets the synth) — a duplicate here would fire dismiss twice in
+      // the same tick and double-report analytics.
       // First mapped key the player presses ends the demo — they're
       // playing now; the caption line follows their own presses.
       if (MAPPED_KEY_SET.has(e.key)) {
@@ -239,13 +238,13 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
   );
 
   return (
-    <div className="kb-guide" onClick={onDismiss}>
+    <div className="kb-guide" onClick={() => onDismiss('overlay')}>
       {/* Screen-corner ✕ (standard position — the explicit "Close" button
           below is the primary dismissal, so the ✕ is free to sit where
           users expect it; the in-panel corner crowded the number row). */}
       <button
         className="kb-guide-close"
-        onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+        onClick={(e) => { e.stopPropagation(); onDismiss('x'); }}
         aria-label="Close keyboard guide"
         title="Close"
       >
@@ -267,7 +266,7 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
       <div className={`kb-guide-demo${caption ? ' visible' : ''}`}>
         {caption ?? 'Press any key above to see what it does'}
       </div>
-      <button className="kb-guide-close-btn" onClick={(e) => { e.stopPropagation(); onDismiss(); }}>
+      <button className="kb-guide-close-btn" onClick={(e) => { e.stopPropagation(); onDismiss('close'); }}>
         Close
       </button>
       <div className="kb-guide-hint">

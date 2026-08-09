@@ -57,6 +57,12 @@ import {
   trackScrollToPlaybook,
   trackSettingChanged,
   trackWatchdogTriggered,
+  trackKeyboardModeEntered,
+  trackKeyboardModeExited,
+  trackKeyboardFirstNote,
+  trackKeyboardGuideShown,
+  trackKeyboardGuideDismissed,
+  type KeyboardModeSource,
 } from './analytics';
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
@@ -324,9 +330,13 @@ export default function App() {
   // (bug 2026-08-09: guide presses were silent on first ever use, since
   // audioEngine.init() only ran on camera start).
   const kbGuideWasRunningRef = useRef(false);
-  const dismissKbGuide = useCallback(() => {
+  // Keyboard-session analytics: one session per keyboard start; exit
+  // (switch back / settings off / page close) reports duration + notes.
+  const kbSessionRef = useRef({ active: false, start: 0, notes: 0, firstNoteSent: false });
+  const dismissKbGuide = useCallback((method: 'close' | 'x' | 'overlay' | 'esc') => {
     if (!showKbGuideRef.current) return;
     setShowKbGuide(false);
+    trackKeyboardGuideDismissed(method);
     if (!kbGuideWasRunningRef.current) {
       // Guide borrowed the pipeline — hand it back to idle.
       keyboardSourceRef.current?.reset();
@@ -351,6 +361,7 @@ export default function App() {
       keyboardSourceRef.current?.reset();
       setIsRunning(true);
     }
+    trackKeyboardGuideShown('replay');
     setShowKbGuide(true);
   }, [isRunning]);
   // Visual atmosphere: Vignette + Scanlines, each with its OWN strength
@@ -509,6 +520,22 @@ export default function App() {
         // Space still stops all notes below (mute convenience).
       }
 
+      // Keyboard-session analytics: first note = activation (mirror of
+      // first_gesture_detected); every non-repeat mapped press counts
+      // toward the depth reported on session exit. Only while a keyboard
+      // session runs — guide-only presses from a camera-mode Help replay
+      // (keyboardModeRef false) don't count.
+      if (keyboardModeRef.current && !e.repeat && KEYBOARD_MAPPED_KEYS.includes(e.key)) {
+        const s = kbSessionRef.current;
+        if (s.active) {
+          s.notes++;
+          if (!s.firstNoteSent) {
+            s.firstNoteSent = true;
+            trackKeyboardFirstNote((performance.now() - s.start) / 1000);
+          }
+        }
+      }
+
       // Space: Stop all notes
       if (e.key === ' ') {
         e.preventDefault();
@@ -519,7 +546,7 @@ export default function App() {
 
       // Escape: Reset state (+ close the keyboard guide if open)
       if (e.key === 'Escape') {
-        dismissKbGuide();
+        dismissKbGuide('esc');
         audioEngine.stopAll();
         setSynthState(prev => ({
           ...prev,
@@ -1163,7 +1190,7 @@ export default function App() {
   // No-camera mode: no getUserMedia, no model download — the keyboard
   // source drives the same pipeline from the rAF loop. Persist the choice.
   // First run auto-shows the keyboard guide (once); replay lives in Help.
-  const startKeyboardMode = useCallback(async () => {
+  const startKeyboardMode = useCallback(async (source: KeyboardModeSource = 'main_button') => {
     try { localStorage.setItem('gsw-keyboard-mode', '1'); } catch { /* private mode */ }
     setKeyboardMode(true);
     setError(null);
@@ -1175,10 +1202,15 @@ export default function App() {
     // was silently silent (bug 2026-08-09). The click is the user gesture.
     await audioEngine.init();
     setIsRunning(true);
+    // Keyboard-session analytics: fresh session per start; kb_mode_exit
+    // (switch back / settings off / page close) carries duration + notes.
+    kbSessionRef.current = { active: true, start: performance.now(), notes: 0, firstNoteSent: false };
+    trackKeyboardModeEntered(source);
     let guideSeen = false;
     try { guideSeen = localStorage.getItem('gsw-keyboard-guide-seen') === '1'; } catch { /* private mode */ }
     if (!guideSeen) {
       try { localStorage.setItem('gsw-keyboard-guide-seen', '1'); } catch { /* private mode */ }
+      trackKeyboardGuideShown('auto');
       // Open directly (not via showKbGuidePanel): the pipeline is ALREADY
       // running above, and its isRunning closure would still read false
       // here (state settles after this call) — which would make the guide
@@ -1420,20 +1452,23 @@ export default function App() {
   // no idle hop through the Enable Camera landing, the player keeps
   // operating. (First camera start still shows the loading flow with the
   // model download.)
-  const handleKeyboardToggle = useCallback((on: boolean) => {
+  // source is the ENTRY/EXIT surface: only toolbar/settings can toggle off
+  // (main_button / landing_hint are enter-only), so the exit event's source
+  // type is the narrow union.
+  const handleKeyboardToggle = useCallback((on: boolean, source: 'toolbar' | 'settings' = 'settings') => {
     trackSettingChanged('keyboard_mode', on ? 'on' : 'off');
     try { localStorage.setItem('gsw-keyboard-mode', on ? '1' : '0'); } catch { /* private mode */ }
     setKeyboardMode(on);
     if (on && !isRunning) {
       // Start immediately when enabled from idle
-      startKeyboardMode();
+      startKeyboardMode(source);
     } else if (on && isRunning) {
       // Camera → keyboard: stop the camera pipeline CLEANLY first —
       // flipping the mode alone left the camera stream live (LED on,
       // stream held) and the old session resident. Restart the keyboard
       // pipeline fresh (stopCamera → isRunning false → startKeyboardMode).
       stopCamera();
-      void startKeyboardMode();
+      void startKeyboardMode(source);
     } else if (!on && isRunning) {
       // Keyboard → camera: stop the keyboard pipeline cleanly first, then
       // start the camera — the direct-start path left the old stream and
@@ -1441,11 +1476,41 @@ export default function App() {
       // landing→camera worked, switch-back didn't; MediaPipe's session
       // was still bound to the pre-swap state). This mirrors the
       // provably-working fresh path exactly (isRunning false → true).
+      // The keyboard session's exit event (duration + notes played) closes
+      // the funnel for this run.
+      const s = kbSessionRef.current;
+      if (s.active) {
+        s.active = false;
+        trackKeyboardModeExited({
+          source,
+          durationSec: (performance.now() - s.start) / 1000,
+          notesPlayed: s.notes,
+        });
+      }
       stopCamera();
       void startCamera();
     }
     // (!on && !isRunning): just flips the mode on the landing — no start.
   }, [isRunning, startKeyboardMode, startCamera, stopCamera]);
+
+  // Keyboard session end on tab close/reload: visibilitychange fires
+  // reliably on both, so the exit event's page_close source completes the
+  // funnel (sessions otherwise only close on a mode switch).
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'hidden') return;
+      const s = kbSessionRef.current;
+      if (!s.active) return;
+      s.active = false;
+      trackKeyboardModeExited({
+        source: 'page_close',
+        durationSec: (performance.now() - s.start) / 1000,
+        notesPlayed: s.notes,
+      });
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
   // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
   // after the section stays ≥50% visible for 3s (a quick scroll-through does
@@ -1581,7 +1646,7 @@ export default function App() {
             {!isMobile && (
             <button
               className={`icon-btn mobile-collapse mode-switch-btn${pulseModeSwitch ? ' help-pulse' : ''}`}
-              onClick={() => handleKeyboardToggle(!keyboardMode)}
+              onClick={() => handleKeyboardToggle(!keyboardMode, 'toolbar')}
               data-tip={keyboardMode
                 ? 'Switch to camera mode — play with hand gestures'
                 : 'Switch to keyboard mode — no camera needed'}
@@ -1947,7 +2012,7 @@ export default function App() {
               <>
                 <button
                   className="enable-camera-btn"
-                  onClick={keyboardMode ? startKeyboardMode : startCamera}
+                  onClick={keyboardMode ? () => startKeyboardMode('main_button') : startCamera}
                   disabled={isLoading}
                   onMouseEnter={prefetchTracking}
                   onFocus={prefetchTracking}
@@ -1975,7 +2040,7 @@ export default function App() {
                     card below is the dismissal-based announcement. */}
                 {!keyboardMode && !(whatsNewEntry?.desktopOnly && isMobile) && whatsNewActive() && (
                   <div className="whatsnew-card">
-                    <button className="whatsnew-body" onClick={startKeyboardMode}>
+                    <button className="whatsnew-body" onClick={() => startKeyboardMode('landing_hint')}>
                       <span className="whatsnew-badge">NEW</span>
                       <span>
                         <strong>Keyboard mode</strong> — no camera needed

@@ -40,6 +40,10 @@ All Engine methods are idempotent and use smooth transitions:
 - Scale Guide (8 degree blocks) visible in BOTH modes; hint line switches semantics (key numbers vs finger gestures)
 - Recording in keyboard mode: **audio only** (user decision 2026-08-09 — the video modes would capture a feed-less stage + waveform, no gestures or face: "a video of keys jumping — what's the point?"); the chooser shows just the Audio only option and the aspect-ratio row is hidden
 
+### What's New (feature announcements, 2026-08-09)
+- **Mechanism** (`src/whatsNew.ts`): newest entry at top of WHATS_NEW (version/releasedAt/title/body). Landing page shows a NEW card under the main button while the entry is ACTIVE (14-day window) and not dismissed — **on every visit until dismissed** (user decision: once-only hints get missed; sessionStorage survived tab refreshes and showed it exactly once, bug 2026-08-09). Dismissal: ✕ button, click-through (enters the feature), or opening Help (shows the full announcement) — all mark it told forever (localStorage gsw-whatsnew-seen). Help modal shows "New in this version" permanently (changelog role). **Dismissed state is mirrored in React** (`whatsNewDismissedState` in App — localStorage alone can't trigger a re-render, so the card used to stay visible under Help; the card and Help can never overlap now)
+- Every future feature announcement goes through the same file — nothing per-feature
+
 ### Instruments
 Single sawtooth synth — intentionally minimal
 

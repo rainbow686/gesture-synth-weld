@@ -110,10 +110,26 @@ export function composeRecordingFrame({
   let wy = 0;
   let winH = H;
   if (ratio === '16:9') {
-    // 16:9 canvas, landscape source: fit fills the frame exactly.
-    const ch = Math.round((W * sh) / sw);
-    const dy = Math.round((H - ch) / 2);
-    rctx.drawImage(src, 0, dy, W, ch);
+    // 16:9 canvas. Source TALLER than the canvas (portrait phone video —
+    // the app's 640×480 constraint is an ideal; phones deliver 9:16 — or
+    // a 4:3 webcam): fit-by-width would STRETCH the source column across
+    // the whole frame — the narrow vertical-strip bug on mobile
+    // (2026-08-09). Cover-crop instead: the middle horizontal band of
+    // the source fills the frame (the live viewfinder's full-width 16:9
+    // window already matches this band). 16:9-or-wider sources: fit
+    // fills the frame exactly, unchanged.
+    if (sw / sh < W / H) {
+      const scale = Math.max(W / sw, H / sh);
+      const dw = Math.round(sw * scale);
+      const dh = Math.round(sh * scale);
+      const dx = Math.round((W - dw) / 2);
+      const dy = Math.round((H - dh) / 2);
+      rctx.drawImage(src, dx, dy, dw, dh);
+    } else {
+      const ch = Math.round((W * sh) / sw);
+      const dy = Math.round((H - ch) / 2);
+      rctx.drawImage(src, 0, dy, W, ch);
+    }
   } else {
     // 1:1 / 9:16 canvases: cover-crop the source to FILL the frame —
     // always. (A fit-width landscape source would leave letterbox

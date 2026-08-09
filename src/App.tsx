@@ -1510,21 +1510,30 @@ export default function App() {
 
         {/* ─── B2: capture-frame overlay — shows exactly what's recorded ── */}
         {(recPhase === 'countdown' || recPhase === 'recording') && recMode !== 'audio' && (() => {
-          // Viewfinder width = the recording compositor's cover-crop of the
-          // VIDEO-NATIVE source: fraction of the full-width screen captured
-          // = ratio × videoH/videoW (4:3 webcam → 9:16 shows 42% of the
-          // screen; 16:9 camera → 32%). Synced with the video-native
-          // recording source (bug 2026-08-09: strip was 32% while the
-          // recording showed 42% — the strip looked narrower than reality).
+          // Viewfinder = the recorded region mapped onto the screen. Both
+          // are cover-fits of the same video, so per dimension:
+          //   visible on the video = min(1, screenAspect / videoAspect)
+          //   recorded on the video = min(1, ratioAspect / videoAspect)
+          //   window size = recorded / visible, capped at the screen.
+          // The old single-fraction formula (ratio × videoH/videoW)
+          // assumed a landscape screen — on portrait phones it drew narrow
+          // strips while the recording covered the full screen, and 16:9
+          // had no sync at all (static 12.5% strips — recorded hands were
+          // invisible in the frame; bugs 2026-08-09).
           const rv = videoRef.current;
           const rvw = rv?.videoWidth || 640;
           const rvh = rv?.videoHeight || 480;
           const rw = recRatio === '9:16' ? 9 / 16 : recRatio === '1:1' ? 1 : 16 / 9;
-          const frac = Math.min(1, rw * (rvh / rvw));
+          const screenAspect = window.innerWidth / window.innerHeight;
+          const videoAspect = rvw / rvh;
+          const wFrac = Math.min(1, Math.min(1, rw / videoAspect) / Math.min(1, screenAspect / videoAspect));
+          const hFrac = Math.min(1, Math.min(1, videoAspect / rw) / Math.min(1, videoAspect / screenAspect));
           return (
-            <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : ''}`}
-                 style={{ ['--rec-strip-w' as string]: `${(frac * 100).toFixed(2)}%` }}>
-              {recRatio === '16:9' && <><div className="rec-strip top" /><div className="rec-strip bottom" /></>}
+            <div className={`rec-frame-overlay ${recRatio === '1:1' ? 'ratio-1x1' : recRatio === '9:16' ? 'ratio-916' : 'ratio-169'}`}
+                 style={{
+                   ['--rec-win-w' as string]: `${(wFrac * 100).toFixed(2)}%`,
+                   ['--rec-win-h' as string]: `${(hFrac * 100).toFixed(2)}%`,
+                 }}>
               <div className="rec-window" />
               <div className="rec-tag">REC {recRatio}</div>
             </div>
@@ -1569,6 +1578,7 @@ export default function App() {
                 Text labels avoid any icon confusion with the stop-camera
                 button; the pulse draws the eye while the What's-new card
                 teaches the switch. */}
+            {!isMobile && (
             <button
               className={`icon-btn mobile-collapse mode-switch-btn${pulseModeSwitch ? ' help-pulse' : ''}`}
               onClick={() => handleKeyboardToggle(!keyboardMode)}
@@ -1597,6 +1607,7 @@ export default function App() {
                 </>
               )}
             </button>
+            )}
             {/* Stop is CAMERA-mode only (user decision 2026-08-09): in
                 keyboard mode there's no camera to stop and the Camera
                 capsule takes its role (leaving keyboard mode), so the

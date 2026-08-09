@@ -1870,38 +1870,33 @@ body {
   pointer-events: none;
   z-index: 6;
 }
-.rec-strip {
-  position: absolute;
-  background: rgba(5, 5, 15, 0.55);
-}
-.rec-strip.top { top: 0; left: 0; right: 0; height: 12.5%; }
-.rec-strip.bottom { bottom: 0; left: 0; right: 0; height: 12.5%; }
-.rec-strip.left { left: 0; top: 0; bottom: 0; width: 12.5%; }
-.rec-strip.right { right: 0; top: 0; bottom: 0; width: 12.5%; }
 .rec-window {
   position: absolute;
-  inset: 12.5% 0;
   border: 1px solid rgba(0, 255, 204, 0.4);
   border-radius: 6px;
   /* Dim everything OUTSIDE the window (camera-viewfinder convention:
      dark outside = not captured, inside stays full brightness so the
-     player keeps seeing their hands clearly). */
+     player keeps seeing their hands clearly). When the window equals the
+     full screen (full-frame recording) the shadow falls off-screen and
+     nothing dims — correct. */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
 }
-/* 1:1 and 9:16 are immersive (full-frame content) — the viewfinder shows
-   the exact cover-crop window so the player sees what gets cropped.
-   Width comes from --rec-strip-w (App.tsx: ratio × videoH/videoW of the
-   screen — the same cover-crop the recording compositor applies to the
-   video-native source: 4:3 webcam → 9:16 strip = 42% of the screen; 16:9
-   camera → 32%); height is always full. The dim-outside box-shadow on
-   .rec-window does the darkening automatically. */
+/* All ratios: the window is the recorded region mapped onto the screen,
+   per dimension (--rec-win-w/h from App.tsx — cover-fit of the video
+   into the ratio canvas ∩ the screen's cover-fit of the same video).
+   Portrait phone + portrait camera → full screen for 9:16, full-width
+   square for 1:1, full-width middle band for 16:9; landscape webcam on
+   a portrait screen → full screen everywhere (the recording contains
+   the whole visible view). Desktop 9:16 from a 4:3 webcam → 42% × 100%
+   (the 42%/32% strip math, preserved). */
 .rec-frame-overlay.ratio-1x1 .rec-window,
-.rec-frame-overlay.ratio-916 .rec-window {
+.rec-frame-overlay.ratio-916 .rec-window,
+.rec-frame-overlay.ratio-169 .rec-window {
   left: 50%;
-  top: 0;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: var(--rec-strip-w, min(100vw, 100vh));
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--rec-win-w, 100%);
+  height: var(--rec-win-h, 100%);
 }
 .rec-tag {
   position: absolute;

@@ -8,6 +8,7 @@ import { CameraSource } from './input/cameraSource';
 import { KeyboardSource } from './input/keyboardSource';
 import type { HandFrame } from './input/types';
 import { KbGuide } from './components/KbGuide';
+import { SettingsPanel } from './components/SettingsPanel';
 import {
   roundRectPath,
   drawUrlPill,
@@ -18,6 +19,7 @@ import {
   drawStageBackground,
   drawHandSkeleton,
 } from './hud/draw';
+import { composeRecordingFrame } from './hud/recording';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -26,7 +28,6 @@ import {
   chordNoteCount,
   midiToFreq,
   type ChordStyle,
-  CHORD_STYLE_OPTIONS,
 } from './chords';
 import {
   FINGER_TO_CHORD_INDEX,
@@ -35,9 +36,6 @@ import {
   type HandData,
   type SynthState,
   type AppMode,
-  type LeftHandMode,
-  type RightHandMode,
-  type ArpSpeed,
   type RecMode,
   type RecRatio,
   type RecPhase,
@@ -1308,165 +1306,25 @@ export default function App() {
 
   /* ─── B2: recording compositor ──────────────────────────────────────── */
 
-  // Composites the current performance (live canvas, or skeleton canvas in
-  // skeleton mode) into the recording canvas at the chosen aspect ratio.
-  //
-  // 9:16 — vertical share frame: blur-fill background (the performance
-  // itself, enlarged + blurred + darkened — the industry standard for
-  // landscape→vertical), sharp content window, brand name (gradient,
-  // breathing glow), huge live chord name (pops on change), mode · key,
-  // live waveform + level bars, and the domain URL (the traffic driver).
-  // 16:9 — cover-fill with a small HUD. 1:1 — blur-fill + simple HUD.
+  // Thin wrapper: the compositor body lives in src/hud/recording.ts
+  // (composeRecordingFrame — extracted 2026-08-09, pure move). All inputs
+  // are passed in; the rAF loop throttles the blur-fill redraw via
+  // recBlurAtRef (see animation loop).
   const drawRecFrame = useCallback(() => {
     const rec = recCanvasRef.current;
-    const mode = recModeRef.current;
     const src = skeletonCanvasRef.current; // recording-source canvas (stage or camera + soft skeleton)
     if (!rec || !src || !src.width || !src.height) return;
-    const rctx = rec.getContext('2d');
-    if (!rctx) return;
-
-    const W = rec.width;
-    const H = rec.height;
-    const sw = src.width;
-    const sh = src.height;
-    const ratio = recRatioRef.current;
-    const s = synthRef.current;
-    const modeLabel = s.appMode === 'gesture' ? 'Gesture' : s.appMode === 'theremin' ? 'Theremin' : 'Piano';
-    const now = performance.now();
-
-    // ── Blur-fill background (cheap: draw via a tiny copy, then upscale) ──
-    // Redrawn at ~5fps — it's visually stable, and this is the heaviest
-    // draw (a full-frame upscale), so throttling it removes most of the
-    // recording-compositor load that can cause jank.
-    {
-      rctx.fillStyle = '#050510';
-      rctx.fillRect(0, 0, W, H);
-      const bw = Math.max(32, Math.round(W / 10));
-      const bh = Math.max(56, Math.round(H / 10));
-      if (!blurBufRef.current) blurBufRef.current = document.createElement('canvas');
-      const bb = blurBufRef.current;
-      if (bb.width !== bw || bb.height !== bh) {
-        bb.width = bw;
-        bb.height = bh;
-      }
-      const bctx = bb.getContext('2d');
-      if (bctx) {
-        const scale = Math.max(bw / sw, bh / sh);
-        const dw = sw * scale;
-        const dh = sh * scale;
-        bctx.imageSmoothingEnabled = true;
-        bctx.imageSmoothingQuality = 'medium';
-        bctx.drawImage(src, (bw - dw) / 2, (bh - dh) / 2, dw, dh);
-      }
-      rctx.imageSmoothingEnabled = true;
-      rctx.imageSmoothingQuality = 'medium';
-      rctx.drawImage(bb, 0, 0, W, H);
-      rctx.fillStyle = 'rgba(5, 5, 15, 0.55)';
-      rctx.fillRect(0, 0, W, H);
-    }
-
-    // ── Design language (all ratios):
-    //   Brand = cyan-cool metal (top-left, static); URL = white bold on
-    //   pill (bottom-right, clarity first). Everything else is placed per
-    //   ratio:
-    //   All ratios are now FULL-FRAME (immersive, like 16:9): the content
-    //   cover-crops or fits to fill the entire canvas; brand/URL float on
-    //   top as small badges. (9:16 used to be a "poster" with design bands —
-    //   removed 2026-08-04 after real-user feedback: vertical video should
-    //   be full-bleed like TikTok/Reels, not a letterboxed strip.)
-    //   1:1 and 9:16 — full frame; portrait sources cover-crop (a fit-width
-    //   portrait would overflow the frame), landscape sources fit by width.
-    let wy = 0;
-    let winH = H;
-    if (ratio === '16:9') {
-      // 16:9 canvas, landscape source: fit fills the frame exactly.
-      const ch = Math.round((W * sh) / sw);
-      const dy = Math.round((H - ch) / 2);
-      rctx.drawImage(src, 0, dy, W, ch);
-    } else {
-      // 1:1 / 9:16 canvases: cover-crop the source to FILL the frame —
-      // always. (A fit-width landscape source would leave letterbox
-      // strips, i.e. the old poster look; immersive vertical/square
-      // video covers instead — TikTok/IG convention.)
-      const scale = Math.max(W / sw, H / sh);
-      const dw = Math.round(sw * scale);
-      const dh = Math.round(sh * scale);
-      const dx = Math.round((W - dw) / 2);
-      const dy = Math.round((H - dh) / 2);
-      rctx.drawImage(src, dx, dy, dw, dh);
-      wy = 0;
-      winH = H;
-      rctx.strokeStyle = 'rgba(0, 255, 204, 0.3)';
-      rctx.lineWidth = 2;
-      rctx.strokeRect(0, wy, W, winH);
-    }
-
-    // ── Inside the window: chord name (the green note) + live waveform.
-    //    Immersive video keeps the performance, chord, waveform and the
-    //    brand/URL badges — the mode·key line was removed per user
-    //    feedback 2026-08-04. ──
-    const chordSize = ratio === '16:9' ? 46 : 48;
-    // 1:1 / 9:16: push the chord down by ~a note-height so it never crowds
-    // the top-left brand wordmark (16:9 keeps its tighter 84px slot).
-    const chordY = ratio === '16:9' ? 84 : wy + 114;
-    drawChordHud(rctx, W / 2, chordY, chordSize, s.chordBase || '—', s.chordExt || '', !!s.octaveDown);
-
-    if (ratio !== '16:9') {
-      rctx.font = '500 16px Inter, system-ui, sans-serif';
-      rctx.textAlign = 'center';
-      rctx.fillStyle = 'rgba(160, 160, 208, 0.8)';
-      rctx.fillText(`${modeLabel} · Key ${KEYS[s.keyOffset]?.name ?? 'A'}`, W / 2, chordY + 28);
-    }
-
-    if (mode !== 'skeleton') {
-      const analyser = audioEngine.getAnalyser();
-      if (analyser) {
-        const wf = analyser.getValue() as Float32Array;
-        const n = wf.length;
-        const waveBase = ratio === '16:9' ? H - 34 : wy + winH - 40;
-        rctx.beginPath();
-        for (let i = 0; i < n; i++) {
-          const x = W * 0.06 + (i / (n - 1)) * W * 0.88;
-          const wy2 = waveBase - wf[i] * (ratio === '16:9' ? 20 : 22);
-          if (i === 0) rctx.moveTo(x, wy2);
-          else rctx.lineTo(x, wy2);
-        }
-        rctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-        rctx.lineWidth = 2;
-        rctx.shadowColor = 'rgba(0, 255, 204, 0.3)';
-        rctx.shadowBlur = 6;
-        rctx.stroke();
-        rctx.shadowBlur = 0;
-
-      }
-    }
-
-    drawMetalBrand(rctx, 24, 40, 26);
-    drawUrlPill(rctx, W - 26, H - 24, 22, false);
-
-    // ── Atmosphere — window only (0, wy, W, winH); the design bands stay
-    //    clean so brand/URL keep full clarity. Matches the live overlay
-    //    (base effect × user strength/100); both effects can stack. ──
-    // Base effect × strength: base 1.0 (vignette) / 0.3 (scanlines) makes
-    // 100% deliberately "too much" — users settle around 40-70%, where 50%
-    // ≈ the old 100% look. Mirrors the live CSS overlay.
-    const vStrength = vignetteStrengthRef.current / 100;
-    const sStrength = scanlinesStrengthRef.current / 100;
-    if (vStrength > 0) {
-      const cx = W / 2;
-      const cy = wy + winH / 2;
-      const g = rctx.createRadialGradient(cx, cy, Math.min(W, winH) * 0.3, cx, cy, Math.max(W, winH) * 0.72);
-      g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, `rgba(0,0,0,${1.0 * vStrength})`);
-      rctx.fillStyle = g;
-      rctx.fillRect(0, wy, W, winH);
-    }
-    if (sStrength > 0) {
-      rctx.fillStyle = `rgba(255,255,255,${0.3 * sStrength})`;
-      for (let y = wy; y < wy + winH; y += 4) {
-        rctx.fillRect(0, y, W, 2);
-      }
-    }
+    composeRecordingFrame({
+      rec,
+      src,
+      mode: recModeRef.current,
+      ratio: recRatioRef.current,
+      synth: synthRef.current,
+      analyser: audioEngine.getAnalyser(),
+      vignetteStrength: vignetteStrengthRef.current / 100,
+      scanlinesStrength: scanlinesStrengthRef.current / 100,
+      blurBuf: blurBufRef,
+    });
   }, []);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */
@@ -1953,6 +1811,22 @@ export default function App() {
     setIsRunning(false);
     setSynthState((prev) => ({ ...prev, isPlaying: false }));
   }, [handleVisibility]);
+
+  // Settings-panel keyboard toggle — owns persistence + mode lifecycle
+  // (the panel component stays presentation-only).
+  const handleKeyboardToggle = useCallback((on: boolean) => {
+    trackSettingChanged('keyboard_mode', on ? 'on' : 'off');
+    try { localStorage.setItem('gsw-keyboard-mode', on ? '1' : '0'); } catch { /* private mode */ }
+    setKeyboardMode(on);
+    if (on && !isRunning) {
+      // Start immediately when enabled from idle
+      startKeyboardMode();
+    } else if (!on && isRunning) {
+      // Running on keyboard: stop cleanly; the main button
+      // returns to Enable Camera.
+      stopCamera();
+    }
+  }, [isRunning, startKeyboardMode, stopCamera]);
 
   /* ─── Recording (B2 flow: chooser → countdown → record → result) ───── */
 
@@ -2532,139 +2406,19 @@ export default function App() {
               (the gear that opened it may be folded away on portrait
               phones — never leave the panel without a close path). */}
           {showSettings && synthState.appMode === 'gesture' && (
-            <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
-              <button
-                onClick={() => setShowSettings(false)}
-                style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}
-                data-tip="Close settings"
-              >✕</button>
-              {/* Performance settings (wraps on narrow screens) */}
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '16px', flexWrap: 'wrap' }}>
-              {/* Left Hand */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '200px' }}>
-                <label style={{ color: 'var(--neon-cyan)', fontWeight: 600 }}>Left Hand — Harmony</label>
-                <select value={synthState.leftHandMode} onChange={(e) => { trackSettingChanged('left_hand_mode', e.target.value); setSynthState(prev => ({ ...prev, leftHandMode: e.target.value as LeftHandMode })); }}>
-                  <option value="scaleTilt">Scale notes + tilt major/minor</option>
-                  <option value="scaleLocked">Scale notes only (lock mode)</option>
-                </select>
-                {synthState.leftHandMode === 'scaleTilt' ? (
-                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
-                ) : (
-                  <>
-                    <select value={synthState.lockedMode ?? 'major'} onChange={(e) => { trackSettingChanged('locked_mode', e.target.value); setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' })); }}>
-                      <option value="major">Major</option>
-                      <option value="minor">Minor</option>
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree only. Mode is locked above.</p>
-                  </>
-                )}
-              </div>
-
-              <span className="divider" style={{ height: 'auto', alignSelf: 'stretch' }} />
-
-              {/* Right Hand */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px' }}>
-                <label style={{ color: 'var(--neon-magenta)', fontWeight: 600 }}>Right Hand — Expression</label>
-                <select value={synthState.rightHandMode} onChange={(e) => { trackSettingChanged('right_hand_mode', e.target.value); setSynthState(prev => ({ ...prev, rightHandMode: e.target.value as RightHandMode })); }}>
-                  <option value="fingerLayout">Finger layout = chord style</option>
-                  <option value="fixedChordStyle">Fixed chord style</option>
-                </select>
-                {synthState.rightHandMode === 'fingerLayout' ? (
-                  <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>1–4 fingers set triad / inversion / 7ths. Height = volume, tilt = tone.</p>
-                ) : (
-                  <>
-                    <select value={synthState.lockedChordStyle ?? 'majorTriad'} onChange={(e) => { trackSettingChanged('chord_style', e.target.value); setSynthState(prev => ({ ...prev, lockedChordStyle: e.target.value as ChordStyle })); }}>
-                      {CHORD_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                    </select>
-                    <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Chord style is locked. Right hand still controls volume and tone.</p>
-                  </>
-                )}
-              </div>
-
-              {/* Arp / Bass extras */}
-              {(synthState.arpeggiate || synthState.autoBass) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px' }}>
-                  {synthState.arpeggiate && (
-                    <div>
-                      <label style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Arpeggiator</label>
-                      <select value={synthState.arpSpeed} onChange={(e) => { trackSettingChanged('arp_speed', e.target.value); setSynthState(prev => ({ ...prev, arpSpeed: e.target.value as ArpSpeed })); }} style={{ width: '100%' }}>
-                        <option value="slow">Slow (120ms)</option>
-                        <option value="normal">Normal (80ms)</option>
-                        <option value="fast">Fast (50ms)</option>
-                      </select>
-                    </div>
-                  )}
-                  {synthState.autoBass && (
-                    <div>
-                      <label style={{ color: 'var(--neon-amber)', fontWeight: 600 }}>Bass Volume</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input type="range" min="0" max="1" step="0.05" value={synthState.bassVolume} onChange={(e) => { trackSettingChanged('bass_volume', e.target.value); setSynthState(prev => ({ ...prev, bassVolume: parseFloat(e.target.value) })); }} style={{ flex: 1, accentColor: 'var(--neon-cyan)' }} />
-                        <span style={{ fontSize: '0.6rem', width: '24px' }}>{Math.round(synthState.bassVolume * 100)}%</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              </div>
-
-              {/* Visual atmosphere — stage lighting, WYSIWYG with the live
-                  view and the recording window (window only; design bands
-                  stay clean). */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', flexWrap: 'wrap' }}>
-                <label style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Visual — Atmosphere</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: vignetteStrength > 0 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '0.6rem', width: '62px' }}>Vignette</span>
-                    <input
-                      type="range" min="0" max="100" step="5" value={vignetteStrength}
-                      onChange={(e) => { trackSettingChanged('vignette', e.target.value); setVignetteStrength(Number(e.target.value)); }}
-                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
-                    />
-                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{vignetteStrength}%</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: scanlinesStrength > 0 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '0.6rem', width: '62px' }}>Scanlines</span>
-                    <input
-                      type="range" min="0" max="100" step="5" value={scanlinesStrength}
-                      onChange={(e) => { trackSettingChanged('scanlines', e.target.value); setScanlinesStrength(Number(e.target.value)); }}
-                      style={{ width: '90px', accentColor: 'var(--neon-cyan)' }}
-                    />
-                    <span style={{ fontSize: '0.6rem', width: '26px', color: 'var(--text-muted)' }}>{scanlinesStrength}%</span>
-                  </label>
-                </div>
-              </div>
-              {/* No-camera mode — keyboard drives the same pipeline.
-                  Desktop only: phones have no physical keyboard (soft
-                  keyboards cover the screen; Shift/arrow keys are unusable). */}
-              {!isMobile && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={keyboardMode}
-                    onChange={(e) => {
-                      const on = e.target.checked;
-                      trackSettingChanged('keyboard_mode', on ? 'on' : 'off');
-                      try { localStorage.setItem('gsw-keyboard-mode', on ? '1' : '0'); } catch { /* private mode */ }
-                      setKeyboardMode(on);
-                      if (on && !isRunning) {
-                        // Start immediately when enabled from idle
-                        startKeyboardMode();
-                      } else if (!on && isRunning) {
-                        // Running on keyboard: stop cleanly; the main button
-                        // returns to Enable Camera.
-                        stopCamera();
-                      }
-                    }}
-                    style={{ accentColor: 'var(--neon-cyan)' }}
-                  />
-                  <span style={{ color: keyboardMode ? 'var(--neon-cyan)' : 'var(--text-secondary)', fontSize: '0.68rem', fontWeight: 600 }}>
-                    No camera? Keyboard mode (desktop)
-                  </span>
-                </label>
-              </div>
-              )}
-            </div>
+            <SettingsPanel
+              onClose={() => setShowSettings(false)}
+              synthState={synthState}
+              setSynthState={setSynthState}
+              vignetteStrength={vignetteStrength}
+              setVignetteStrength={setVignetteStrength}
+              scanlinesStrength={scanlinesStrength}
+              setScanlinesStrength={setScanlinesStrength}
+              isMobile={isMobile}
+              keyboardMode={keyboardMode}
+              isRunning={isRunning}
+              onKeyboardToggle={handleKeyboardToggle}
+            />
           )}
         </div>
 

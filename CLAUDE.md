@@ -88,7 +88,9 @@ src/
 ├── wavEncoder.ts       # WAV export utility
 ├── input/              # Input source abstraction (2026-08-09): types.ts (HandFrame/HandInputSource), cameraSource.ts, keyboardSource.ts
 ├── components/KbGuide.tsx  # Keyboard-mode first-run guide: real QWERTY layout, live press highlighting (2026-08-09)
+├── components/SettingsPanel.tsx  # Settings panel (extracted 2026-08-09: hand modes/arp/bass/atmosphere/keyboard toggle; presentation-only, App owns side effects)
 ├── hud/draw.ts         # Canvas drawing helpers (extracted 2026-08-09: skeleton/chord HUD/stage/brand; drawHandSkeleton takes a scale param — live canvas is display-size × dpr, callers pass w/640 to keep the pre-refactor look)
+├── hud/recording.ts    # Recording compositor (extracted 2026-08-09 from drawRecFrame: blur-fill bg + cover/fit content + chord HUD + waveform + brand/URL + atmosphere; pure function composeRecordingFrame)
 ├── __tests__/          # Vitest: chords.test.ts + audioEngine.test.ts (29 tests)
 ├── handArt.ts          # Licensed hand-gesture SVG art for the Help demo (Commons CC BY-SA / Noto Apache-2.0 / OpenClipart CC0, single-color)
 └── mp4tags.ts          # MP4/M4A brand tags + cover art (covr) injection

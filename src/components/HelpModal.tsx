@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import { renderHandArt } from './HandArt';
+import { WHATS_NEW, markWhatsNewSeen } from '../whatsNew';
 
 /** Rotating left-hand demo script (rows match DIATONIC_CHORDS order). */
 const HELP_DEMO_STEPS = [
@@ -39,6 +40,10 @@ export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGui
     const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
     return () => window.clearInterval(t);
   }, []);
+  // Opening Help counts as "seeing" the latest feature announcement.
+  useEffect(() => { markWhatsNewSeen(); }, []);
+
+  const latest = WHATS_NEW[0];
 
   return (
     <div style={{
@@ -53,6 +58,18 @@ export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGui
         <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.82rem', color: 'var(--neon-cyan)' }}>Quick Guide</span>
         <button onClick={onClose} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '50%', width: '22px', height: '22px', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
       </div>
+
+      {/* New in this version — the latest feature announcement (see
+          src/whatsNew.ts; the landing page shows a matching NEW hint). */}
+      {latest && (
+        <div style={{ border: '1px solid rgba(255,110,199,0.25)', background: 'rgba(255,110,199,0.05)', borderRadius: '10px', padding: '8px 10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+            <span style={{ fontSize: '0.52rem', fontWeight: 800, letterSpacing: '0.08em', color: '#ff6ec7', border: '1px solid rgba(255,110,199,0.4)', borderRadius: '4px', padding: '1px 5px' }}>NEW · {latest.version}</span>
+            <span style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.62rem' }}>{latest.title}</span>
+          </div>
+          <div style={{ fontSize: '0.56rem', color: '#b0b0d0', lineHeight: 1.5 }}>{latest.body}</div>
+        </div>
+      )}
 
       {/* How it works — two-hand demo: the left hand raises the
           chord degree (real gesture art), the right hand the chord

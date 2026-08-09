@@ -24,6 +24,7 @@ import { drawWaveform } from './hud/waveform';
 import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
+import { whatsNewSeen, markWhatsNewSeen } from './whatsNew';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -1791,6 +1792,15 @@ export default function App() {
                     ? 'Hold 1-7 to play · [ ] major-minor · 8/9/0/- style · Shift octave · arrows volume/filter · Space stop'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
+                {/* New-feature announcement — shown on the landing page
+                    until the player has seen this version (see whatsNew.ts).
+                    Clicking enters keyboard mode directly and marks it seen. */}
+                {!keyboardMode && !whatsNewSeen() && (
+                  <button className="whatsnew-line" onClick={() => { markWhatsNewSeen(); startKeyboardMode(); }}>
+                    <span className="whatsnew-badge">NEW</span>
+                    Keyboard mode — no camera? Play with your keyboard →
+                  </button>
+                )}
               </>
             )}
             </div>

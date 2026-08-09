@@ -233,6 +233,39 @@ body {
   max-width: 360px;
 }
 
+/* New-feature announcement line under the main landing button — shown
+   until the player has seen the latest version (src/whatsNew.ts). */
+.whatsnew-line {
+  margin-top: 14px;
+  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 110, 199, 0.08);
+  border: 1px solid rgba(255, 110, 199, 0.25);
+  border-radius: 999px;
+  color: var(--neon-cyan);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.whatsnew-line:hover {
+  background: rgba(255, 110, 199, 0.16);
+  border-color: rgba(255, 110, 199, 0.5);
+  box-shadow: 0 0 14px rgba(255, 110, 199, 0.25);
+}
+.whatsnew-badge {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ff6ec7;
+  border: 1px solid rgba(255, 110, 199, 0.45);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .camera-error-message {
   background: rgba(255, 50, 50, 0.1);
   border: 1px solid rgba(255, 50, 50, 0.3);

@@ -87,10 +87,14 @@ src/
 ├── main.tsx            # React entry point
 ├── wavEncoder.ts       # WAV export utility
 ├── input/              # Input source abstraction (2026-08-09): types.ts (HandFrame/HandInputSource), cameraSource.ts, keyboardSource.ts
+├── recording/          # Recording DOMAIN (2026-08-09): useRecording.ts (chooser→countdown→record→result + mic sing-along + compositor wiring; owns ALL recording state/refs), RecSheet.tsx (chooser/countdown/result UI), constants.tsx (RECORD_SECONDS, VIDEO_REC_SUPPORTED, ratios, SVG previews), utils.ts (branded cover art, mime picking)
 ├── components/KbGuide.tsx  # Keyboard-mode first-run guide: real QWERTY layout, live press highlighting (2026-08-09)
 ├── components/SettingsPanel.tsx  # Settings panel (extracted 2026-08-09: hand modes/arp/bass/atmosphere/keyboard toggle; presentation-only, App owns side effects)
+├── components/HelpModal.tsx  # Quick Guide modal (extracted 2026-08-09: owns demo animation state; gradeNameFor passed from App)
+├── components/HandArt.tsx  # renderHandArt — licensed hand-gesture SVGs (shared by Help modal + loading screen)
 ├── hud/draw.ts         # Canvas drawing helpers (extracted 2026-08-09: skeleton/chord HUD/stage/brand; drawHandSkeleton takes a scale param — live canvas is display-size × dpr, callers pass w/640 to keep the pre-refactor look)
 ├── hud/recording.ts    # Recording compositor (extracted 2026-08-09 from drawRecFrame: blur-fill bg + cover/fit content + chord HUD + waveform + brand/URL + atmosphere; pure function composeRecordingFrame)
+├── hud/waveform.ts     # Live three-channel waveform (extracted 2026-08-09: degree color lerp / note-count floor-grid echoes / tilt brightness; pure function drawWaveform)
 ├── __tests__/          # Vitest: chords.test.ts + audioEngine.test.ts (29 tests)
 ├── handArt.ts          # Licensed hand-gesture SVG art for the Help demo (Commons CC BY-SA / Noto Apache-2.0 / OpenClipart CC0, single-color)
 └── mp4tags.ts          # MP4/M4A brand tags + cover art (covr) injection

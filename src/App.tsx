@@ -60,6 +60,9 @@ import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 
 /* ─── B2: Recording constants & helpers (module level, pure) ────────── */
 
+/** Max recording length in seconds (2026-08-09: 15 → 30, growth plan P0). */
+const RECORD_SECONDS = 30;
+
 const VIDEO_REC_SUPPORTED =
   typeof MediaRecorder !== 'undefined' &&
   typeof HTMLCanvasElement !== 'undefined' &&
@@ -2204,7 +2207,7 @@ export default function App() {
     }
     if (recordingStartRef.current) {
       const dur = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-      trackRecording('completed', dur, dur >= 15 ? 'timeout' : 'user');
+      trackRecording('completed', dur, dur >= RECORD_SECONDS ? 'timeout' : 'user');
     }
     setIsRecording(false);
     setRecordingTime(0);
@@ -2296,21 +2299,21 @@ export default function App() {
   }, [recMode, recRatio, startCountdown]);
 
   // Recording timer: countdown of remaining seconds + 3-2-1 wrap-up overlay
-  // (12s in → show 3,2,1 at the center, DOM-only so it never enters the video)
+  // (RECORD_SECONDS-3s in → show 3,2,1 at the center, DOM-only so it never enters the video)
   useEffect(() => {
     if (!isRecording) return;
 
     const interval = setInterval(() => {
       if (recordingStartRef.current) {
         const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        setRecordingTime(Math.max(0, 15 - elapsed));
+        setRecordingTime(Math.max(0, RECORD_SECONDS - elapsed));
       }
     }, 100);
 
-    // Auto-stop at 15s
+    // Auto-stop at RECORD_SECONDS
     const timeout = setTimeout(() => {
       finishRecordingRef.current();
-    }, 15000);
+    }, RECORD_SECONDS * 1000);
 
     // Start the wrap-up countdown with 3s left
     const endTimeout = setTimeout(() => {
@@ -2328,7 +2331,7 @@ export default function App() {
           setEndCount(n);
         }
       }, 1000);
-    }, 12000);
+    }, (RECORD_SECONDS - 3) * 1000);
 
     return () => {
       clearInterval(interval);
@@ -2429,7 +2432,7 @@ export default function App() {
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
                 seconds while recording. */}
-            <button className={`icon-btn rec-capsule ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : 'Record — audio, video or skeleton (max 15s)'} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
+            <button className={`icon-btn rec-capsule ${isRecording ? 'recording' : ''}`} onClick={onRecordButton} data-tip={isRecording ? `Recording — ${recordingTime}s left` : `Record — audio, video or skeleton (max ${RECORD_SECONDS}s)`} style={isRecording && recordingTime <= 3 ? { color: 'var(--neon-magenta)', textShadow: '0 0 12px rgba(255, 110, 199, 0.6)' } : undefined}>
               {/* Abstract record: frosted pill + red dot (Apple Camera-app language) */}
               {isRecording ? `${recordingTime}s` : (
                 <svg width="11" height="11" viewBox="0 0 11 11">

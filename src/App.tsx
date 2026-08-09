@@ -24,7 +24,13 @@ import { drawWaveform } from './hud/waveform';
 import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
-import { whatsNewSeen, markWhatsNewSeen } from './whatsNew';
+import {
+  whatsNewActive,
+  whatsNewClicked,
+  markWhatsNewClicked,
+  whatsNewShownThisSession,
+  markWhatsNewShownThisSession,
+} from './whatsNew';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -275,6 +281,14 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
+  // New-feature hint (whatsNew.ts): record once per session that it was
+  // shown — the hint then stays visible for the rest of the session but
+  // returns on the next visit while the announcement is active.
+  useEffect(() => {
+    if (!keyboardMode && whatsNewActive() && !whatsNewClicked() && !whatsNewShownThisSession()) {
+      markWhatsNewShownThisSession();
+    }
+  }, [keyboardMode]);
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
@@ -1792,11 +1806,12 @@ export default function App() {
                     ? 'Hold 1-7 to play · [ ] major-minor · 8/9/0/- style · Shift octave · arrows volume/filter · Space stop'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
-                {/* New-feature announcement — shown on the landing page
-                    until the player has seen this version (see whatsNew.ts).
-                    Clicking enters keyboard mode directly and marks it seen. */}
-                {!keyboardMode && !whatsNewSeen() && (
-                  <button className="whatsnew-line" onClick={() => { markWhatsNewSeen(); startKeyboardMode(); }}>
+                {/* New-feature announcement — landing hint while the
+                    announcement is active (14-day window) and the player
+                    hasn't clicked it; at most once per session (a missed
+                    hint returns on the next visit; see whatsNew.ts). */}
+                {!keyboardMode && whatsNewActive() && !whatsNewClicked() && !whatsNewShownThisSession() && (
+                  <button className="whatsnew-line" onClick={() => { markWhatsNewClicked(); startKeyboardMode(); }}>
                     <span className="whatsnew-badge">NEW</span>
                     Keyboard mode — no camera? Play with your keyboard →
                   </button>

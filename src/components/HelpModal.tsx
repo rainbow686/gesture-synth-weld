@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import { renderHandArt } from './HandArt';
-import { WHATS_NEW, markWhatsNewSeen } from '../whatsNew';
+import { WHATS_NEW, markWhatsNewClicked } from '../whatsNew';
 
 /** Rotating left-hand demo script (rows match DIATONIC_CHORDS order). */
 const HELP_DEMO_STEPS = [
@@ -40,8 +40,8 @@ export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGui
     const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
     return () => window.clearInterval(t);
   }, []);
-  // Opening Help counts as "seeing" the latest feature announcement.
-  useEffect(() => { markWhatsNewSeen(); }, []);
+  // Opening Help shows the full announcement — counts as told.
+  useEffect(() => { markWhatsNewClicked(); }, []);
 
   const latest = WHATS_NEW[0];
 

@@ -583,6 +583,8 @@ export default function App() {
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
+  const showKbGuideRef = useRef(false);
+  useEffect(() => { showKbGuideRef.current = showKbGuide; }, [showKbGuide]);
   const kbGuideTimerRef = useRef<number | null>(null);
   const dismissKbGuide = useCallback(() => {
     setShowKbGuide(false);
@@ -806,12 +808,17 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // No-camera mode: forward mapped keys to the keyboard source
       // (only while it's the active input).
-      if (keyboardModeRef.current) {
+      if (keyboardModeRef.current || showKbGuideRef.current) {
         // The page scrolls (toolbar + SEO content below the fold) — ↑/↓
         // (and Space) would scroll it mid-play and drag the playing area
-        // out of view (bug 2026-08-09). Block defaults for our keys only;
-        // everything else (Tab, F5, …) keeps browser behavior.
+        // out of view (bug 2026-08-09). Block defaults for our keys while
+        // keyboard mode runs OR the keyboard guide is open (the guide can
+        // be replayed from Help while keyboard mode is off — the mapped
+        // keys must not scroll the page there either, bug 2026-08-09).
+        // Everything else (Tab, F5, …) keeps browser behavior.
         if (KEYBOARD_MAPPED_KEYS.includes(e.key)) e.preventDefault();
+      }
+      if (keyboardModeRef.current) {
         keyboardSourceRef.current?.handleKey(e, true);
         // Space still stops all notes below (mute convenience).
       }

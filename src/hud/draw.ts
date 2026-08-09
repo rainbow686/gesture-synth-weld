@@ -205,13 +205,24 @@ export function drawHandSkeleton(
   lineWidth: number = 3,
   tipGlow: number = 8,
   scale: number = 1,
+  /** Cover-crop of the video inside the canvas (dx, dy = top-left of the
+   *  drawn image, dw/dh = its size). Landmarks must map into this VISIBLE
+   *  rect, mirrored — not the full canvas (bug 2026-08-09: the skeleton
+   *  drifted toward the frame center on mobile, where a 16:9 video is
+   *  zoomed ~2.5× inside a 9:16 canvas; desktop's ~zero crop hid it).
+   *  Defaults to the full canvas — the caller passes nothing when the
+   *  canvas IS the video (recording source = video-native size). */
+  crop?: { dx: number; dy: number; dw: number; dh: number },
 ) {
   const pts = hand.landmarks;
   if (!pts || pts.length < 21) return;
 
+  // The video's cover scale cancels out (lm.x * sw * scale = lm.x * dw),
+  // so only the crop offsets matter.
+  const { dx = 0, dy = 0, dw = canvasW, dh = canvasH } = crop ?? {};
   const toCanvas = (lm: { x: number; y: number }) => ({
-    x: (1 - lm.x) * canvasW,
-    y: lm.y * canvasH,
+    x: dx + dw * (1 - lm.x),
+    y: dy + dh * lm.y,
   });
 
   ctx.strokeStyle = glowColor;

@@ -9,6 +9,8 @@
  *    the announcement is ACTIVE (ANNOUNCE_DAYS window), then stops on
  *    its own. No ✕, no dismissal — it can't be "seen once and lost"
  *    and the player never has to close it. Click = enter the feature.
+ *    desktopOnly entries are skipped on mobile (bug 2026-08-09: mobile
+ *    users clicked into a desktop-only mode with no way back).
  *
  *  - PLAYING-scene card: DISMISSAL-based announcement at the moment the
  *    player is in the experience — a GENERIC announcement slot that
@@ -55,6 +57,13 @@ export interface WhatsNewEntry {
    *  instead of jumping. Per-mode so the line can name the current
    *  mode's actual button label. */
   teach?: { camera?: string; keyboard?: string };
+  /** Optional: this announcement targets a DESKTOP-ONLY feature — on
+   *  mobile the landing hint and the playing-scene card are skipped
+   *  (bug 2026-08-09: mobile users clicked the landing hint into
+   *  keyboard mode, which is desktop-only — a dead end with no way
+   *  back, since every switch control is desktop-gated). Future
+   *  mobile-relevant entries omit it and show everywhere. */
+  desktopOnly?: boolean;
 }
 
 /** How long the landing hint stays active after release. */
@@ -71,6 +80,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       camera: 'Switch via the keyboard button in the top toolbar',
       keyboard: 'Switch back via the Camera button in the top toolbar',
     },
+    desktopOnly: true, // keyboard mode is desktop-only (no physical keys on phones)
   },
 ];
 

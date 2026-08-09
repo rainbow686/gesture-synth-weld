@@ -279,17 +279,20 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
-  // Playing-scene What's-new card visibility — shows in EVERY playing
-  // mode (user decision 2026-08-09: the card is a GENERIC announcement
-  // slot, not a keyboard shortcut, so the old !keyboardMode gate is
-  // gone; future features announce here in any scene). Shared by the
-  // card JSX and the toolbar mode-switch pulse (the card teaches the
-  // switch button; the button glows while the card is shown).
-  const whatsNewCardVisible = isRunning && whatsNewActive() && !whatsNewDismissedState;
   // Data-driven pulse: the ACTIVE entry declares which toolbar control it
   // teaches (pulseTarget) — future announcements that don't teach a
   // control simply omit it and nothing pulses (user decision 2026-08-09).
   const whatsNewEntry = WHATS_NEW[0];
+  // Playing-scene What's-new card visibility — shows in EVERY playing
+  // mode (user decision 2026-08-09: the card is a GENERIC announcement
+  // slot, not a keyboard shortcut, so the old !keyboardMode gate is
+  // gone; future features announce here in any scene). desktopOnly
+  // entries are skipped on mobile (bug 2026-08-09: the announcement
+  // would teach a desktop-only feature and a dead-end switch). Shared
+  // by the card JSX and the toolbar mode-switch pulse (the card teaches
+  // the switch button; the button glows while the card is shown).
+  const whatsNewCardVisible = isRunning && whatsNewActive() && !whatsNewDismissedState
+    && !(whatsNewEntry?.desktopOnly && isMobile);
   const pulseModeSwitch = whatsNewCardVisible && whatsNewEntry?.pulseTarget === 'mode-switch';
   // Mobile auto-collapse (iOS floating-pill pattern, user decision
   // 2026-08-09): after 4s the card tucks into a small NEW dot at the same
@@ -853,8 +856,8 @@ export default function App() {
 
   /* ─── Draw helpers ──────────────────────────────────────────────────── */
 
-  const drawOverlayRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number) => void>();
-  drawOverlayRef.current = (ctx, w, h) => {
+  const drawOverlayRef = useRef<(ctx: CanvasRenderingContext2D, w: number, h: number, crop?: { dx: number; dy: number; dw: number; dh: number }) => void>();
+  drawOverlayRef.current = (ctx, w, h, crop) => {
     if (!showSkeleton) return;
     const g = gestureRef.current;
     // Live canvas bitmap is display-size × dpr; skeleton params were tuned
@@ -862,8 +865,11 @@ export default function App() {
     // rescale the lines shrink to hairlines after CSS downscaling
     // (bug 2026-08-09: "skeleton lines thinner than before").
     const s = w / 640;
-    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)', 3, 8, s);
-    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)', 3, 8, s);
+    // crop = the video's cover-crop rect (from the loop's drawImage math)
+    // — without it the skeleton maps to the full canvas and drifts toward
+    // the center on cropped frames (bug 2026-08-09, mobile).
+    if (g.left) drawHandSkeleton(ctx, g.left, w, h, '#00ffcc', 'rgba(0,255,204,0.4)', 3, 8, s, crop);
+    if (g.right) drawHandSkeleton(ctx, g.right, w, h, '#ff00ff', 'rgba(255,0,255,0.4)', 3, 8, s, crop);
   };
 
   // Video version of the skeleton: soft palette + thinner lines + weak
@@ -1019,7 +1025,7 @@ export default function App() {
         }
       }
 
-      drawOverlayRef.current?.(ctx, canvas.width, canvas.height);
+      drawOverlayRef.current?.(ctx, canvas.width, canvas.height, { dx, dy, dw, dh });
       drawWaveformRef.current?.();
 
       // B2: camera-freeze watchdog — while visible, if the video clock
@@ -1421,11 +1427,25 @@ export default function App() {
     if (on && !isRunning) {
       // Start immediately when enabled from idle
       startKeyboardMode();
+    } else if (on && isRunning) {
+      // Camera → keyboard: stop the camera pipeline CLEANLY first —
+      // flipping the mode alone left the camera stream live (LED on,
+      // stream held) and the old session resident. Restart the keyboard
+      // pipeline fresh (stopCamera → isRunning false → startKeyboardMode).
+      stopCamera();
+      void startKeyboardMode();
     } else if (!on && isRunning) {
-      // Returning from keyboard: start the camera directly
-      startCamera();
+      // Keyboard → camera: stop the keyboard pipeline cleanly first, then
+      // start the camera — the direct-start path left the old stream and
+      // loop resident and gestures came back DEAD (bug 2026-08-09:
+      // landing→camera worked, switch-back didn't; MediaPipe's session
+      // was still bound to the pre-swap state). This mirrors the
+      // provably-working fresh path exactly (isRunning false → true).
+      stopCamera();
+      void startCamera();
     }
-  }, [isRunning, startKeyboardMode, startCamera]);
+    // (!on && !isRunning): just flips the mode on the landing — no start.
+  }, [isRunning, startKeyboardMode, startCamera, stopCamera]);
 
   // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
   // after the section stays ≥50% visible for 3s (a quick scroll-through does
@@ -1942,7 +1962,7 @@ export default function App() {
                     "seen once and lost", and the player never has to
                     close it. Click = enter keyboard mode. The PLAYING
                     card below is the dismissal-based announcement. */}
-                {!keyboardMode && whatsNewActive() && (
+                {!keyboardMode && !(whatsNewEntry?.desktopOnly && isMobile) && whatsNewActive() && (
                   <div className="whatsnew-card">
                     <button className="whatsnew-body" onClick={startKeyboardMode}>
                       <span className="whatsnew-badge">NEW</span>

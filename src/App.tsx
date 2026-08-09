@@ -19,7 +19,8 @@ import {
   drawStageBackground,
   drawHandSkeleton,
 } from './hud/draw';
-import { composeRecordingFrame } from './hud/recording';
+import { useRecording } from './recording/useRecording';
+import { RECORD_SECONDS, VIDEO_REC_SUPPORTED, REC_RATIO_HINTS, REC_SVG_PREVIEWS } from './recording/constants';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -40,9 +41,7 @@ import {
   type RecRatio,
   type RecPhase,
 } from './types';
-import { makeRecordingFilename } from './wavEncoder';
 import { HAND_ART } from './handArt';
-import { injectBrandTags } from './mp4tags';
 import {
   initTrafficSource,
   trackCameraClicked,
@@ -53,14 +52,10 @@ import {
   trackFirstGesture,
   trackHelpButtonClicked,
   trackPageEngaged,
-  trackRecording,
-  trackRecordingModeChanged,
-  trackRecordingViewed,
   trackScrollToPlaybook,
   trackSettingChanged,
-  trackShare,
-  trackRecordButtonClicked,
   trackMicToggled,
+  trackRecordingModeChanged,
   trackWatchdogTriggered,
 } from './analytics';
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
@@ -78,159 +73,11 @@ const KEYBOARD_MAPPED_KEYS = [
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
 
-/* ─── B2: Recording constants & helpers (module level, pure) ────────── */
-
-/** Max recording length in seconds (2026-08-09: 15 → 30, growth plan P0). */
-const RECORD_SECONDS = 30;
-
-const VIDEO_REC_SUPPORTED =
-  typeof MediaRecorder !== 'undefined' &&
-  typeof HTMLCanvasElement !== 'undefined' &&
-  typeof HTMLCanvasElement.prototype.captureStream === 'function';
-
-const REC_RATIO_DIMS: Record<RecRatio, [number, number]> = {
-  '9:16': [720, 1280],
-  '16:9': [1280, 720],
-  '1:1': [1080, 1080],
-};
-
-const REC_RATIO_HINTS: Record<RecRatio, string> = {
-  '9:16': 'TikTok · Instagram Reels · YouTube Shorts',
-  '16:9': 'YouTube · general sharing',
-  '1:1': 'Instagram feed · Discord · Reddit',
-};
-
-const REC_SVG_PREVIEWS: Record<RecMode, ReactNode> = {
-  video: (
-    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
-      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
-      <circle cx="22" cy="14" r="6" fill="#3a3a6a" />
-      <path d="M14 29c0-4.2 3.5-6.5 8-6.5s8 2.3 8 6.5" fill="#3a3a6a" />
-      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
-      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
-      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
-      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
-    </svg>
-  ),
-  skeleton: (
-    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
-      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
-      <circle cx="44" cy="16" r="3" fill="#00ffcc" opacity=".9" />
-      <circle cx="52" cy="16" r="3" fill="#ff00ff" opacity=".9" />
-      <path d="M44 16h8M47 12.5l-3.5 3.5L47 19.5" stroke="#00ffcc" strokeWidth="1.4" fill="none" />
-      <path d="M52 12.5l3.5 3.5L52 19.5" stroke="#ff00ff" strokeWidth="1.4" fill="none" />
-    </svg>
-  ),
-  audio: (
-    <svg viewBox="0 0 64 36" className="rec-preview" aria-hidden="true">
-      <rect width="64" height="36" rx="4" fill="#0d0d2b" />
-      {[8, 14, 20, 26, 32, 38, 44, 50, 56].map((x, i) => (
-        <rect key={x} x={x} y={18 - (i % 3) * 4} width="3" height={(i % 3) * 8 + 8} rx="1.5" fill="#00ffcc" opacity={0.85} />
-      ))}
-    </svg>
-  ),
-};
-
-/** Square cover art for audio files — the site's visual family:
- * dark cosmos background, neon sound-wave mark (cyan arcs + magenta
- * note dot — the two-hand colors), metal brand, decorative waveform,
- * URL pill, neon inner frame. */
-function makeCoverBlob(): Promise<Blob> {
-  const c = document.createElement('canvas');
-  c.width = 600;
-  c.height = 600;
-  const ctx = c.getContext('2d');
-  if (!ctx) return Promise.resolve(new Blob());
-
-  // background: the site's dark cosmos + footlight
-  drawStageBackground(ctx, 600, 600);
-
-  // neon inner frame (liquid-glass container)
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.28)';
-  ctx.lineWidth = 2;
-  roundRectPath(ctx, 26, 26, 548, 548, 24);
-  ctx.stroke();
-
-  // sound-wave mark: three cyan arcs + magenta note dot
-  ctx.lineCap = 'round';
-  for (let i = 0; i < 3; i++) {
-    ctx.strokeStyle = i === 1 ? 'rgba(0, 255, 204, 0.9)' : 'rgba(0, 255, 204, 0.5)';
-    ctx.lineWidth = i === 1 ? 3.5 : 2.5;
-    ctx.beginPath();
-    ctx.arc(300, 162, 30 + i * 13, Math.PI * 1.08, Math.PI * 1.92);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#ff6ec7';
-  ctx.shadowColor = 'rgba(255, 110, 199, 0.5)';
-  ctx.shadowBlur = 10;
-  ctx.beginPath();
-  ctx.arc(300, 152, 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // brand: metal wordmark centered — auto-shrink so it never touches the edges
-  // (target width = 80% of the canvas, leaving breathing room on both sides)
-  const text = 'GESTURE SYNTH WELD';
-  let size = 44;
-  ctx.font = `800 ${size}px Orbitron, monospace`;
-  ctx.textAlign = 'center';
-  const targetW = 480;
-  const measureW = ctx.measureText(text).width;
-  if (measureW > targetW) {
-    size = Math.floor(size * (targetW / measureW));
-    ctx.font = `800 ${size}px Orbitron, monospace`;
-  }
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-  ctx.fillText(text, 300, 306);
-  const g = ctx.createLinearGradient(0, 304 - size, 0, 310);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.35, '#d8ecff');
-  g.addColorStop(0.5, '#7fb8e8');
-  g.addColorStop(0.7, '#eef8ff');
-  g.addColorStop(1, '#a8cde8');
-  ctx.fillStyle = g;
-  ctx.fillText(text, 300, 304);
-
-  // decorative waveform under the brand (music feel)
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let i = 0; i <= 48; i++) {
-    const x = 110 + (i / 48) * 380;
-    const y = 400 + Math.sin((i / 48) * Math.PI * 4) * 14;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-
-  // URL pill centered
-  drawUrlPill(ctx, 300, 478, 24, true);
-
-  return new Promise((res) => c.toBlob((b) => res(b ?? new Blob()), 'image/jpeg', 0.85));
-}
-
-/** Pick the best MediaRecorder mime type (mp4/m4a preferred, webm fallback). */
-function pickRecMimeType(audioOnly: boolean = false): { mime: string; ext: string } {
-  const candidates: [string, string][] = audioOnly
-    ? [
-        ['audio/mp4;codecs=mp4a.40.2', 'm4a'],
-        ['audio/mp4', 'm4a'],
-        ['audio/webm;codecs=opus', 'webm'],
-        ['audio/webm', 'webm'],
-      ]
-    : [
-        ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
-        ['video/mp4', 'mp4'],
-        ['video/webm;codecs=vp9,opus', 'webm'],
-        ['video/webm;codecs=vp8,opus', 'webm'],
-        ['video/webm', 'webm'],
-      ];
-  for (const [mime, ext] of candidates) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(mime)) return { mime, ext };
-  }
-  return { mime: '', ext: audioOnly ? 'webm' : 'webm' };
-}
-
+// Recording domain: constants (RECORD_SECONDS, VIDEO_REC_SUPPORTED,
+// REC_RATIO_*, REC_SVG_PREVIEWS) live in src/recording/constants.tsx;
+// cover art + mime picking in src/recording/utils.ts; the whole flow
+// (chooser → countdown → record → result, mic, compositor) in
+// src/recording/useRecording.ts (extracted 2026-08-09, pure move).
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message || err.name || 'Unknown error';
@@ -291,128 +138,8 @@ export default function App() {
     autoBass: false,
     bassVolume: 0.5,
   });
-  const [isRecording, setIsRecording] = useState(false);
   const [hasLeftHand, setHasLeftHand] = useState(false);
   const [hasRightHand, setHasRightHand] = useState(false);
-
-  // B2: recording flow (chooser → countdown → recording → result)
-  const [recPhase, setRecPhase] = useState<RecPhase>('idle');
-  // Default: skeleton video (share-ready, privacy-friendly) where the
-  // platform supports it; audio otherwise (iOS Safari lacks captureStream).
-  // A saved choice always wins.
-  const [recMode, setRecMode] = useState<RecMode>(() => {
-    const saved = localStorage.getItem('gsw-rec-mode') as RecMode | null;
-    if (saved === 'audio' || saved === 'video' || saved === 'skeleton') return saved;
-    return VIDEO_REC_SUPPORTED ? 'skeleton' : 'audio';
-  });
-  // Whether this player has ever recorded (i.e. made a choice) — the
-  // "default" tag in the chooser is only meaningful before that.
-  let savedRecModeExists = false;
-  try { savedRecModeExists = !!localStorage.getItem('gsw-rec-mode'); } catch { /* private mode */ }
-  const [recRatio, setRecRatio] = useState<RecRatio>(() => (localStorage.getItem('gsw-rec-ratio') as RecRatio) || '9:16');
-  const [recCount, setRecCount] = useState(3);
-  const [endCount, setEndCount] = useState<number | null>(null); // 3-2-1 wrap-up overlay (last 3s)
-  const [recBlob, setRecBlob] = useState<{ blob: Blob; filename: string } | null>(null);
-  // Result preview: play the take back IN-PAGE (Blob URL — memory only, no
-  // server) so the player watches before deciding to download/share. The
-  // object URL is revoked when the preview unmounts or the blob changes.
-  const recPreviewUrl = useMemo(() => {
-    if (!recBlob) return null;
-    return URL.createObjectURL(recBlob.blob);
-  }, [recBlob]);
-  useEffect(() => {
-    return () => {
-      if (recPreviewUrl) URL.revokeObjectURL(recPreviewUrl);
-    };
-  }, [recPreviewUrl]);
-  const [shareFailed, setShareFailed] = useState(false);
-  const [micOn, setMicOn] = useState(true);
-  const [micLevel, setMicLevel] = useState(0);
-  const [micPermState, setMicPermState] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
-  const [recVoice, setRecVoice] = useState(() => Number(localStorage.getItem('gsw-rec-voice')) || 1.3);
-  // Vocal polish (recording-only voice effects): off/light/standard/strong.
-  // Saved choice wins; 'standard' is the industry-chain default.
-  const [recPolish, setRecPolish] = useState<VocalPolish>(() => {
-    const saved = localStorage.getItem('gsw-rec-polish');
-    if (saved === 'off' || saved === 'light' || saved === 'standard' || saved === 'strong') return saved;
-    return 'standard';
-  });
-  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
-  const [micDeviceId, setMicDeviceId] = useState('');
-  const recVoiceRef = useRef(1.3);
-  const micOnRef = useRef(true);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const micRetriedRef = useRef(false);
-
-  // Reflect Chrome's mic permission state (used to give the right
-  // guidance: prompt → we can ask again; denied → only the browser's
-  // site settings can restore it).
-  const updateMicPermState = useCallback(() => {
-    if (typeof navigator.permissions?.query !== 'function') {
-      setMicPermState('prompt');
-      return;
-    }
-    navigator.permissions
-      .query({ name: 'microphone' as PermissionName })
-      .then((s) => setMicPermState(s.state as 'granted' | 'denied' | 'prompt'))
-      .catch(() => setMicPermState('prompt'));
-  }, []);
-
-  // Request the microphone (camera start + the chooser's "Enable
-  // microphone" button — for first-time users who denied it earlier).
-  const requestMic = useCallback(async (): Promise<boolean> => {
-    try {
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
-      });
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = micStream;
-      audioEngine.setMicStream(micStream);
-      audioEngine.setMicEnabled(micOnRef.current);
-      // List mic devices so the user can pick the real one — Chrome's
-      // permission prompt defaults to a virtual/loopback device on some
-      // Macs (e.g. BlackHole), which records silence.
-      const devs = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
-      setMicDevices(devs.filter((d) => d.kind === 'audioinput'));
-      const cur = micStream.getAudioTracks()[0]?.getSettings().deviceId;
-      if (cur) setMicDeviceId(cur);
-      setMicPermState('granted');
-      return true;
-    } catch {
-      micStreamRef.current = null;
-      updateMicPermState();
-      return false;
-    }
-  }, [updateMicPermState]);
-
-  // Chrome workaround: some Chrome/macOS builds deliver silence from the
-  // mic when echo cancellation is active (Safari is unaffected). Re-request
-  // the mic WITHOUT audio processing and rewire, once.
-  const retryMicRaw = useCallback(async () => {
-    try {
-      const s2 = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = s2;
-      audioEngine.setMicStream(s2);
-      audioEngine.setMicEnabled(micOnRef.current);
-    } catch {
-      // keep the original stream
-    }
-  }, []);
-  const recModeRef = useRef<RecMode>('audio');
-  const recRatioRef = useRef<RecRatio>('9:16');
-  const recCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const skeletonCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recChunksRef = useRef<Blob[]>([]);
-  const countdownTimerRef = useRef<number | null>(null);
-  const endCountTimerRef = useRef<number | null>(null);
-  const recordingAbortedRef = useRef(false);
-  // B2: recording compositor helpers (cheap blur buffer + chord-pop timing)
-  const blurBufRef = useRef<HTMLCanvasElement | null>(null);
-  const recBlurAtRef = useRef(0); // last blur-bg redraw (throttled to ~5fps)
 
   // Camera-freeze watchdog: after a long screen lock some Android builds
   // leave the video on the last frame forever. Track the video clock and
@@ -644,8 +371,6 @@ export default function App() {
   const scanlinesStrengthRef = useRef(scanlinesStrength);
   useEffect(() => { vignetteStrengthRef.current = vignetteStrength; }, [vignetteStrength]);
   useEffect(() => { scanlinesStrengthRef.current = scanlinesStrength; }, [scanlinesStrength]);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const recordingStartRef = useRef<number | null>(null);
   const cameraStartRef = useRef(0);
   const firstGestureSentRef = useRef(false);
   const loadingStartRef = useRef(0);
@@ -681,73 +406,8 @@ export default function App() {
   // instant. The startCamera flow checks this flag after the awaits.
   const loadCancelledRef = useRef(false);
   const recordingActiveRef = useRef(false);
-
-  useEffect(() => { recModeRef.current = recMode; }, [recMode]);
-  useEffect(() => { recRatioRef.current = recRatio; }, [recRatio]);
-  useEffect(() => { micOnRef.current = micOn; }, [micOn]);
-  useEffect(() => { audioEngine.setMicEnabled(micOn); }, [micOn]);
-  useEffect(() => { recVoiceRef.current = recVoice; }, [recVoice]);
-  useEffect(() => {
-    audioEngine.setRecordingMix(recVoice);
-    localStorage.setItem('gsw-rec-voice', String(recVoice));
-  }, [recVoice]);
-  useEffect(() => {
-    audioEngine.setVocalPolish(recPolish);
-    localStorage.setItem('gsw-rec-polish', recPolish);
-  }, [recPolish]);
   useEffect(() => { try { localStorage.setItem('gsw-vignette', String(vignetteStrength)); } catch { /* private mode */ } }, [vignetteStrength]);
   useEffect(() => { try { localStorage.setItem('gsw-scanlines', String(scanlinesStrength)); } catch { /* private mode */ } }, [scanlinesStrength]);
-
-  // Re-select the mic device (Chrome's permission prompt defaults to a
-  // virtual/loopback device on some Macs — e.g. BlackHole — which records
-  // silence). Enumerated after mic permission is granted.
-  const switchMicDevice = useCallback(async (deviceId: string) => {
-    if (!deviceId) return;
-    try {
-      const s2 = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-      if (micStreamRef.current) micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = s2;
-      audioEngine.setMicStream(s2);
-      audioEngine.setMicEnabled(micOnRef.current);
-      setMicDeviceId(deviceId);
-      micRetriedRef.current = true;
-    } catch {
-      // device unavailable — keep the current stream
-    }
-  }, []);
-
-  // Reflect the mic permission state whenever the chooser opens
-  useEffect(() => {
-    if (recPhase === 'choosing') updateMicPermState();
-  }, [recPhase, updateMicPermState]);
-
-  // Live mic level while the chooser is open (diagnostic: is the mic
-  // actually receiving sound?). Also triggers the Chrome raw-mic retry:
-  // ~2.5s of silence with the toggle on means the OS granted the mic but
-  // Chrome isn't delivering audio (echo-cancellation bug class).
-  useEffect(() => {
-    if (recPhase !== 'choosing' || !micStreamRef.current) return;
-    let silentFor = 0;
-    const t = window.setInterval(() => {
-      const lvl = audioEngine.getMicLevel();
-      setMicLevel(lvl);
-      if (lvl < 0.005 && micOnRef.current && !micRetriedRef.current) {
-        silentFor += 250;
-        if (silentFor >= 2500) {
-          micRetriedRef.current = true;
-          retryMicRaw();
-        }
-      } else {
-        silentFor = 0;
-      }
-    }, 250);
-    return () => window.clearInterval(t);
-  }, [recPhase, retryMicRaw]);
-  useEffect(() => {
-    recordingActiveRef.current = isRecording;
-  }, [isRecording]);
 
   /* ─── Metronome state ───────────────────────────────────────────────── */
 
@@ -1304,28 +964,36 @@ export default function App() {
     ctx.shadowBlur = 0;
   };
 
-  /* ─── B2: recording compositor ──────────────────────────────────────── */
-
-  // Thin wrapper: the compositor body lives in src/hud/recording.ts
-  // (composeRecordingFrame — extracted 2026-08-09, pure move). All inputs
-  // are passed in; the rAF loop throttles the blur-fill redraw via
-  // recBlurAtRef (see animation loop).
-  const drawRecFrame = useCallback(() => {
-    const rec = recCanvasRef.current;
-    const src = skeletonCanvasRef.current; // recording-source canvas (stage or camera + soft skeleton)
-    if (!rec || !src || !src.width || !src.height) return;
-    composeRecordingFrame({
-      rec,
-      src,
-      mode: recModeRef.current,
-      ratio: recRatioRef.current,
-      synth: synthRef.current,
-      analyser: audioEngine.getAnalyser(),
-      vignetteStrength: vignetteStrengthRef.current / 100,
-      scanlinesStrength: scanlinesStrengthRef.current / 100,
-      blurBuf: blurBufRef,
-    });
-  }, []);
+  /* ─── Recording domain (chooser → countdown → record → result, mic,
+         compositor) — lives in src/recording/useRecording.ts (extracted
+         2026-08-09, pure move). App keeps the rAF loop and rendering; the
+         hook owns every recording state/ref and exposes the API below. ── */
+  const rec = useRecording({
+    isRunning,
+    keyboardMode,
+    videoRef,
+    canvasRef,
+    waveformCanvasRef,
+    synthRef,
+    vignetteStrengthRef,
+    scanlinesStrengthRef,
+    drawOverlayVideoRef,
+    onCloseMenus: () => { setMoreOpen(false); setShowSettings(false); },
+  });
+  const {
+    recPhase, setRecPhase, recMode, setRecMode, recRatio, setRecRatio, recCount, endCount,
+    savedRecModeExists, recBlob, recPreviewUrl, shareFailed,
+    isRecording, recordingTime, micOn, setMicOn, micLevel, micPermState,
+    micDevices, micDeviceId, recVoice, setRecVoice, recPolish, setRecPolish,
+    micStreamRef, recModeRef, skeletonCanvasRef, recDownloadedRef,
+    mediaRecorderRef, recordingAbortedRef, countdownTimerRef,
+    requestMic, switchMicDevice, downloadRec, shareRec, canFileShare,
+    onRecordButton, handleStartRecording, drawRecFrame,
+  } = rec;
+  // rAF-loop mirror of isRecording (avoid re-running the loop on change)
+  useEffect(() => {
+    recordingActiveRef.current = isRecording;
+  }, [isRecording]);
 
   /* ─── Animation loop ───────────────────────────────────────────────── */
 
@@ -1828,263 +1496,6 @@ export default function App() {
     }
   }, [isRunning, startKeyboardMode, stopCamera]);
 
-  /* ─── Recording (B2 flow: chooser → countdown → record → result) ───── */
-
-  const downloadRec = useCallback(() => {
-    if (!recBlob) return;
-    const url = URL.createObjectURL(recBlob.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = recBlob.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // Delay revocation to avoid Firefox download race
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
-  }, [recBlob]);
-
-  const shareRec = useCallback(async () => {
-    if (!recBlob) return;
-    // The File MUST carry an explicit MIME type — Android Chrome rejects
-    // typeless File objects during share() validation (canShare passes but
-    // share throws NotSupportedError).
-    const file = new File([recBlob.blob], recBlob.filename, {
-      type: recBlob.blob.type || 'application/octet-stream',
-    });
-    const brandText = 'I just played this with Gesture Synth Weld 🎹 — play music with hand gestures. gesturesynthweld.com';
-    try {
-      await navigator.share({
-        files: [file],
-        title: 'Gesture Synth Weld — hand gesture music synthesizer',
-        text: brandText,
-      });
-      setShareFailed(false);
-      trackShare('success', 'file');
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') {
-        trackShare('canceled', 'file');
-        return; // user cancelled
-      }
-      // Files share rejected (NotSupportedError etc.) — retry text-only so
-      // the brand message still reaches the share sheet.
-      try {
-        await navigator.share({
-          title: 'Gesture Synth Weld — hand gesture music synthesizer',
-          text: brandText,
-          url: 'https://gesturesynthweld.com',
-        });
-        setShareFailed(false);
-        trackShare('success', 'text');
-      } catch (e2) {
-        if (e2 instanceof DOMException && e2.name === 'AbortError') {
-          trackShare('canceled', 'text');
-          return;
-        }
-        setShareFailed(true);
-        trackShare('failed', 'text');
-      }
-    }
-  }, [recBlob]);
-
-  const canFileShare = !!recBlob &&
-    typeof navigator.share === 'function' &&
-    (typeof navigator.canShare !== 'function' ||
-      navigator.canShare({ files: [new File([recBlob.blob], recBlob.filename, { type: recBlob.blob.type || 'application/octet-stream' })] }));
-
-  // Start the actual recording (audio via Tone.Recorder; video/skeleton via
-  // MediaRecorder on the composited recording canvas + audio tap).
-  const beginRecording = useCallback(() => {
-    const mode = recModeRef.current;
-    // Sing-along: mix the mic into the recording tap while recording
-    audioEngine.setRecordingMix(recVoiceRef.current);
-    audioEngine.setMicEnabled(micOnRef.current && !!micStreamRef.current);
-
-    // Video/skeleton modes need the composited recording canvas as source.
-    // (Skeleton mode composites an offscreen canvas: dark bg + skeleton +
-    // waveform, no camera feed — created here so beginRecording sees a
-    // valid source before the draw loop starts painting it.)
-    let rec: HTMLCanvasElement | null = null;
-    if (mode !== 'audio') {
-      const live = canvasRef.current;
-      if (!live || !live.width) {
-        setRecPhase('idle');
-        return;
-      }
-      // The recording-source canvas (stage or camera + soft skeleton) is
-      // the source for BOTH video modes. It must be VIDEO-NATIVE size —
-      // the live canvas is display-size (16:9 screen), and a 9:16/1:1
-      // cover-crop from a 16:9 source captures only 32% of the video
-      // width (was 42% from the 4:3 source pre-refactor — recordings
-      // silently lost content, bug 2026-08-09). No camera (keyboard
-      // mode): fall back to a 4:3 640×480 source.
-      if (!skeletonCanvasRef.current) {
-        skeletonCanvasRef.current = document.createElement('canvas');
-      }
-      const srcVideo = videoRef.current;
-      skeletonCanvasRef.current.width = srcVideo?.videoWidth || 640;
-      skeletonCanvasRef.current.height = srcVideo?.videoHeight || 480;
-      const srcCanvas = skeletonCanvasRef.current;
-      if (!srcCanvas || !srcCanvas.width) {
-        setRecPhase('idle');
-        return;
-      }
-      const [rw, rh] = REC_RATIO_DIMS[recRatioRef.current];
-      rec = recCanvasRef.current;
-      if (!rec) {
-        rec = document.createElement('canvas');
-        recCanvasRef.current = rec;
-      }
-      rec.width = rw;
-      rec.height = rh;
-      recBlurAtRef.current = 0; // force the first blur-bg paint
-      // Paint the source once BEFORE the first composite — otherwise the
-      // video's first keyframe shows an empty (black) window.
-      {
-        const sc = skeletonCanvasRef.current;
-        if (sc) {
-          const sctx = sc.getContext('2d');
-          if (sctx) {
-            if (mode === 'skeleton') {
-              drawStageBackground(sctx, sc.width, sc.height);
-              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
-              const wf0 = waveformCanvasRef.current;
-              if (wf0) sctx.drawImage(wf0, 0, 0, sc.width, sc.height);
-            } else {
-              sctx.fillStyle = '#050510';
-              sctx.fillRect(0, 0, sc.width, sc.height);
-              sctx.save();
-              sctx.scale(-1, 1);
-              const v0 = videoRef.current;
-              if (v0) sctx.drawImage(v0, -sc.width, 0, sc.width, sc.height);
-              sctx.restore();
-              sctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
-              sctx.fillRect(0, 0, sc.width, sc.height);
-              drawOverlayVideoRef.current?.(sctx, sc.width, sc.height);
-            }
-          }
-        }
-      }
-      drawRecFrame(); // first paint before captureStream
-    }
-
-    // Unified recording stream: the audio tap (synth + mic when enabled),
-    // plus canvas video tracks for video/skeleton modes.
-    const stream = new MediaStream();
-    const aTrack = audioEngine.getRecordingAudioTrack();
-    if (aTrack) stream.addTrack(aTrack);
-    if (rec) {
-      try {
-        // 24fps instead of 30 — nearly invisible, ~20% less encoder load
-        rec.captureStream(24).getVideoTracks().forEach((t) => stream.addTrack(t));
-      } catch {
-        setRecPhase('idle');
-        return;
-      }
-    }
-
-    const { mime } = pickRecMimeType(mode === 'audio');
-    const recorder = new MediaRecorder(stream, {
-      mimeType: mime || undefined,
-      videoBitsPerSecond: 3_000_000,
-    });
-    const finalMime = recorder.mimeType || mime || (mode === 'audio' ? 'audio/webm' : 'video/webm');
-    const ext = finalMime.includes('mp4') || finalMime.includes('m4a')
-      ? (finalMime.includes('audio') ? 'm4a' : 'mp4')
-      : 'webm';
-      recChunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) recChunksRef.current.push(e.data);
-      };
-      recorder.onstop = async () => {
-        if (recordingAbortedRef.current) {
-          recordingAbortedRef.current = false;
-          recChunksRef.current = [];
-          return;
-        }
-        const raw = new Blob(recChunksRef.current, { type: finalMime.split(';')[0] || 'video/webm' });
-        recChunksRef.current = [];
-        // Brand the file: mp4/m4a get iTunes-style tags (title/artist/
-        // comment) so players show the site; webm keeps the branded name
-        let blob = raw;
-        if (ext === 'mp4' || ext === 'm4a') {
-          // Audio files also carry branded cover art so players show it
-          const cover = ext === 'm4a'
-            ? new Uint8Array(await (await makeCoverBlob()).arrayBuffer())
-            : undefined;
-          blob = await injectBrandTags(
-            raw,
-            'Gesture Synth Weld',
-            'gesturesynthweld.com',
-            'Created with Gesture Synth Weld — gesturesynthweld.com',
-            cover
-          );
-        }
-        setShareFailed(false);
-        setRecBlob({ blob, filename: makeRecordingFilename(ext) });
-        setRecPhase('result');
-      };
-      recorder.start(500);
-      mediaRecorderRef.current = recorder;
-
-    setIsRecording(true);
-    recordingStartRef.current = Date.now();
-    setRecPhase('recording');
-  }, [drawRecFrame]);
-
-  // 3-2-1 countdown before recording starts (time to get hands back up)
-  const startCountdown = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-    setRecPhase('countdown');
-    setRecCount(3);
-    let n = 3;
-    countdownTimerRef.current = window.setInterval(() => {
-      n -= 1;
-      if (n <= 0) {
-        if (countdownTimerRef.current) {
-          clearInterval(countdownTimerRef.current);
-          countdownTimerRef.current = null;
-        }
-        beginRecording();
-      } else {
-        setRecCount(n);
-      }
-    }, 1000);
-  }, [beginRecording]);
-
-  // Stop recording and produce the result panel (unified MediaRecorder
-  // path for audio, video and skeleton modes)
-  const finishRecording = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-    }
-    if (endCountTimerRef.current) {
-      clearInterval(endCountTimerRef.current);
-      endCountTimerRef.current = null;
-    }
-    setEndCount(null);
-    audioEngine.setMicEnabled(false);
-    const rec = mediaRecorderRef.current;
-    if (rec && rec.state === 'recording') {
-      rec.stop();
-    } else {
-      setRecPhase('idle');
-    }
-    if (recordingStartRef.current) {
-      const dur = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-      trackRecording('completed', dur, dur >= RECORD_SECONDS ? 'timeout' : 'user');
-    }
-    setIsRecording(false);
-    setRecordingTime(0);
-    recordingStartRef.current = null;
-  }, []);
-
-  const finishRecordingRef = useRef<() => void>(() => {});
-  finishRecordingRef.current = finishRecording;
-
   // Funnel: did the user READ the SEO content (Playbook)? Fires once, only
   // after the section stays ≥50% visible for 3s (a quick scroll-through does
   // not count) — decides whether below-fold ad placements are viable.
@@ -2123,101 +1534,6 @@ export default function App() {
     const t = setTimeout(() => trackPageEngaged(), 10000);
     return () => clearTimeout(t);
   }, []);
-
-  // Paywall signal: user previewed the result ≥5s without downloading.
-  const recDownloadedRef = useRef(false);
-  useEffect(() => {
-    if (recPhase === 'result' && recBlob) {
-      recDownloadedRef.current = false;
-      const t = setTimeout(() => {
-        if (!recDownloadedRef.current) trackRecordingViewed();
-      }, 5000);
-      return () => clearTimeout(t);
-    }
-  }, [recPhase, recBlob]);
-
-  // Record button: idle → open chooser; recording → stop;
-  // countdown/result phases ignore the button (use the panel buttons)
-  const onRecordButton = useCallback(() => {
-    if (!isRunning) return;
-    if (isRecording) {
-      finishRecording();
-      return;
-    }
-    // Recording = the player is about to perform — drop any open menus
-    // (⋯ panel and settings panel must not appear in the recording)
-    setMoreOpen(false);
-    setShowSettings(false);
-    // Platforms without canvas.captureStream (iOS Safari) can't record
-    // video — fall back to audio before showing the chooser.
-    if (!VIDEO_REC_SUPPORTED && recMode !== 'audio') {
-      setRecMode('audio');
-    }
-    // Keyboard mode records AUDIO ONLY: its video modes would capture a
-    // feed-less stage + waveform — no gestures, no face (user decision
-    // 2026-08-09: "a video of keys jumping — what's the point?").
-    if (keyboardMode && recMode !== 'audio') {
-      setRecMode('audio');
-    }
-    setRecPhase((p) => (p === 'choosing' ? 'idle' : p === 'idle' ? 'choosing' : p));
-    // Funnel entry: only when the chooser actually opens (idle → choosing).
-    if (recPhase === 'idle') trackRecordButtonClicked();
-  }, [isRunning, isRecording, finishRecording, recMode, recPhase]);
-
-  const handleStartRecording = useCallback(() => {
-    localStorage.setItem('gsw-rec-mode', recMode);
-    localStorage.setItem('gsw-rec-ratio', recRatio);
-    setRecPhase('idle'); // close the chooser
-    trackRecording('started');
-    startCountdown();
-  }, [recMode, recRatio, startCountdown]);
-
-  // Recording timer: countdown of remaining seconds + 3-2-1 wrap-up overlay
-  // (RECORD_SECONDS-3s in → show 3,2,1 at the center, DOM-only so it never enters the video)
-  useEffect(() => {
-    if (!isRecording) return;
-
-    const interval = setInterval(() => {
-      if (recordingStartRef.current) {
-        const elapsed = Math.floor((Date.now() - recordingStartRef.current) / 1000);
-        setRecordingTime(Math.max(0, RECORD_SECONDS - elapsed));
-      }
-    }, 100);
-
-    // Auto-stop at RECORD_SECONDS
-    const timeout = setTimeout(() => {
-      finishRecordingRef.current();
-    }, RECORD_SECONDS * 1000);
-
-    // Start the wrap-up countdown with 3s left
-    const endTimeout = setTimeout(() => {
-      setEndCount(3);
-      let n = 3;
-      endCountTimerRef.current = window.setInterval(() => {
-        n -= 1;
-        if (n <= 0) {
-          if (endCountTimerRef.current) {
-            clearInterval(endCountTimerRef.current);
-            endCountTimerRef.current = null;
-          }
-          setEndCount(null);
-        } else {
-          setEndCount(n);
-        }
-      }, 1000);
-    }, (RECORD_SECONDS - 3) * 1000);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-      clearTimeout(endTimeout);
-      if (endCountTimerRef.current) {
-        clearInterval(endCountTimerRef.current);
-        endCountTimerRef.current = null;
-      }
-      setEndCount(null);
-    };
-  }, [isRecording]);
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 

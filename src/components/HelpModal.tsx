@@ -32,16 +32,19 @@ export interface HelpModalProps {
   gradeNameFor: (chordIndex: number) => string;
   /** Replay the keyboard-mode first-run guide. */
   onReplayKeyboardGuide: () => void;
+  /** Called when Help marks the announcement as told — lets App
+   *  re-render (hide the landing card; localStorage alone can't). */
+  onWhatsNewDismissed: () => void;
 }
 
-export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGuide }: HelpModalProps) {
+export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGuide, onWhatsNewDismissed }: HelpModalProps) {
   const [demoStep, setDemoStep] = useState(0);
   useEffect(() => {
     const t = window.setInterval(() => setDemoStep((s) => (s + 1) % HELP_DEMO_STEPS.length), 1800);
     return () => window.clearInterval(t);
   }, []);
   // Opening Help shows the full announcement — counts as told.
-  useEffect(() => { markWhatsNewDismissed(); }, []);
+  useEffect(() => { markWhatsNewDismissed(); onWhatsNewDismissed(); }, [onWhatsNewDismissed]);
 
   const latest = WHATS_NEW[0];
 

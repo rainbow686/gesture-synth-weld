@@ -159,6 +159,10 @@ export default function App() {
 
   const [showMobilePanel, setShowMobilePanel] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  // What's-new dismissed state — mirrored in React so the landing card
+  // disappears the moment Help opens (localStorage alone can't trigger a
+  // re-render, bug 2026-08-09: the card stayed visible under Help).
+  const [whatsNewDismissedState, setWhatsNewDismissedState] = useState(() => whatsNewDismissed());
 
   // ─── Onboarding (first visit) ─────────────────────────────────────────
   // No popups on first visit — a newcomer's intent is to try, not to
@@ -1651,6 +1655,7 @@ export default function App() {
             isMobile={isMobile}
             gradeNameFor={gradeNameFor}
             onReplayKeyboardGuide={showKbGuidePanel}
+            onWhatsNewDismissed={() => setWhatsNewDismissedState(true)}
           />
         )}
 
@@ -1797,11 +1802,11 @@ export default function App() {
                     the player dismisses it (✕ / click = enter the feature /
                     open Help). The player decides when they've seen it
                     (user decision 2026-08-09: once-only hints get missed). */}
-                {!keyboardMode && whatsNewActive() && !whatsNewDismissed() && (
+                {!keyboardMode && whatsNewActive() && !whatsNewDismissedState && (
                   <div className="whatsnew-card">
                     <button
                       className="whatsnew-close"
-                      onClick={() => markWhatsNewDismissed()}
+                      onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); }}
                       aria-label="Dismiss what's new"
                       title="Dismiss"
                     >
@@ -1811,7 +1816,7 @@ export default function App() {
                         <line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
                     </button>
-                    <button className="whatsnew-body" onClick={() => { markWhatsNewDismissed(); startKeyboardMode(); }}>
+                    <button className="whatsnew-body" onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); startKeyboardMode(); }}>
                       <span className="whatsnew-badge">NEW</span>
                       <span>
                         <strong>Keyboard mode</strong> — no camera? Play with your keyboard.

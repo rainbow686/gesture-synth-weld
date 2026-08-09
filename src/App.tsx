@@ -24,13 +24,7 @@ import { drawWaveform } from './hud/waveform';
 import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
-import {
-  whatsNewActive,
-  whatsNewClicked,
-  markWhatsNewClicked,
-  whatsNewShownThisSession,
-  markWhatsNewShownThisSession,
-} from './whatsNew';
+import { whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -281,14 +275,6 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
-  // New-feature hint (whatsNew.ts): record once per session that it was
-  // shown — the hint then stays visible for the rest of the session but
-  // returns on the next visit while the announcement is active.
-  useEffect(() => {
-    if (!keyboardMode && whatsNewActive() && !whatsNewClicked() && !whatsNewShownThisSession()) {
-      markWhatsNewShownThisSession();
-    }
-  }, [keyboardMode]);
   // First-run keyboard guide overlay: auto-shows once (localStorage flag),
   // dismisses on any key or after a few seconds; replayable from Help.
   const [showKbGuide, setShowKbGuide] = useState(false);
@@ -1806,15 +1792,32 @@ export default function App() {
                     ? 'Hold 1-7 to play · [ ] major-minor · 8/9/0/- style · Shift octave · arrows volume/filter · Space stop'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
-                {/* New-feature announcement — landing hint while the
-                    announcement is active (14-day window) and the player
-                    hasn't clicked it; at most once per session (a missed
-                    hint returns on the next visit; see whatsNew.ts). */}
-                {!keyboardMode && whatsNewActive() && !whatsNewClicked() && !whatsNewShownThisSession() && (
-                  <button className="whatsnew-line" onClick={() => { markWhatsNewClicked(); startKeyboardMode(); }}>
-                    <span className="whatsnew-badge">NEW</span>
-                    Keyboard mode — no camera? Play with your keyboard →
-                  </button>
+                {/* New-feature announcement card — shows on EVERY visit
+                    while the announcement is active (14-day window) until
+                    the player dismisses it (✕ / click = enter the feature /
+                    open Help). The player decides when they've seen it
+                    (user decision 2026-08-09: once-only hints get missed). */}
+                {!keyboardMode && whatsNewActive() && !whatsNewDismissed() && (
+                  <div className="whatsnew-card">
+                    <button
+                      className="whatsnew-close"
+                      onClick={() => markWhatsNewDismissed()}
+                      aria-label="Dismiss what's new"
+                      title="Dismiss"
+                    >
+                      {/* Feather X (MIT) */}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                    <button className="whatsnew-body" onClick={() => { markWhatsNewDismissed(); startKeyboardMode(); }}>
+                      <span className="whatsnew-badge">NEW</span>
+                      <span>
+                        <strong>Keyboard mode</strong> — no camera? Play with your keyboard.
+                      </span>
+                    </button>
+                  </div>
                 )}
               </>
             )}

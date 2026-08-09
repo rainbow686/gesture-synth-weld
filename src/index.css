@@ -233,30 +233,64 @@ body {
   max-width: 360px;
 }
 
-/* New-feature announcement line under the main landing button — shown
-   until the player has seen the latest version (src/whatsNew.ts). */
-.whatsnew-line {
+/* New-feature announcement CARD under the main landing button — shows on
+   every visit while the announcement is active until the player dismisses
+   it (✕ or click-through; src/whatsNew.ts). Responsive: the card wraps
+   to the viewport width on small screens. */
+.whatsnew-card {
+  position: relative;
   margin-top: 14px;
-  padding: 6px 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  max-width: min(380px, 88vw);
   background: rgba(255, 110, 199, 0.08);
-  border: 1px solid rgba(255, 110, 199, 0.25);
-  border-radius: 999px;
-  color: var(--neon-cyan);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  border: 1px solid rgba(255, 110, 199, 0.3);
+  border-radius: 14px;
+  box-shadow: 0 0 18px rgba(255, 110, 199, 0.12);
+  transition: all 0.15s ease;
+}
+.whatsnew-card:hover {
+  background: rgba(255, 110, 199, 0.12);
+  border-color: rgba(255, 110, 199, 0.5);
+}
+.whatsnew-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.whatsnew-line:hover {
-  background: rgba(255, 110, 199, 0.16);
-  border-color: rgba(255, 110, 199, 0.5);
-  box-shadow: 0 0 14px rgba(255, 110, 199, 0.25);
+.whatsnew-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+.whatsnew-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 34px 12px 14px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 14px;
+  color: var(--neon-cyan);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.whatsnew-body:hover {
+  color: #7dffe6;
 }
 .whatsnew-badge {
+  flex-shrink: 0;
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.1em;

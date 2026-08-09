@@ -3,16 +3,17 @@
  *
  * How it works:
  *  - Add the newest entry at the TOP of WHATS_NEW (with releasedAt).
- *  - Landing page: shows a "NEW" hint line under the main button while the
+ *  - Landing page: shows a "NEW" card under the main button while the
  *    announcement is ACTIVE (within the ANNOUNCE_DAYS window) and the
- *    player hasn't CLICKED it — at most ONCE per session (sessionStorage),
- *    so a missed hint reappears on the next visit but a refresh doesn't
- *    nag. Clicking it (entering the feature) marks it seen forever.
+ *    player hasn't dismissed it. It reappears on EVERY visit until
+ *    dismissed — the player decides when they've seen it (a one-time or
+ *    once-per-session hint proved too easy to miss; user decision
+ *    2026-08-09).
+ *  - Dismissal = clicking the card (entering the feature), its ✕ button,
+ *    or opening Help (which shows the full announcement) — all mark it
+ *    told forever (localStorage gsw-whatsnew-seen).
+ *  - After the announce window the card disappears on its own.
  *  - Help modal: shows "New in this version" permanently (changelog role).
- *
- * Rationale (user decision 2026-08-09): a single one-time hint is easy to
- * miss; an eternal hint is noise on a conversion page. The announce window
- * + once-per-session rule reaches players across visits without nagging.
  */
 
 export interface WhatsNewEntry {
@@ -49,22 +50,12 @@ export function whatsNewActive(): boolean {
   return Date.now() - released <= ANNOUNCE_DAYS * msPerDay;
 }
 
-/** The player CLICKED the hint (entered the feature) — seen forever. */
-export function whatsNewClicked(): boolean {
+/** The player dismissed/told — never show the card again. */
+export function whatsNewDismissed(): boolean {
   try { return localStorage.getItem('gsw-whatsnew-seen') === LATEST_VERSION; } catch { return true; }
 }
 
-export function markWhatsNewClicked(): void {
+export function markWhatsNewDismissed(): void {
   if (!LATEST_VERSION) return;
   try { localStorage.setItem('gsw-whatsnew-seen', LATEST_VERSION); } catch { /* private mode */ }
-}
-
-/** Once per session — a refresh must not re-show the hint. */
-export function whatsNewShownThisSession(): boolean {
-  try { return sessionStorage.getItem('gsw-whatsnew-session') === LATEST_VERSION; } catch { return true; }
-}
-
-export function markWhatsNewShownThisSession(): void {
-  if (!LATEST_VERSION) return;
-  try { sessionStorage.setItem('gsw-whatsnew-session', LATEST_VERSION); } catch { /* private mode */ }
 }

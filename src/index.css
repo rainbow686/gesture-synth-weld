@@ -233,10 +233,17 @@ body {
   max-width: 360px;
 }
 
-/* New-feature announcement CARD under the main landing button — shows on
-   every visit while the announcement is active until the player dismisses
-   it (✕ or click-through; src/whatsNew.ts). Responsive: the card wraps
-   to the viewport width on small screens. */
+/* New-feature announcement card. Two touchpoints (src/whatsNew.ts):
+   - LANDING: below the main button, TIME-based — shows while the
+     announcement is active (14-day window), then stops on its own; no ✕,
+     no dismissal (the player never has to close it, and it can't be
+     "seen once and lost"). Click = enter keyboard mode.
+   - PLAYING SCENE (--scene variant): floats below the top toolbar at the
+     same top-left corner Help uses — Help (z 100) covers it while open,
+     so the two never overlap at any resolution; DISMISSAL-based — shows
+     every session until the player closes it with the ✕. Desktop only
+     height-safe: toolbar is one nowrap row (~34px) at top 12px, so
+     top 64px clears it at every viewport width. */
 .whatsnew-card {
   position: relative;
   margin-top: 14px;
@@ -298,6 +305,25 @@ body {
   border: 1px solid rgba(255, 110, 199, 0.45);
   border-radius: 4px;
   padding: 1px 5px;
+}
+
+/* Playing-scene variant: below the toolbar (top 64px clears the one-row
+   ~34px toolbar at every width), at Help's left corner, UNDER Help's
+   z-index — Help open = card fully covered (Help shows the full
+   announcement anyway); Help closed = card alone. Frosted dark so it
+   stays readable over the live camera feed. Same width as Help
+   (min(360px, 100vw - 24px)) so the cover is clean on every resolution,
+   mobile included. */
+.whatsnew-card--scene {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  z-index: 90; /* under HelpModal (100), over canvas HUD */
+  width: min(360px, calc(100vw - 24px));
+  margin-top: 0;
+  background: rgba(8, 8, 20, 0.85);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
 }
 
 .camera-error-message {

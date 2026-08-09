@@ -41,7 +41,10 @@ All Engine methods are idempotent and use smooth transitions:
 - Recording in keyboard mode: **audio only** (user decision 2026-08-09 — the video modes would capture a feed-less stage + waveform, no gestures or face: "a video of keys jumping — what's the point?"); the chooser shows just the Audio only option and the aspect-ratio row is hidden
 
 ### What's New (feature announcements, 2026-08-09)
-- **Mechanism** (`src/whatsNew.ts`): newest entry at top of WHATS_NEW (version/releasedAt/title/body). Landing page shows a NEW card under the main button while the entry is ACTIVE (14-day window) and not dismissed — **on every visit until the player closes it with the ✕** (user decisions 2026-08-09: once-only hints get missed — sessionStorage survived tab refreshes and showed it exactly once; then "reading it counts as told" made it vanish forever after one Help open, so **only the ✕ dismisses** — clicking the card (entering the feature) or opening Help (changelog block) leave it active; localStorage gsw-whatsnew-dismissed, renamed from gsw-whatsnew-seen to invalidate old markers). Help modal shows "New in this version" permanently (changelog role). **Dismissed state is mirrored in React** (`whatsNewDismissedState` in App — localStorage alone can't trigger a re-render; card copy is one line: "Keyboard mode — no camera needed")
+- **Mechanism** (`src/whatsNew.ts`): newest entry at top of WHATS_NEW (version/releasedAt/title/body). **Two touchpoints, two mechanisms** (user decision 2026-08-09 — each maps to a different moment in the journey):
+  - **LANDING hint** (below the main button): TIME-based conversion assist at the camera decision point — shows while ACTIVE (14-day window), then stops on its own. No ✕, no dismissal (can't be "seen once and lost"; the player never has to close it). Click = enter keyboard mode
+  - **PLAYING-scene card** (below the toolbar, camera modes only — a keyboard-mode player IS the new feature): DISMISSAL-based — shows every session while ACTIVE until the player closes it with the ✕ (localStorage gsw-whatsnew-dismissed). Sits at Help's corner UNDER Help's z-index — Help open covers the card (and shows the full announcement anyway), so they never stack at any resolution (toolbar is one nowrap row at top 12px; card at top 64px clears it everywhere, mobile included)
+  - Help modal shows "New in this version" permanently (changelog role) — reading it dismisses nothing. **Dismissed state mirrored in React** (`whatsNewDismissedState` in App — localStorage alone can't trigger a re-render). Card copy is one line: "Keyboard mode — no camera needed"
 - Every future feature announcement goes through the same file — nothing per-feature
 
 ### Instruments
@@ -96,7 +99,7 @@ src/
 ├── components/SettingsPanel.tsx  # Settings panel (extracted 2026-08-09: hand modes/arp/bass/atmosphere/keyboard toggle; presentation-only, App owns side effects)
 ├── components/HelpModal.tsx  # Quick Guide modal (extracted 2026-08-09: owns demo animation state; gradeNameFor passed from App)
 ├── components/HandArt.tsx  # renderHandArt — licensed hand-gesture SVGs (shared by Help modal + loading screen)
-├── whatsNew.ts         # New-feature announcements (2026-08-09): newest entry at top; landing page shows a NEW card until ✕ (gsw-whatsnew-dismissed), Help modal shows "New in this version"
+├── whatsNew.ts         # New-feature announcements (2026-08-09): newest entry at top; landing hint = time-based (14-day window), playing-scene card = ✕-dismissed (gsw-whatsnew-dismissed), Help shows "New in this version"
 ├── hud/draw.ts         # Canvas drawing helpers (extracted 2026-08-09: skeleton/chord HUD/stage/brand; drawHandSkeleton takes a scale param — live canvas is display-size × dpr, callers pass w/640 to keep the pre-refactor look)
 ├── hud/recording.ts    # Recording compositor (extracted 2026-08-09 from drawRecFrame: blur-fill bg + cover/fit content + chord HUD + waveform + brand/URL + atmosphere; pure function composeRecordingFrame)
 ├── hud/waveform.ts     # Live three-channel waveform (extracted 2026-08-09: degree color lerp / note-count floor-grid echoes / tilt brightness; pure function drawWaveform)

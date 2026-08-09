@@ -1647,6 +1647,38 @@ export default function App() {
           </div>
         )}
 
+        {/* ─── What's-new card in the PLAYING scene — camera modes only
+                (keyboard-mode players ARE the new feature; camera-less
+                users get the landing hint instead). DISMISSAL-based:
+                shows every session while active (14-day window) until
+                the player closes it with ✕ (gsw-whatsnew-dismissed).
+                Sits below the toolbar at Help's corner UNDER Help's
+                z-index, so Help open covers it (and shows the full
+                announcement anyway) — they never stack. Click = switch
+                to keyboard mode. ──────────────────────────────────────── */}
+        {isRunning && !keyboardMode && whatsNewActive() && !whatsNewDismissedState && (
+          <div className="whatsnew-card whatsnew-card--scene">
+            <button
+              className="whatsnew-close"
+              onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); }}
+              aria-label="Dismiss what's new"
+              title="Dismiss"
+            >
+              {/* Feather X (MIT) */}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <button className="whatsnew-body" onClick={startKeyboardMode}>
+              <span className="whatsnew-badge">NEW</span>
+              <span>
+                <strong>Keyboard mode</strong> — no camera needed
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* ─── Help Modal (component: demo animation, mapping tables,
                 keyboard-mode section — owns its demo step state) ──────── */}
         {showHelp && (
@@ -1796,25 +1828,14 @@ export default function App() {
                     ? 'Hold 1-7 to play · [ ] major-minor · 8/9/0/- style · Shift octave · arrows volume/filter · Space stop'
                     : 'Allow camera access to start playing with hand gestures'}
                 </p>
-                {/* New-feature announcement card — shows on EVERY visit
-                    while the announcement is active (14-day window) until
-                    the player closes it with the ✕ (reading the full
-                    announcement in Help does NOT dismiss it; user decision
-                    2026-08-09: the player decides when they've seen it). */}
-                {!keyboardMode && whatsNewActive() && !whatsNewDismissedState && (
+                {/* LANDING hint — TIME-based conversion assist: shows
+                    while the announcement is active (14-day window), then
+                    stops on its own. No ✕, no dismissal — it can't be
+                    "seen once and lost", and the player never has to
+                    close it. Click = enter keyboard mode. The PLAYING
+                    card below is the dismissal-based announcement. */}
+                {!keyboardMode && whatsNewActive() && (
                   <div className="whatsnew-card">
-                    <button
-                      className="whatsnew-close"
-                      onClick={() => { markWhatsNewDismissed(); setWhatsNewDismissedState(true); }}
-                      aria-label="Dismiss what's new"
-                      title="Dismiss"
-                    >
-                      {/* Feather X (MIT) */}
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
                     <button className="whatsnew-body" onClick={startKeyboardMode}>
                       <span className="whatsnew-badge">NEW</span>
                       <span>

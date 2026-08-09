@@ -1,21 +1,27 @@
 /**
  * What's-new mechanism (2026-08-09): one place to announce new features.
  *
- * How it works:
- *  - Add the newest entry at the TOP of WHATS_NEW (with releasedAt).
- *  - Landing page: shows a "NEW" card under the main button while the
- *    announcement is ACTIVE (within the ANNOUNCE_DAYS window) and the
- *    player hasn't dismissed it. It reappears on EVERY visit until the
- *    player closes it themselves — reading the full announcement in Help
- *    does NOT dismiss it (user decision 2026-08-09: "view once" hints get
- *    missed; the Help changelog block is permanent anyway).
- *  - Dismissal = ONLY the card's ✕ button. Clicking the card (entering
- *    the feature) and opening Help leave it active — it comes back on
- *    the next visit until ✕ (localStorage gsw-whatsnew-dismissed).
- *    (Key renamed from gsw-whatsnew-seen on 2026-08-09 to invalidate
- *    markers written under the old "Help dismisses" rule.)
- *  - After the announce window the card disappears on its own.
- *  - Help modal: shows "New in this version" permanently (changelog role).
+ * Two touchpoints, two mechanisms — each maps to a different moment in
+ * the user's journey (user decision 2026-08-09):
+ *
+ *  - LANDING hint (below the main button): TIME-based conversion assist
+ *    at the "should I enable the camera?" decision point. Shows while
+ *    the announcement is ACTIVE (ANNOUNCE_DAYS window), then stops on
+ *    its own. No ✕, no dismissal — it can't be "seen once and lost"
+ *    and the player never has to close it. Click = enter the feature.
+ *
+ *  - PLAYING-scene card (below the toolbar, camera modes only — a
+ *    keyboard-mode player IS the new feature): DISMISSAL-based
+ *    announcement at the moment the player is in the experience. Shows
+ *    every session while active until the player closes it with the ✕
+ *    (localStorage gsw-whatsnew-dismissed). Sits at Help's corner UNDER
+ *    Help's z-index, so the two never stack at any resolution: Help open
+ *    covers the card (and shows the full announcement anyway).
+ *
+ *  - Help modal: shows "New in this version" permanently (changelog
+ *    role) — reading it dismisses nothing.
+ *
+ *  - After the announce window both touchpoints go quiet on their own.
  */
 
 export interface WhatsNewEntry {

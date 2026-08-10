@@ -91,8 +91,8 @@ export interface SynthState {
   rightHandMode: RightHandMode;
   /** Locked chord style (for fixedChordStyle mode) */
   lockedChordStyle?: import('./chords').ChordStyle;
-  /** Locked mode for scaleLocked left hand mode */
-  lockedMode?: 'major' | 'minor';
+  /** Locked mode for scaleLocked left hand mode ('diatonicMajor' = natural diatonic quality per degree) */
+  lockedMode?: 'major' | 'minor' | 'diatonicMajor';
   /** Arpeggiator enabled */
   arpeggiate: boolean;
   /** Arpeggiator speed */

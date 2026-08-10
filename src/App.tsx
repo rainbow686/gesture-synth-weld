@@ -1657,41 +1657,43 @@ export default function App() {
                 toggle are the other paths; the card expires after the
                 announce window, this button doesn't — user decision
                 2026-08-09: keyboard-mode players must always be able to
-                find their way back to the camera). Always a labeled
-                capsule, both states — one control, two shapes would read
-                as two different things (user decision 2026-08-09): in
-                keyboard mode "📷 Camera", in camera mode "⌨ Keyboard".
-                Text labels avoid any icon confusion with the stop-camera
-                button; the pulse draws the eye while the What's-new card
-                teaches the switch. */}
+                find their way back to the camera).
+                (2026-08-10, reversing the 2026-08-09 "labeled capsule"
+                decision — user feedback: a single button whose label
+                names the mode you'd switch TO read as confusing, "Camera"
+                showing while you're actively IN keyboard mode. Then
+                reworked again same day — user feedback: two independently
+                clickable icon segments read as two buttons, not one
+                control.) Now a single classic switch: icon · track+dot ·
+                icon — the dot slides left (camera) or right (keyboard).
+                One click anywhere always toggles. */}
             {!isMobile && (
             <button
-              className={`icon-btn mobile-collapse mode-switch-btn${pulseModeSwitch ? ' help-pulse' : ''}`}
+              className={`mode-switch-toggle mobile-collapse${pulseModeSwitch ? ' help-pulse' : ''}`}
               onClick={() => handleKeyboardToggle(!keyboardMode, 'toolbar')}
+              role="switch"
+              aria-checked={keyboardMode}
               data-tip={keyboardMode
                 ? 'Switch to camera mode — play with hand gestures'
                 : 'Switch to keyboard mode — no camera needed'}
             >
-              {keyboardMode ? (
-                <>
-                  {/* Camera pictogram (Apple-style) — no magenta slash
-                      (that slash marks STOP on the button next to it) */}
-                  <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
-                    <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
-                    <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                    <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-                  </svg>
-                  <span className="mode-switch-label">Camera</span>
-                </>
-              ) : (
-                <>
-                  {/* Keyboard pictogram — same glyph as the landing button */}
-                  <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
-                  </svg>
-                  <span className="mode-switch-label">Keyboard</span>
-                </>
-              )}
+              {/* Camera pictogram (Apple-style) — no magenta slash (that
+                  slash marks STOP on the button next to it) */}
+              <svg className={`mode-switch-icon${!keyboardMode ? ' active' : ''}`} width="16" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+                <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.9" />
+              </svg>
+              <span className="mode-switch-track">
+                <span className={`mode-switch-dot${keyboardMode ? ' right' : ''}`} />
+              </span>
+              {/* Keyboard pictogram — stroke-based to match the camera icon's
+                  style (the dot-grid glyph used on the landing button
+                  turns into an unreadable smudge at this toolbar size). */}
+              <svg className={`mode-switch-icon${keyboardMode ? ' active' : ''}`} width="16" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14.5h12" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+              </svg>
             </button>
             )}
             {/* Stop is CAMERA-mode only (user decision 2026-08-09): in

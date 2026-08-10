@@ -393,38 +393,51 @@ body {
   color: #b0b0d0;
 }
 
-/* Camera ↔ keyboard mode switch (toolbar). ALWAYS a labeled capsule in
-   both states — one control must have one shape (user decision
-   2026-08-09: circle in one mode + capsule in the other read as two
-   different controls). FIXED min-width so 'Keyboard' and 'Camera' render
-   the SAME width — the centered toolbar must not shift when the label
-   changes (user decision 2026-08-09). Full specificity like rec-capsule
-   (the base .frost-toolbar button.icon-btn is a 32×32 circle — without
-   the override the label overflows the frame, bug 2026-08-09). Text
-   labels also avoid any icon confusion with the stop-camera button. */
-.frost-toolbar button.icon-btn.mode-switch-btn {
-  width: auto;
-  min-width: 96px;
-  height: 27px;
-  border-radius: 14px;
-  padding: 0 10px;
+/* Camera ↔ keyboard mode switch (toolbar). Classic switch: icon · track+dot
+   · icon (2026-08-10 — two independently-clickable icon segments read as
+   two buttons and the box was too cramped to hold both comfortably; a
+   single button with a sliding dot is one control, one hit target, at
+   normal toolbar-icon size). The dot slides left (camera) / right
+   (keyboard); either icon dims when its mode isn't active. Fixed total
+   width so the centered toolbar never shifts between states. */
+.mode-switch-toggle {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 5px;
-  color: var(--neon-cyan);
-  border-color: rgba(0, 255, 204, 0.3);
-  background: rgba(0, 255, 204, 0.08);
+  width: auto;
+  height: 27px;
+  padding: 0 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 255, 204, 0.3);
+  background: rgba(0, 255, 204, 0.05);
+  cursor: pointer;
 }
-.frost-toolbar button.icon-btn.mode-switch-btn:hover {
-  color: #7dffe6;
+.mode-switch-icon {
+  color: var(--text-muted);
+  transition: color 0.15s;
+  flex-shrink: 0;
 }
-.mode-switch-btn .mode-switch-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
+.mode-switch-icon.active { color: var(--neon-cyan); }
+.mode-switch-track {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
 }
+.mode-switch-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 4px rgba(0, 255, 204, 0.6);
+  transition: transform 0.18s ease;
+}
+.mode-switch-dot.right { transform: translateX(12px); }
 
 .camera-error-message {
   background: rgba(255, 50, 50, 0.1);
@@ -1609,7 +1622,7 @@ body {
   0%, 100% { box-shadow: 0 0 4px rgba(0, 255, 204, 0.35); border-color: rgba(0, 255, 204, 0.5); }
   50%      { box-shadow: 0 0 16px rgba(0, 255, 204, 0.75); border-color: rgba(0, 255, 204, 0.9); }
 }
-.icon-btn.help-pulse { animation: help-pulse 1.6s ease-in-out infinite; }
+.icon-btn.help-pulse, .mode-switch-toggle.help-pulse { animation: help-pulse 1.6s ease-in-out infinite; }
 
 .hands-ready-badge {
   position: fixed;

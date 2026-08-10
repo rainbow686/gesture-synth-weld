@@ -12,17 +12,23 @@
  *   Left hand (harmony) — HOLD to play, release to stop (keyboard
  *   instrument semantics; only the degree key is ever held, so multi-key
  *   state is always knowable):
- *     1-5      → scale degree I–V        (fingerCount 1–5)
- *     6        → VI                      (index+pinky)
- *     7        → VII                     (index+pinky+thumb)
- *     [ / ]    → wrist tilt minor/major (point-toggle, like the camera
- *                wrist; '[' = minor, ']' = major)
+ *     degree1-5 → scale degree I–V        (fingerCount 1–5)
+ *     degree6   → VI                      (index+pinky)
+ *     degree7   → VII                     (index+pinky+thumb)
+ *     minor/major → wrist tilt (point-toggle, like the camera wrist)
  *   Right hand (expression):
- *     ↑ / ↓    → volume (hold to sweep; maps to height positionY)
- *     ← / →    → filter sweep (hold to sweep; maps to tiltAngle)
- *     8/9/0/-  → chord style 1–4 (triad / 1st inv / 7th / 9th)
- *     Shift    → thumb (octave down, HUD 8vb badge)
- *   Space      → stop-all (kept in App; category convention)
+ *     volumeUp/Down    → volume (hold to sweep; maps to height positionY)
+ *     filterLeft/Right → filter sweep (hold to sweep; maps to tiltAngle)
+ *     chordStyle1-4    → chord style (triad / 1st inv / 7th / 9th)
+ *     octaveDown       → thumb (octave down, HUD 8vb badge)
+ *   Space (stop-all) is kept in App by category convention, outside the
+ *   customizable keymap.
+ *
+ * (2026-08-10) Which physical key drives each action is player-customizable
+ * — see ./keymap.ts (DEFAULT_KEYMAP, ACTION_META, load/saveKeymap). This
+ * file only knows about actions, never literal `e.key` values, so a rebind
+ * (e.g. minor/major off '[' / ']', hard to reach on German QWERTZ) needs no
+ * change here — just a call to setKeymap().
  *
  * Releasing the held degree key reports no left hand — the consume
  * pipeline stops all sound (same path as the left fist / hand loss).
@@ -34,31 +40,37 @@
 
 import type { HandData } from '../types';
 import type { HandFrame, HandInputSource, InputSource } from './types';
+import { DEFAULT_KEYMAP, type KbAction } from './keymap';
+
+const DEGREE_ACTIONS: KbAction[] = ['degree1', 'degree2', 'degree3', 'degree4', 'degree5', 'degree6', 'degree7'];
+const CHORD_STYLE_INDEX: Partial<Record<KbAction, number>> = {
+  chordStyle1: 1, chordStyle2: 2, chordStyle3: 3, chordStyle4: 4,
+};
 
 interface KbState {
   left: {
-    /** The degree key currently HELD ('1'-'7'), or null when released. */
-    key: string | null;
+    /** The degree action currently HELD, or null when released. */
+    action: KbAction | null;
     fingerCount: number; // 1-5 → I-V
-    vi: boolean; // 6 → VI
-    vii: boolean; // 7 → VII
-    tilt: number; // -1 minor / +1 major ('[' / ']')
+    vi: boolean; // degree6 → VI
+    vii: boolean; // degree7 → VII
+    tilt: number; // -1 minor / +1 major
   };
   right: {
     styleFinger: number; // 1-4 → triad/1stInv/7th/9th
-    thumb: boolean; // Shift → octave down
+    thumb: boolean; // octaveDown → octave down
     positionY: number; // height → volume (0 top = loud, 1 bottom = quiet)
     tiltAngle: number; // -1..1 → filter sweep
   };
-  /** Arrow keys held this frame — applied as a continuous sweep in getFrame. */
+  /** Volume/filter actions held this frame — applied as a continuous sweep in getFrame. */
   adjust: {
-    volume: -1 | 0 | 1; // ↑ = -1 (louder), ↓ = +1 (quieter)
-    tilt: -1 | 0 | 1; // ← = -1, → = +1
+    volume: -1 | 0 | 1; // volumeUp = -1 (louder), volumeDown = +1 (quieter)
+    tilt: -1 | 0 | 1; // filterLeft = -1, filterRight = +1
   };
 }
 
 const DEFAULT_STATE: KbState = {
-  left: { key: null, fingerCount: 1, vi: false, vii: false, tilt: 1 },
+  left: { action: null, fingerCount: 1, vi: false, vii: false, tilt: 1 },
   right: { styleFinger: 1, thumb: false, positionY: 0.5, tiltAngle: 0 },
   adjust: { volume: 0, tilt: 0 },
 };
@@ -66,57 +78,64 @@ const DEFAULT_STATE: KbState = {
 /** Sweep speed per frame (rAF ~60fps → full range in ~1s). */
 const SWEEP_STEP = 0.02;
 
+function invert(map: Record<KbAction, string>): Map<string, KbAction> {
+  return new Map(Object.entries(map).map(([action, key]) => [key, action as KbAction]));
+}
+
 export class KeyboardSource implements HandInputSource {
   readonly kind: InputSource = 'keyboard';
 
   private state: KbState = structuredClone(DEFAULT_STATE);
+  private keyToAction: Map<string, KbAction> = invert(DEFAULT_KEYMAP);
+
+  /** Swap the active key→action bindings (player customization). */
+  setKeymap(map: Record<KbAction, string>): void {
+    this.keyToAction = invert(map);
+  }
 
   /** Key handler — call from a window keydown/keyup listener. */
   handleKey(e: KeyboardEvent, down: boolean): void {
-    const key = e.key;
-    // Only react to our mapped keys; keep default browser behavior otherwise.
-    switch (key) {
-      case '1': case '2': case '3': case '4': case '5':
-        if (down) {
-          this.state.left = { ...this.state.left, key, fingerCount: Number(key), vi: false, vii: false };
-        } else if (key === this.state.left.key) {
-          // Release the held degree → no left hand → silence.
-          this.state.left = { ...this.state.left, key: null };
-        }
+    const action = this.keyToAction.get(e.key);
+    if (!action) return; // Not a mapped key — keep default browser behavior.
+
+    if (DEGREE_ACTIONS.includes(action)) {
+      if (down) {
+        const vi = action === 'degree6';
+        const vii = action === 'degree7';
+        const fingerCount = vi || vii ? this.state.left.fingerCount : DEGREE_ACTIONS.indexOf(action) + 1;
+        this.state.left = { ...this.state.left, action, fingerCount, vi, vii };
+      } else if (action === this.state.left.action) {
+        // Release the held degree → no left hand → silence.
+        this.state.left = { ...this.state.left, action: null };
+      }
+      return;
+    }
+
+    switch (action) {
+      case 'minor':
+        if (down) this.state.left = { ...this.state.left, tilt: -1 };
         break;
-      case '6':
-        if (down) this.state.left = { ...this.state.left, key, vi: true, vii: false };
-        else if (key === this.state.left.key) this.state.left = { ...this.state.left, key: null };
+      case 'major':
+        if (down) this.state.left = { ...this.state.left, tilt: 1 };
         break;
-      case '7':
-        if (down) this.state.left = { ...this.state.left, key, vii: true, vi: false };
-        else if (key === this.state.left.key) this.state.left = { ...this.state.left, key: null };
-        break;
-      case '[':
-        if (down) this.state.left = { ...this.state.left, tilt: -1 }; // minor
-        break;
-      case ']':
-        if (down) this.state.left = { ...this.state.left, tilt: 1 }; // major
-        break;
-      case 'Shift':
+      case 'octaveDown':
         if (down) this.state.right = { ...this.state.right, thumb: !this.state.right.thumb };
         break;
-      case '8': case '9': case '0': case '-':
+      case 'chordStyle1': case 'chordStyle2': case 'chordStyle3': case 'chordStyle4':
         if (down) {
-          const styleFinger = key === '8' ? 1 : key === '9' ? 2 : key === '0' ? 3 : 4;
-          this.state.right = { ...this.state.right, styleFinger };
+          this.state.right = { ...this.state.right, styleFinger: CHORD_STYLE_INDEX[action]! };
         }
         break;
-      case 'ArrowUp':
+      case 'volumeUp':
         this.state.adjust = { ...this.state.adjust, volume: down ? -1 : 0 };
         break;
-      case 'ArrowDown':
+      case 'volumeDown':
         this.state.adjust = { ...this.state.adjust, volume: down ? 1 : 0 };
         break;
-      case 'ArrowLeft':
+      case 'filterLeft':
         this.state.adjust = { ...this.state.adjust, tilt: down ? -1 : 0 };
         break;
-      case 'ArrowRight':
+      case 'filterRight':
         this.state.adjust = { ...this.state.adjust, tilt: down ? 1 : 0 };
         break;
       default:
@@ -129,7 +148,7 @@ export class KeyboardSource implements HandInputSource {
 
     // No degree key held → no left hand → the consume pipeline silences
     // (same path as the left fist / hand loss).
-    if (left.key === null) {
+    if (left.action === null) {
       return { left: null, right: null, source: 'keyboard' };
     }
 

@@ -7,6 +7,7 @@ import { audioEngine } from './audioEngine';
 import { CameraSource } from './input/cameraSource';
 import { KeyboardSource } from './input/keyboardSource';
 import type { HandFrame } from './input/types';
+import { DEFAULT_KEYMAP, displayKey, loadKeymap, saveKeymap, type KbAction } from './input/keymap';
 import { KbGuide } from './components/KbGuide';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HelpModal } from './components/HelpModal';
@@ -67,15 +68,11 @@ import {
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
 
-/** Keys KeyboardSource maps — their default browser behavior (page
- *  scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
- *  Everything else keeps native behavior (Tab, F5, …). */
-const KEYBOARD_MAPPED_KEYS = [
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
-  '[', ']', 'Shift',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  ' ',
-];
+/* Keys KeyboardSource maps — their default browser behavior (page
+ * scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
+ * Everything else keeps native behavior (Tab, F5, …). Player-customizable
+ * (2026-08-10) — the live set lives in the mappedKeysRef declared inside
+ * the component (derived from `keymap`), not a static list here. */
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
 
@@ -285,6 +282,24 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
+  // Player-customizable keyboard bindings (2026-08-10) — persisted so a
+  // rebind (e.g. minor/major off '[' / ']', hard to reach on German
+  // QWERTZ) survives visits. KeyboardSource resolves actions through
+  // whatever's currently set here (see input/keymap.ts).
+  const [keymap, setKeymapState] = useState<Record<KbAction, string>>(() => loadKeymap());
+  const handleKeymapChange = useCallback((map: Record<KbAction, string>) => {
+    saveKeymap(map);
+    setKeymapState(map);
+  }, []);
+  useEffect(() => {
+    keyboardSourceRef.current?.setKeymap(keymap);
+  }, [keymap]);
+  // Mirrored into a ref so the keydown/keyup effect (empty deps, see below)
+  // always reads the current bindings without re-subscribing listeners.
+  const mappedKeysRef = useRef<string[]>([...Object.values(DEFAULT_KEYMAP), ' ']);
+  useEffect(() => {
+    mappedKeysRef.current = [...Object.values(keymap), ' '];
+  }, [keymap]);
   // Data-driven pulse: the ACTIVE entry declares which toolbar control it
   // teaches (pulseTarget) — future announcements that don't teach a
   // control simply omit it and nothing pulses (user decision 2026-08-09).
@@ -513,7 +528,7 @@ export default function App() {
         // be replayed from Help while keyboard mode is off — the mapped
         // keys must not scroll the page there either, bug 2026-08-09).
         // Everything else (Tab, F5, …) keeps browser behavior.
-        if (KEYBOARD_MAPPED_KEYS.includes(e.key)) e.preventDefault();
+        if (mappedKeysRef.current.includes(e.key)) e.preventDefault();
       }
       if (keyboardModeRef.current || showKbGuideRef.current) {
         keyboardSourceRef.current?.handleKey(e, true);
@@ -525,7 +540,7 @@ export default function App() {
       // toward the depth reported on session exit. Only while a keyboard
       // session runs — guide-only presses from a camera-mode Help replay
       // (keyboardModeRef false) don't count.
-      if (keyboardModeRef.current && !e.repeat && KEYBOARD_MAPPED_KEYS.includes(e.key)) {
+      if (keyboardModeRef.current && !e.repeat && mappedKeysRef.current.includes(e.key)) {
         const s = kbSessionRef.current;
         if (s.active) {
           s.notes++;
@@ -1814,6 +1829,9 @@ export default function App() {
               keyboardMode={keyboardMode}
               isRunning={isRunning}
               onKeyboardToggle={handleKeyboardToggle}
+              keymap={keymap}
+              onKeymapChange={handleKeymapChange}
+              onOpenGuide={showKbGuidePanel}
             />
           )}
         </div>
@@ -2143,15 +2161,16 @@ export default function App() {
                     const key = KEYS[(semis + synthState.keyOffset) % 12];
                     return key?.name?.split('/')[0] ?? '?';
                   };
+                  const kk = (a: KbAction) => `key ${displayKey(keymap[a])}`;
                   const keyNotes = [
-                    { note: mkNote(0),  roman: 'I',   hint: keyboardMode ? 'key 1' : '1 finger' },
-                    { note: mkNote(2),  roman: 'II',  hint: keyboardMode ? 'key 2' : '2 fingers' },
-                    { note: mkNote(4),  roman: 'III', hint: keyboardMode ? 'key 3' : '3 fingers' },
-                    { note: mkNote(5),  roman: 'IV',  hint: keyboardMode ? 'key 4' : '4 fingers' },
-                    { note: mkNote(7),  roman: 'V',   hint: keyboardMode ? 'key 5' : '5 fingers' },
-                    { note: mkNote(9),  roman: 'VI',  hint: keyboardMode ? 'key 6' : 'idx + pky' },
-                    { note: mkNote(11), roman: 'VII', hint: keyboardMode ? 'key 7' : 'i + p + t' },
-                    { note: mkNote(0),  roman: 'I\'', hint: keyboardMode ? 'Shift = 8vb' : '1 fing (oct)' },
+                    { note: mkNote(0),  roman: 'I',   hint: keyboardMode ? kk('degree1') : '1 finger' },
+                    { note: mkNote(2),  roman: 'II',  hint: keyboardMode ? kk('degree2') : '2 fingers' },
+                    { note: mkNote(4),  roman: 'III', hint: keyboardMode ? kk('degree3') : '3 fingers' },
+                    { note: mkNote(5),  roman: 'IV',  hint: keyboardMode ? kk('degree4') : '4 fingers' },
+                    { note: mkNote(7),  roman: 'V',   hint: keyboardMode ? kk('degree5') : '5 fingers' },
+                    { note: mkNote(9),  roman: 'VI',  hint: keyboardMode ? kk('degree6') : 'idx + pky' },
+                    { note: mkNote(11), roman: 'VII', hint: keyboardMode ? kk('degree7') : 'i + p + t' },
+                    { note: mkNote(0),  roman: 'I\'', hint: keyboardMode ? `${displayKey(keymap.octaveDown)} = 8vb` : '1 fing (oct)' },
                   ];
                   return keyNotes.map((block, i) => {
                     const isActive = synthState.chordIndex === i && synthState.isPlaying;
@@ -2372,7 +2391,7 @@ export default function App() {
       </section>
 
       {/* ─── Keyboard guide overlay (first-run + replayable) ──────────── */}
-      {showKbGuide && <KbGuide onDismiss={dismissKbGuide} />}
+      {showKbGuide && <KbGuide keymap={keymap} onDismiss={dismissKbGuide} />}
 
     </div>
   );

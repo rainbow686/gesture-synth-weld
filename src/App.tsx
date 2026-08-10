@@ -739,7 +739,13 @@ export default function App() {
       } else {
         pinkyMemoryRef.current = 0;
       }
-      const pinky = pinkyMemoryRef.current > 0;
+      // Camera reads the smoothed memory (compensates for flaky Y-axis
+      // pinky detection); keyboard reports exact fingers instantaneously —
+      // forcing it through the memory (always 0 here) broke VI/VII
+      // (bug 2026-08-10: '6'/'7' resolved to II/III instead, since pinky
+      // was always false so the VI/VII match never fired, falling through
+      // to fingerCount 2/3).
+      const pinky = frame.source === 'camera' ? pinkyMemoryRef.current > 0 : extended.includes('pinky');
       const thumb = extended.includes('thumb');
       const index = extended.includes('index');
       const middle = extended.includes('middle');

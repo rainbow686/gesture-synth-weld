@@ -79,7 +79,7 @@ export interface SynthState {
   /** Active chord style this frame (drives the waveform line count) */
   chordStyle?: import('./chords').ChordStyle;
   volume: number;
-  mode: 'major' | 'minor' | 'neutral';
+  mode: 'major' | 'minor' | 'diatonicMajor' | 'diatonicMinor';
   isPlaying: boolean;
   /** Key offset in semitones (0 = C) */
   keyOffset: number;
@@ -91,8 +91,8 @@ export interface SynthState {
   rightHandMode: RightHandMode;
   /** Locked chord style (for fixedChordStyle mode) */
   lockedChordStyle?: import('./chords').ChordStyle;
-  /** Locked mode for scaleLocked left hand mode ('diatonicMajor' = natural diatonic quality per degree) */
-  lockedMode?: 'major' | 'minor' | 'diatonicMajor';
+  /** Locked mode for scaleLocked left hand mode ('diatonicMajor'/'diatonicMinor' = diatonic quality per degree, major- or minor-scale-relative) */
+  lockedMode?: 'major' | 'minor' | 'diatonicMajor' | 'diatonicMinor';
   /** Arpeggiator enabled */
   arpeggiate: boolean;
   /** Arpeggiator speed */

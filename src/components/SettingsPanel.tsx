@@ -126,13 +126,14 @@ export function SettingsPanel({
           <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>Fingers pick the scale degree; wrist tilt flips major ↔ minor.</p>
         ) : (
           <>
-            <select value={synthState.lockedMode ?? 'major'} onChange={(e) => { trackSettingChanged('locked_mode', e.target.value); setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' | 'diatonicMajor' })); }}>
+            <select value={synthState.lockedMode ?? 'major'} onChange={(e) => { trackSettingChanged('locked_mode', e.target.value); setSynthState(prev => ({ ...prev, lockedMode: e.target.value as 'major' | 'minor' | 'diatonicMajor' | 'diatonicMinor' })); }}>
               <option value="major">All Major</option>
               <option value="minor">All Minor</option>
               <option value="diatonicMajor">Diatonic Major (I/IV/V major, ii/iii/vi minor, vii° dim)</option>
+              <option value="diatonicMinor">Diatonic Minor (i/iv/v minor, III/VI/VII major, ii° dim)</option>
             </select>
             <p style={{ fontSize: '0.55rem', color: 'var(--text-muted)', margin: 0 }}>
-              {synthState.lockedMode === 'diatonicMajor'
+              {synthState.lockedMode === 'diatonicMajor' || synthState.lockedMode === 'diatonicMinor'
                 ? 'Each scale degree keeps its natural quality — no forced major/minor.'
                 : 'Fingers pick the scale degree only. Mode is locked above.'}
             </p>

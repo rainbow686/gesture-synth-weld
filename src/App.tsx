@@ -31,6 +31,7 @@ import {
   KEYS,
   getChordName,
   getChordParts,
+  getDiatonicChords,
   midiToFreq,
   type ChordStyle,
 } from './chords';
@@ -128,7 +129,7 @@ export default function App() {
     chordExt: '',
     octaveDown: false,
     volume: 0.6,
-    mode: 'neutral',
+    mode: 'diatonicMajor',
     isPlaying: false,
     keyOffset: 9, // A major (matches competitor default)
     appMode: 'gesture',
@@ -566,7 +567,7 @@ export default function App() {
         setSynthState(prev => ({
           ...prev,
           isPlaying: false,
-          mode: 'neutral',
+          mode: 'diatonicMajor',
           arpeggiate: false,
           autoBass: false,
         }));
@@ -717,7 +718,7 @@ export default function App() {
 
     // Left Hand → Harmony (scale degree + mode)
     let chordIndex = s.chordIndex;
-    let mode: 'major' | 'minor' | 'neutral' = s.mode;
+    let mode: 'major' | 'minor' | 'diatonicMajor' | 'diatonicMinor' = s.mode;
     if (leftHand) {
       // Apply time-based stabilizer on chordIndex (catches VI/VII changes too)
       const now = performance.now();
@@ -780,9 +781,16 @@ export default function App() {
         mode = leftHand.tiltAngle >= 0 ? 'major' : 'minor';
       } else {
         // scaleLocked: use locked mode
-        mode = s.lockedMode ?? 'neutral';
+        mode = s.lockedMode ?? 'diatonicMajor';
       }
     }
+
+    // 'diatonicMajor'/'diatonicMinor' let each scale degree keep its own
+    // diatonic quality instead of forcing major/minor; scaleMode picks
+    // which scale (major- or natural-minor-relative) that quality is read
+    // from.
+    const modeOverride = (mode === 'diatonicMajor' || mode === 'diatonicMinor') ? undefined : mode;
+    const scaleMode: 'major' | 'minor' = mode === 'diatonicMinor' ? 'minor' : 'major';
 
     // Right Hand → Expression (volume + chord style)
     // CRITICAL: Right hand must have at least 1 finger raised to trigger sound
@@ -838,9 +846,10 @@ export default function App() {
     const isPlaying = !!(leftHand && rightHand && !leftFist);
     const { base: chordBase, ext: chordExt } = getChordParts(
       chordIndex,
-      mode === 'neutral' ? undefined : mode,
+      modeOverride,
       s.keyOffset,
       chordStyle,
+      scaleMode,
     );
     const chordName = chordBase + chordExt + (thumbDown ? ' (-8ve)' : '');
 
@@ -870,9 +879,10 @@ export default function App() {
       stabilizerRef.current.lastSeen = performance.now();
       audioEngine.playChord(
         chordIndex, 'sine',
-        mode === 'neutral' ? undefined : mode,
+        modeOverride,
         0, s.keyOffset, chordStyle,
         s.arpeggiate, s.arpSpeed, thumbDown,
+        scaleMode,
       );
       audioEngine.setVolume(volume);
       if (rightHand) audioEngine.updateFilterSweep(rightHand.tiltAngle);
@@ -894,7 +904,8 @@ export default function App() {
 
     // Auto bass — follows octave shift
     if (s.autoBass && isPlaying) {
-      const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
+      const bassChords = getDiatonicChords(scaleMode);
+      const chord = bassChords[chordIndex % bassChords.length];
       const bassMidi = 60 + chord.intervals[0] + s.keyOffset - (thumbDown ? 12 : 0);
       audioEngine.setBassNote(bassMidi, s.bassVolume);
     } else {

@@ -28,6 +28,7 @@ import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
 import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
 import {
   DIATONIC_CHORDS,
+  DIATONIC_CHORDS_MINOR,
   KEYS,
   getChordName,
   getChordParts,
@@ -2176,20 +2177,49 @@ export default function App() {
                 zIndex: 5,
               }}>
                 {(() => {
-                  const mkNote = (semis: number) => {
+                  // Case marks quality here too (chords.ts convention),
+                  // and it tracks whatever's actually LOCKED/selected right
+                  // now (2026-08-10 — a fixed diatonic-major legend was
+                  // wrong for All Major/All Minor/Diatonic Minor):
+                  //   major          → every block forced capital
+                  //   minor          → every block forced lowercase
+                  //   diatonicMajor  → per-degree, major-scale-relative table
+                  //   diatonicMinor  → per-degree, natural-minor-relative
+                  //                    table — different ROOT NOTES too,
+                  //                    not just case (mirrors scaleMode in
+                  //                    the playback logic above)
+                  // Reads the SETTING (lockedMode), not synthState.mode —
+                  // mode only gets recomputed while a note is actually
+                  // held, so it lags the dropdown until the next press
+                  // (bug 2026-08-10: guide kept showing the old pattern
+                  // right after switching lock modes, before playing a
+                  // note). scaleTilt has no fixed "selected" quality (it's
+                  // live per wrist tilt) so it still follows synthState.mode.
+                  const guideMode = synthState.leftHandMode === 'scaleLocked'
+                    ? (synthState.lockedMode ?? 'major')
+                    : synthState.mode;
+                  const guideChords = guideMode === 'diatonicMinor' ? DIATONIC_CHORDS_MINOR : DIATONIC_CHORDS;
+                  const isDegreeMinor = (i: number): boolean => {
+                    if (guideMode === 'major') return false;
+                    if (guideMode === 'minor') return true;
+                    return !guideChords[i].isMajor;
+                  };
+                  const mkNote = (i: number) => {
+                    const semis = guideChords[i].intervals[0];
                     const key = KEYS[(semis + synthState.keyOffset) % 12];
-                    return key?.name?.split('/')[0] ?? '?';
+                    const name = key?.name?.split('/')[0] ?? '?';
+                    return isDegreeMinor(i) ? name.toLowerCase() : name;
                   };
                   const kk = (a: KbAction) => `key ${displayKey(keymap[a])}`;
                   const keyNotes = [
-                    { note: mkNote(0),  roman: 'I',   hint: keyboardMode ? kk('degree1') : '1 finger' },
-                    { note: mkNote(2),  roman: 'II',  hint: keyboardMode ? kk('degree2') : '2 fingers' },
-                    { note: mkNote(4),  roman: 'III', hint: keyboardMode ? kk('degree3') : '3 fingers' },
-                    { note: mkNote(5),  roman: 'IV',  hint: keyboardMode ? kk('degree4') : '4 fingers' },
-                    { note: mkNote(7),  roman: 'V',   hint: keyboardMode ? kk('degree5') : '5 fingers' },
-                    { note: mkNote(9),  roman: 'VI',  hint: keyboardMode ? kk('degree6') : 'idx + pky' },
-                    { note: mkNote(11), roman: 'VII', hint: keyboardMode ? kk('degree7') : 'i + p + t' },
-                    { note: mkNote(0),  roman: 'I\'', hint: keyboardMode ? `${displayKey(keymap.octaveDown)} = 8vb` : '1 fing (oct)' },
+                    { note: mkNote(0), roman: 'I',   hint: keyboardMode ? kk('degree1') : '1 finger' },
+                    { note: mkNote(1), roman: 'II',  hint: keyboardMode ? kk('degree2') : '2 fingers' },
+                    { note: mkNote(2), roman: 'III', hint: keyboardMode ? kk('degree3') : '3 fingers' },
+                    { note: mkNote(3), roman: 'IV',  hint: keyboardMode ? kk('degree4') : '4 fingers' },
+                    { note: mkNote(4), roman: 'V',   hint: keyboardMode ? kk('degree5') : '5 fingers' },
+                    { note: mkNote(5), roman: 'VI',  hint: keyboardMode ? kk('degree6') : 'idx + pky' },
+                    { note: mkNote(6), roman: 'VII', hint: keyboardMode ? kk('degree7') : 'i + p + t' },
+                    { note: mkNote(0), roman: 'I\'', hint: keyboardMode ? `${displayKey(keymap.octaveDown)} = 8vb` : '1 fing (oct)' },
                   ];
                   return keyNotes.map((block, i) => {
                     const isActive = synthState.chordIndex === i && synthState.isPlaying;

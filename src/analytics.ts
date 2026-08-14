@@ -233,6 +233,24 @@ export function trackKeyboardGuideDismissed(method: 'close' | 'x' | 'overlay' | 
   track('kb_guide_dismissed', { method });
 }
 
+/* ─── Pro 付费意图探针（2026-08-10，订阅需求验证——纯前端，不动支付）───
+ *
+ * 免费版画 Pro 边界（锁定图标 + 文案），但功能完全不拦截。谁"看到"、
+ * 谁"点击"，即付费意愿信号——不需要 Stripe/付费墙就能先验证需求。
+ * 判定阈值见 docs/analytics-events.md。 */
+
+export type ProGateLocation = 'rec_chooser' | 'rec_result' | 'settings';
+
+/** Pro 边界提示对用户可见（chooser 打开 / 结果面板出现 / 设置面板打开）。 */
+export function trackProGateSeen(location: ProGateLocation): void {
+  track('pro_gate_seen', { location });
+}
+
+/** 用户点击了 Pro 边界提示（锁定功能 → 付费意愿信号）。 */
+export function trackProGateClicked(location: ProGateLocation): void {
+  track('pro_gate_clicked', { location });
+}
+
 function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 }

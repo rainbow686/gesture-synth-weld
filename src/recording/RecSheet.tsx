@@ -8,12 +8,14 @@
  * never touches recording internals.
  */
 
-import type { Dispatch, SetStateAction } from 'react';
+import { useEffect, type Dispatch, type SetStateAction } from 'react';
 import type { RecMode, RecPhase, RecRatio } from '../types';
 import type { VocalPolish } from '../audioEngine';
 import {
   trackDownload,
   trackMicToggled,
+  trackProGateClicked,
+  trackProGateSeen,
   trackRecordingModeChanged,
   trackSettingChanged,
 } from '../analytics';
@@ -63,6 +65,13 @@ export function RecSheet(props: RecSheetProps) {
     recBlob, recPreviewUrl, shareFailed, canFileShare, downloadRec, shareRec,
     handleStartRecording,
   } = props;
+
+  // Pro-gate probe: the teaser is visible exactly while its section is —
+  // seen fires once per open (phase changes are the open/close signals).
+  useEffect(() => {
+    if (recPhase === 'choosing') trackProGateSeen('rec_chooser');
+    if (recPhase === 'result') trackProGateSeen('rec_result');
+  }, [recPhase]);
 
   return (
     <>
@@ -192,6 +201,17 @@ export function RecSheet(props: RecSheetProps) {
               )}
             </div>
           </div>
+          {/* Pro-gate probe: advertises the Pro boundary without gating
+              anything — clicks = paid-intent signal (no payment involved). */}
+          <div
+            className="pro-teaser"
+            role="button"
+            tabIndex={0}
+            onClick={() => trackProGateClicked('rec_chooser')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trackProGateClicked('rec_chooser'); } }}
+          >
+            🔒 <strong>Pro</strong> (coming soon): unlimited recording · no watermark · more instruments
+          </div>
           <div className="rec-actions">
             <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
             <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
@@ -235,6 +255,18 @@ export function RecSheet(props: RecSheetProps) {
           {shareFailed && (
             <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
           )}
+          {/* Pro-gate probe (result panel): the "keep the take" moment —
+              the most natural place to test paid-intent for removal of
+              limits/watermark. Click = signal, never a paywall. */}
+          <div
+            className="pro-teaser"
+            role="button"
+            tabIndex={0}
+            onClick={() => trackProGateClicked('rec_result')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trackProGateClicked('rec_result'); } }}
+          >
+            🔒 <strong>Pro</strong> (coming soon): unlimited recording · no watermark · more instruments
+          </div>
         </div>
       )}
     </>

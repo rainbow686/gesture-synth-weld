@@ -8,10 +8,10 @@
  * logic (persistence, mode lifecycle).
  */
 
-import type { Dispatch, SetStateAction } from 'react';
+import { useEffect, type Dispatch, type SetStateAction } from 'react';
 import type { ArpSpeed, LeftHandMode, RightHandMode, SynthState } from '../types';
 import { CHORD_STYLE_OPTIONS, type ChordStyle } from '../chords';
-import { trackSettingChanged } from '../analytics';
+import { trackProGateClicked, trackProGateSeen, trackSettingChanged } from '../analytics';
 
 export interface SettingsPanelProps {
   onClose: () => void;
@@ -41,6 +41,9 @@ export function SettingsPanel({
   isRunning,
   onKeyboardToggle,
 }: SettingsPanelProps) {
+  // Pro-gate probe: seen = panel open (mount is the open signal — App
+  // conditionally renders the panel).
+  useEffect(() => { trackProGateSeen('settings'); }, []);
   return (
     <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
       <button
@@ -164,6 +167,17 @@ export function SettingsPanel({
         </span>
       </div>
       )}
+      {/* Pro-gate probe: advertises the Pro boundary without gating
+          anything — clicks = paid-intent signal (no payment involved). */}
+      <div
+        className="pro-teaser"
+        role="button"
+        tabIndex={0}
+        onClick={() => trackProGateClicked('settings')}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trackProGateClicked('settings'); } }}
+      >
+        🔒 <strong>Pro</strong> (coming soon): more instruments · unlimited recording · no watermark
+      </div>
     </div>
   );
 }

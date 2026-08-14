@@ -1840,6 +1840,30 @@ body {
   color: #ffb86c;
 }
 
+/* Pro-gate probe teaser (2026-08-10): advertises the Pro boundary without
+   gating anything — clicks are paid-intent analytics only. Amber = premium
+   (same as the 8vb badge), dashed border = "offered, not active". */
+.pro-teaser {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px dashed rgba(255, 193, 7, 0.35);
+  border-radius: 6px;
+  color: #b0a26a;
+  font-size: 0.62rem;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.pro-teaser strong { color: #d4b35a; }
+.pro-teaser:hover,
+.pro-teaser:focus-visible {
+  border-color: rgba(255, 193, 7, 0.7);
+  color: #ffc107;
+  background: rgba(255, 193, 7, 0.06);
+  outline: none;
+}
+
 /* Action buttons */
 .rec-actions {
   display: flex;

@@ -251,6 +251,34 @@ export function trackProGateClicked(location: ProGateLocation): void {
   track('pro_gate_clicked', { location });
 }
 
+/* ─── 本地作品集探针（2026-08-17，留存假设验证--"为作品回来"） ────────
+ *
+ * 录制完成后作品自动存进浏览器 IndexedDB（零上传），回访用户在落地页
+ * 看到「我的作品」并可回放/重新下载。验证假设：用户会不会为了看自己
+ * 的作品而回来。判定阈值见 docs/analytics-events.md：回放率 >=20% 才
+ * 考虑 R2 分享链接；<5% 则跳过整个服务端。 */
+
+/** 录制完成、作品成功写入本地存储（分母；失败不发--保存环节健康度看
+ *  work_saved / recording_completed，<30% = 保存被静默吞掉）。 */
+export function trackWorkSaved(type: 'audio' | 'video'): void {
+  track('work_saved', { type });
+}
+
+/** 回访用户看到作品列表（每次会话最多一次，count>0 才发）--核心分母。 */
+export function trackWorksListSeen(count: number): void {
+  track('works_list_seen', { count });
+}
+
+/** 用户回放了某个作品--核心信号："为作品回来"的直接证据。 */
+export function trackWorkReplayed(): void {
+  track('work_replayed');
+}
+
+/** 用户从列表重新下载了作品（二次带走，比回放弱的补充信号）。 */
+export function trackWorkDownloaded(): void {
+  track('work_downloaded');
+}
+
 function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 }

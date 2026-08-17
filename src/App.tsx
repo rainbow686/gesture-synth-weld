@@ -25,6 +25,7 @@ import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
 import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
+import WorksPanel from './components/WorksPanel';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -2048,6 +2049,12 @@ export default function App() {
                     </button>
                   </div>
                 )}
+
+                {/* Local works gallery (2026-08-17 retention experiment):
+                    returning players find their previous takes here -
+                    browser-only (IndexedDB), zero upload. Renders nothing
+                    on a fresh browser. */}
+                <WorksPanel />
               </>
             )}
             </div>

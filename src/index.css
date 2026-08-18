@@ -1741,6 +1741,12 @@ body {
   background: #000;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+/* History list present (2026-08-18): drop to 30vh so player + list fit
+   inside the 82vh sheet without scrolling - the old 42vh pushed the list
+   below the fold and it read as "gone". */
+.rec-preview--with-list {
+  max-height: 30vh;
+}
 
 .rec-sheet-title {
   font-family: var(--font-display);

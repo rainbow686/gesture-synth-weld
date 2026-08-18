@@ -86,6 +86,13 @@ export function RecSheet(props: RecSheetProps) {
     setHistId(null);
   }, [recBlob, recPhase]);
 
+  // The history work currently previewed (null = playing THIS take).
+  // The player element must follow the SELECTED work's type, not the
+  // current recording's mode (bug 2026-08-18: video works previewed in an
+  // audio result played as <audio>).
+  const histWork = histId ? (works ?? []).find((w) => w.id === histId) ?? null : null;
+  const previewIsVideo = histUrl ? (histWork?.type === 'video') : recMode !== 'audio';
+
   // Revoke preview object URLs on unmount.
   useEffect(() => () => {
     if (histUrlRef.current) URL.revokeObjectURL(histUrlRef.current);
@@ -257,12 +264,13 @@ export function RecSheet(props: RecSheetProps) {
                     {(() => {
             const playerSrc = histUrl ?? recPreviewUrl;
             if (!playerSrc) return null;
-            return recMode === 'audio' ? (
-              <audio src={playerSrc} className="rec-preview rec-preview-audio" controls />
+            const withList = works && works.length > 0 ? ' rec-preview--with-list' : '';
+            return !previewIsVideo ? (
+              <audio src={playerSrc} className={`rec-preview rec-preview-audio${withList}`} controls />
             ) : (
               <video
                 src={playerSrc}
-                className="rec-preview"
+                className={`rec-preview${withList}`}
                 autoPlay
                 muted
                 playsInline

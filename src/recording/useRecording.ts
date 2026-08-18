@@ -26,7 +26,9 @@ import {
   trackRecordingViewed,
   trackRecordButtonClicked,
   trackShare,
+  trackWorkSaved,
 } from '../analytics';
+import { saveWork } from '../works/workStore';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED, REC_RATIO_DIMS } from './constants';
 import { makeCoverBlob, pickRecMimeType } from './utils';
 
@@ -100,6 +102,7 @@ export function useRecording(deps: UseRecordingDeps) {
   const blurBufRef = useRef<HTMLCanvasElement | null>(null);
   const recBlurAtRef = useRef(0); // last blur-bg redraw (throttled to ~5fps)
   const recordingStartRef = useRef<number | null>(null);
+  const lastRecDurRef = useRef(0); // take length, read by the async onstop
   const recDownloadedRef = useRef(false);
 
   /* ─── Effects: keep refs/engine/localStorage in sync ────────────────── */
@@ -453,8 +456,23 @@ export function useRecording(deps: UseRecordingDeps) {
           );
         }
         setShareFailed(false);
-        setRecBlob({ blob, filename: makeRecordingFilename(ext) });
+        const filename = makeRecordingFilename(ext);
+        setRecBlob({ blob, filename });
         setRecPhase('result');
+        // Local works gallery (2026-08-17): auto-save the finished take to
+        // IndexedDB - browser-only, zero upload. Returning players find it
+        // on the landing page; fire-and-forget (quota/private mode just
+        // means an empty gallery, never a broken result panel).
+        const type = recModeRef.current === 'audio' ? 'audio' as const : 'video' as const;
+        saveWork({
+          id: `w-${Date.now()}`,
+          type,
+          mimeType: blob.type,
+          filename,
+          blob,
+          createdAt: Date.now(),
+          durationSec: lastRecDurRef.current,
+        }).then(() => trackWorkSaved(type)).catch(() => { /* storage full/unavailable */ });
       };
       recorder.start(500);
       mediaRecorderRef.current = recorder;
@@ -500,6 +518,11 @@ export function useRecording(deps: UseRecordingDeps) {
     }
     setEndCount(null);
     audioEngine.setMicEnabled(false);
+    // onstop fires async, after recordingStartRef is nulled below - park
+    // the take length where the gallery save can still read it.
+    lastRecDurRef.current = recordingStartRef.current
+      ? Math.floor((Date.now() - recordingStartRef.current) / 1000)
+      : 0;
     const rec = mediaRecorderRef.current;
     if (rec && rec.state === 'recording') {
       rec.stop();

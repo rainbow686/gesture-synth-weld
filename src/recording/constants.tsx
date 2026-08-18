@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import type { RecMode, RecRatio } from '../types';
 
 /** Max recording length in seconds (2026-08-09: 15 → 30, growth plan P0). */
-export const RECORD_SECONDS = 30;
+export const RECORD_SECONDS = 60;
 
 export const VIDEO_REC_SUPPORTED =
   typeof MediaRecorder !== 'undefined' &&

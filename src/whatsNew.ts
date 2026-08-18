@@ -64,12 +64,31 @@ export interface WhatsNewEntry {
    *  back, since every switch control is desktop-gated). Future
    *  mobile-relevant entries omit it and show everywhere. */
   desktopOnly?: boolean;
+  /** Optional: what clicking the LANDING hint does. Only entries with a
+   *  feature to click INTO set this ('keyboard-mode' = enter keyboard
+   *  mode); informational announcements omit it and the landing hint
+   *  simply doesn't render - the feature is either already visible on
+   *  the landing (works gallery) or needs no conversion assist. */
+  landingClick?: 'keyboard-mode';
 }
 
 /** How long the landing hint stays active after release. */
 const ANNOUNCE_DAYS = 14;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    // Retention experiment (2026-08-17): announcing this in the PLAYING
+    // scene reinforces the result panel's auto-save note - the message
+    // that drives the next visit we're measuring. No landingClick: the
+    // gallery is itself on the landing page, and a fresh visitor has no
+    // works to see - a hint would be noise. Not desktopOnly: IndexedDB
+    // works on phones too. No pulse/teach: no toolbar control to point
+    // at - the works live under the start button, not in the toolbar.
+    version: 'v2.2',
+    releasedAt: '2026-08-18',
+    title: 'My works - saved in this browser',
+    body: 'Every take you record is auto-saved now (audio and video). Come back anytime: "My works" appears under the start button - replay, re-download, or delete. Nothing is uploaded; your works live only in your browser.',
+  },
   {
     version: 'v2.1',
     releasedAt: '2026-08-09',
@@ -81,6 +100,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       keyboard: 'Switch back via the Camera button in the top toolbar',
     },
     desktopOnly: true, // keyboard mode is desktop-only (no physical keys on phones)
+    landingClick: 'keyboard-mode', // the landing hint enters keyboard mode
   },
 ];
 

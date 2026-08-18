@@ -2263,3 +2263,81 @@ body {
   text-align: center;
   max-width: 560px;
 }
+
+/* ─── Local works gallery (2026-08-17, retention experiment) ────────── */
+
+.works-panel {
+  margin-top: 14px;
+  width: min(380px, 88vw);
+  background: var(--frost-bg);
+  border: 1px solid rgba(120, 80, 255, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px 10px;
+  text-align: left;
+  box-shadow: var(--frost-shadow);
+}
+.works-panel-title {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+}
+.works-panel-sub {
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+  margin: 4px 0 8px;
+  letter-spacing: 0.04em;
+}
+.works-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.works-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(120, 80, 255, 0.06);
+  transition: background 0.15s ease;
+}
+.works-item:hover { background: rgba(120, 80, 255, 0.14); }
+.works-item.active { background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.25); }
+.works-item-icon { font-size: 0.9rem; }
+.works-item-meta {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+.works-item-date { font-family: var(--font-mono); }
+.works-item-dur { color: var(--text-muted); font-size: 0.64rem; }
+.works-item-actions { display: flex; gap: 4px; }
+.works-btn {
+  background: transparent;
+  border: 1px solid rgba(160, 160, 208, 0.25);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.works-btn:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 8px rgba(0, 255, 204, 0.2);
+}
+.works-player {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #000;
+}

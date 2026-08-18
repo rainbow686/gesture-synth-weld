@@ -25,6 +25,7 @@ import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
 import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
+import WorksPanel from './components/WorksPanel';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -2038,7 +2039,11 @@ export default function App() {
                     "seen once and lost", and the player never has to
                     close it. Click = enter keyboard mode. The PLAYING
                     card below is the dismissal-based announcement. */}
-                {!keyboardMode && !(whatsNewEntry?.desktopOnly && isMobile) && whatsNewActive() && (
+                {/* landingClick gate: only entries with a feature to click
+                    INTO get the landing hint (v2.1 keyboard mode).
+                    Informational entries (v2.2 works) skip it - the
+                    gallery is already on this page. */}
+                {!keyboardMode && whatsNewEntry?.landingClick === 'keyboard-mode' && !(whatsNewEntry.desktopOnly && isMobile) && whatsNewActive() && (
                   <div className="whatsnew-card">
                     <button className="whatsnew-body" onClick={() => startKeyboardMode('landing_hint')}>
                       <span className="whatsnew-badge">NEW</span>
@@ -2048,6 +2053,12 @@ export default function App() {
                     </button>
                   </div>
                 )}
+
+                {/* Local works gallery (2026-08-17 retention experiment):
+                    returning players find their previous takes here -
+                    browser-only (IndexedDB), zero upload. Renders nothing
+                    on a fresh browser. */}
+                <WorksPanel />
               </>
             )}
             </div>

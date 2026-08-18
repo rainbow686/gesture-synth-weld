@@ -2264,28 +2264,81 @@ body {
   max-width: 560px;
 }
 
-/* ─── Local works gallery (2026-08-17, retention experiment) ────────── */
+/* ─── Local works gallery (2026-08-17, retention experiment) ──────────
+     Compact landing entry + height-capped modal (2026-08-18 redesign -
+     the original inline list and player pushed the page / status bar). */
 
-.works-panel {
+.works-entry {
   margin-top: 14px;
   width: min(380px, 88vw);
+  background: transparent;
+  border: 1px dashed rgba(120, 80, 255, 0.35);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.works-entry:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
+}
+
+.works-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(5, 5, 15, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.works-modal {
+  position: relative;
+  width: min(400px, 94vw);
+  max-height: 72vh;
+  overflow-y: auto;
   background: var(--frost-bg);
-  border: 1px solid rgba(120, 80, 255, 0.25);
+  border: 1px solid rgba(120, 80, 255, 0.35);
   border-radius: 14px;
-  padding: 12px 14px 10px;
+  padding: 14px 16px;
   text-align: left;
   box-shadow: var(--frost-shadow);
 }
-.works-panel-title {
+.works-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.works-modal-title {
   font-family: var(--font-display);
   font-size: 0.82rem;
   color: var(--text-primary);
   letter-spacing: 0.08em;
 }
-.works-panel-sub {
+.works-close {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.works-close:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.works-modal-sub {
   font-size: 0.66rem;
   color: var(--text-secondary);
-  margin: 4px 0 8px;
+  margin: 0 0 8px;
   letter-spacing: 0.04em;
 }
 .works-list {
@@ -2337,6 +2390,8 @@ body {
 }
 .works-player {
   width: 100%;
+  max-height: 32vh;
+  object-fit: contain;
   margin-top: 8px;
   border-radius: 8px;
   background: #000;

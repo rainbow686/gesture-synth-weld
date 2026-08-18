@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { deleteWork, listWorks, type StoredWork } from '../works/workStore';
+import type { StoredWork } from '../works/workStore';
 import {
   trackWorkDownloaded,
   trackWorkReplayed,
@@ -33,18 +33,18 @@ function formatWorkDate(ts: number): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export default function WorksPanel() {
-  const [works, setWorks] = useState<StoredWork[] | null>(null); // null = still loading
+interface WorksPanelProps {
+  /** Shared works list (owned by App, 2026-08-18) - null = still loading. */
+  works: StoredWork[] | null;
+  /** Delete a work - App removes it from the shared list (landing + result panel sync). */
+  onDelete: (id: string) => void;
+}
+
+export default function WorksPanel({ works, onDelete }: WorksPanelProps) {
   const [open, setOpen] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const lastUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    listWorks().then((list) => { if (alive) setWorks(list); });
-    return () => { alive = false; };
-  }, []);
 
   // Revoke the leaked object URL on unmount.
   useEffect(() => () => {
@@ -104,13 +104,9 @@ export default function WorksPanel() {
     URL.revokeObjectURL(url);
   };
 
-  const remove = async (work: StoredWork) => {
-    await deleteWork(work.id);
-    setWorks((prev) => {
-      const next = prev?.filter((w) => w.id !== work.id) ?? null;
-      if (next && next.length === 0) setOpen(false); // last work gone -> close modal
-      return next;
-    });
+  const remove = (work: StoredWork) => {
+    onDelete(work.id);
+    if (works && works.length === 1) setOpen(false); // last work gone -> close modal
     if (playingId === work.id) {
       if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
       lastUrlRef.current = null;

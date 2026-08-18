@@ -8,9 +8,10 @@
  * never touches recording internals.
  */
 
-import { useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { RecMode, RecPhase, RecRatio } from '../types';
 import type { VocalPolish } from '../audioEngine';
+import type { StoredWork } from '../works/workStore';
 import {
   trackDownload,
   trackMicToggled,
@@ -18,6 +19,8 @@ import {
   trackProGateSeen,
   trackRecordingModeChanged,
   trackSettingChanged,
+  trackWorkDownloaded,
+  trackWorkReplayed,
 } from '../analytics';
 import { REC_RATIO_HINTS, REC_SVG_PREVIEWS, VIDEO_REC_SUPPORTED } from './constants';
 
@@ -54,6 +57,10 @@ export interface RecSheetProps {
   downloadRec: () => void;
   shareRec: () => void;
   handleStartRecording: () => void;
+  // local works gallery (shared with the landing, 2026-08-18): the
+  // history list below the preview - deleting here syncs everywhere.
+  works: StoredWork[] | null;
+  onDeleteWork: (id: string) => void;
 }
 
 export function RecSheet(props: RecSheetProps) {
@@ -63,8 +70,26 @@ export function RecSheet(props: RecSheetProps) {
     micStreamRef, micOn, setMicOn, micLevel, micPermState, micDevices, micDeviceId,
     recVoice, setRecVoice, recPolish, setRecPolish, requestMic, switchMicDevice,
     recBlob, recPreviewUrl, shareFailed, canFileShare, downloadRec, shareRec,
-    handleStartRecording,
+    handleStartRecording, works, onDeleteWork,
   } = props;
+
+  // Result-panel preview switching (2026-08-18): the player defaults to
+  // THIS take (recPreviewUrl); clicking a history row swaps it to that
+  // work's blob. Local UI state only - recording domain is untouched.
+  const [histUrl, setHistUrl] = useState<string | null>(null);
+  const histUrlRef = useRef<string | null>(null);
+  const [histId, setHistId] = useState<string | null>(null);
+
+  // New take ready (or panel closed) -> back to THIS recording.
+  useEffect(() => {
+    setHistUrl(null);
+    setHistId(null);
+  }, [recBlob, recPhase]);
+
+  // Revoke preview object URLs on unmount.
+  useEffect(() => () => {
+    if (histUrlRef.current) URL.revokeObjectURL(histUrlRef.current);
+  }, []);
 
   // Pro-gate probe: the teaser is visible exactly while its section is —
   // seen fires once per open (phase changes are the open/close signals).
@@ -229,18 +254,70 @@ export function RecSheet(props: RecSheetProps) {
               WYSIWYG: atmosphere, crop and watermarks all visible here.
               Audio-only takes get an <audio> player (no autoplay —
               playing sound unprompted is rude). */}
-          {recPreviewUrl && (recMode === 'audio' ? (
-            <audio src={recPreviewUrl} className="rec-preview rec-preview-audio" controls />
-          ) : (
-            <video
-              src={recPreviewUrl}
-              className="rec-preview"
-              autoPlay
-              muted
-              playsInline
-              controls
-            />
-          ))}
+                    {(() => {
+            const playerSrc = histUrl ?? recPreviewUrl;
+            if (!playerSrc) return null;
+            return recMode === 'audio' ? (
+              <audio src={playerSrc} className="rec-preview rec-preview-audio" controls />
+            ) : (
+              <video
+                src={playerSrc}
+                className="rec-preview"
+                autoPlay
+                muted
+                playsInline
+                controls
+              />
+            );
+          })()}
+          {/* Previewing an older take - say so (default = THIS recording). */}
+          {histUrl && (
+            <div className="rec-previewing">▶ Previewing an earlier take - the buttons below still apply to this recording</div>
+          )}
+          {/* History list (2026-08-18, feedback - full version): the takes
+              from this browser, newest first (the just-saved one on top,
+              matching the default preview). Click a row to preview it;
+              per-row re-download or delete. Fixed height + scroll so the
+              mobile sheet stays bounded; delete syncs to the landing via
+              App's shared works state. */}
+          {works && works.length > 0 && (
+            <>
+              <div className="rec-works-title">My works ({works.length})</div>
+              <ul className="rec-works-list">
+                {works.map((w) => (
+                  <li key={w.id} className={`rec-works-item${histId === w.id ? ' active' : ''}`}>
+                    <button
+                      className="rec-works-play"
+                      onClick={() => {
+                        if (histUrlRef.current) URL.revokeObjectURL(histUrlRef.current);
+                        const url = URL.createObjectURL(w.blob);
+                        histUrlRef.current = url;
+                        setHistUrl(url);
+                        setHistId(w.id);
+                        trackWorkReplayed();
+                      }}
+                      title="Preview this take"
+                    >{histId === w.id ? '■' : '▶'}</button>
+                    <span className="rec-works-icon">{w.type === 'audio' ? '🎵' : '🎬'}</span>
+                    <span className="rec-works-date">
+                      {new Date(w.createdAt).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })} {new Date(w.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="rec-works-dur">{Math.floor(w.durationSec / 60)}:{String(w.durationSec % 60).padStart(2, '0')}</span>
+                    <button
+                      className="works-btn"
+                      onClick={() => { trackWorkDownloaded(); const u = URL.createObjectURL(w.blob); const a = document.createElement('a'); a.href = u; a.download = w.filename; a.click(); URL.revokeObjectURL(u); }}
+                      title="Download"
+                    >💾</button>
+                    <button
+                      className="works-btn"
+                      onClick={() => { onDeleteWork(w.id); if (histId === w.id) { setHistId(null); setHistUrl(null); } }}
+                      title="Delete"
+                    >🗑</button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <div className="rec-actions">
             <button className="rec-btn" onClick={() => setRecPhase('idle')}>Close</button>
             <button className="rec-btn primary" onClick={() => { trackDownload(); downloadRec(); }}>💾 Download</button>

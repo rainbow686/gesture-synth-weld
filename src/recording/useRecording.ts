@@ -45,6 +45,10 @@ export interface UseRecordingDeps {
   drawOverlayVideoRef: { current: ((ctx: CanvasRenderingContext2D, w: number, h: number) => void) | undefined };
   /** Close the ⋯ panel + settings — menus must not appear in the recording. */
   onCloseMenus: () => void;
+  /** Local works gallery (2026-08-17): called after a take is saved to
+   *  IndexedDB — App refreshes its shared works state so the result
+   *  panel's history list and the landing entry stay in sync. */
+  onWorkSaved?: () => void;
 }
 
 export function useRecording(deps: UseRecordingDeps) {
@@ -472,7 +476,8 @@ export function useRecording(deps: UseRecordingDeps) {
           blob,
           createdAt: Date.now(),
           durationSec: lastRecDurRef.current,
-        }).then(() => trackWorkSaved(type)).catch(() => { /* storage full/unavailable */ });
+        }).then(() => { trackWorkSaved(type); deps.onWorkSaved?.(); })
+          .catch(() => { /* storage full/unavailable */ });
       };
       recorder.start(500);
       mediaRecorderRef.current = recorder;

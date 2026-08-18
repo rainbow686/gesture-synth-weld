@@ -26,6 +26,7 @@ import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
 import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
 import WorksPanel from './components/WorksPanel';
+import { deleteWork, listWorks, type StoredWork } from './works/workStore';
 import {
   DIATONIC_CHORDS,
   KEYS,
@@ -170,6 +171,21 @@ export default function App() {
   // disappears the moment Help opens (localStorage alone can't trigger a
   // re-render, bug 2026-08-09: the card stayed visible under Help).
   const [whatsNewDismissedState, setWhatsNewDismissedState] = useState(() => whatsNewDismissed());
+  // Local works gallery (2026-08-17): ONE shared works list owned by App,
+  // so the landing entry and the result panel stay in sync — deleting in
+  // one updates the other (feedback 2026-08-18: result panel shows the
+  // history list too). null = still loading.
+  const [works, setWorks] = useState<StoredWork[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    listWorks().then((list) => { if (alive) setWorks(list); });
+    return () => { alive = false; };
+  }, []);
+  const refreshWorks = useCallback(() => { listWorks().then(setWorks); }, []);
+  const deleteWorkById = useCallback(async (id: string) => {
+    await deleteWork(id);
+    setWorks((prev) => prev?.filter((w) => w.id !== id) ?? null);
+  }, []);
 
   // ─── Onboarding (first visit) ─────────────────────────────────────────
   // No popups on first visit — a newcomer's intent is to try, not to
@@ -940,6 +956,7 @@ export default function App() {
     scanlinesStrengthRef,
     drawOverlayVideoRef,
     onCloseMenus: () => { setMoreOpen(false); setShowSettings(false); },
+    onWorkSaved: refreshWorks,
   });
   const {
     recPhase, setRecPhase, recMode, setRecMode, recRatio, setRecRatio, recCount, endCount,
@@ -1927,6 +1944,8 @@ export default function App() {
           downloadRec={() => { recDownloadedRef.current = true; downloadRec(); }}
           shareRec={shareRec}
           handleStartRecording={handleStartRecording}
+          works={works}
+          onDeleteWork={deleteWorkById}
         />
 
         {/* ─── Hand tags on sides (running only) ─────────────────────── */}
@@ -2058,7 +2077,7 @@ export default function App() {
                     returning players find their previous takes here -
                     browser-only (IndexedDB), zero upload. Renders nothing
                     on a fresh browser. */}
-                <WorksPanel />
+                <WorksPanel works={works} onDelete={deleteWorkById} />
               </>
             )}
             </div>

@@ -2407,3 +2407,53 @@ body {
   border-radius: 8px;
   background: #000;
 }
+.rec-previewing {
+  font-size: 0.62rem;
+  color: var(--neon-cyan);
+  margin-top: 6px;
+  letter-spacing: 0.03em;
+}
+.rec-works-title {
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+}
+.rec-works-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 30vh; /* bounded: the mobile sheet must not run away */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rec-works-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(120, 80, 255, 0.06);
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+}
+.rec-works-item:hover { background: rgba(120, 80, 255, 0.14); }
+.rec-works-item.active { background: rgba(0, 255, 204, 0.1); border: 1px solid rgba(0, 255, 204, 0.25); }
+.rec-works-play {
+  background: transparent;
+  border: 1px solid rgba(160, 160, 208, 0.25);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  width: 24px;
+  height: 22px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rec-works-play:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
+.rec-works-icon { font-size: 0.8rem; }
+.rec-works-date { font-family: var(--font-mono); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-works-dur { color: var(--text-muted); font-size: 0.6rem; }

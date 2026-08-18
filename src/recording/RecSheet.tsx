@@ -19,10 +19,16 @@ import {
   trackProGateSeen,
   trackRecordingModeChanged,
   trackSettingChanged,
+  trackWorkDeleted,
   trackWorkDownloaded,
   trackWorkReplayed,
+  trackWorksListSeen,
 } from '../analytics';
 import { REC_RATIO_HINTS, REC_SVG_PREVIEWS, VIDEO_REC_SUPPORTED } from './constants';
+
+/** sessionStorage guard shared with WorksPanel (same key) - whichever
+ *  works list the player meets first in a session wins (2026-08-18). */
+const WORKS_SEEN_GUARD = 'gsw-works-seen-sent';
 
 export interface RecSheetProps {
   recPhase: RecPhase;
@@ -104,6 +110,17 @@ export function RecSheet(props: RecSheetProps) {
     if (recPhase === 'choosing') trackProGateSeen('rec_chooser');
     if (recPhase === 'result') trackProGateSeen('rec_result');
   }, [recPhase]);
+
+  // works_list_seen (2026-08-18, session guard): the result panel's
+  // history list is ALSO a works-list sighting. Fires once per session on
+  // whichever list the player meets first (result panel or landing modal)
+  // - the seen denominator must match the two replayed sources.
+  useEffect(() => {
+    if (recPhase === 'result' && works && works.length > 0 && !sessionStorage.getItem(WORKS_SEEN_GUARD)) {
+      sessionStorage.setItem(WORKS_SEEN_GUARD, '1');
+      trackWorksListSeen(works.length);
+    }
+  }, [recPhase, works]);
 
   return (
     <>
@@ -318,7 +335,7 @@ export function RecSheet(props: RecSheetProps) {
                     >💾</button>
                     <button
                       className="works-btn"
-                      onClick={() => { onDeleteWork(w.id); if (histId === w.id) { setHistId(null); setHistUrl(null); } }}
+                      onClick={() => { trackWorkDeleted('result_panel'); onDeleteWork(w.id); if (histId === w.id) { setHistId(null); setHistUrl(null); } }}
                       title="Delete"
                     >🗑</button>
                   </li>

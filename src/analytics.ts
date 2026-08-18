@@ -264,7 +264,10 @@ export function trackWorkSaved(type: 'audio' | 'video'): void {
   track('work_saved', { type });
 }
 
-/** 回访用户看到作品列表（每次会话最多一次，count>0 才发）--核心分母。 */
+/** 用户看到作品列表（每次会话最多一次，count>0 才发）--核心分母。
+ *  2026-08-18 口径修正：落地页弹层打开 OR 结果面板列表渲染，哪个先算
+ *  哪个（sessionStorage 守卫）；此前只算落地页，而回放分子算了两处，
+ *  导致回放率被低估。 */
 export function trackWorksListSeen(count: number): void {
   track('works_list_seen', { count });
 }
@@ -277,6 +280,12 @@ export function trackWorkReplayed(): void {
 /** 用户从列表重新下载了作品（二次带走，比回放弱的补充信号）。 */
 export function trackWorkDownloaded(): void {
   track('work_downloaded');
+}
+
+/** 用户删除了一个作品（2026-08-18，负向信号：作品库被使用/维护）。
+ *  source 区分删除发生的位置。低频动作。 */
+export function trackWorkDeleted(source: 'result_panel' | 'landing'): void {
+  track('work_deleted', { source });
 }
 
 function isMobileDevice(): boolean {

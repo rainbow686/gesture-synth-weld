@@ -2039,7 +2039,11 @@ export default function App() {
                     "seen once and lost", and the player never has to
                     close it. Click = enter keyboard mode. The PLAYING
                     card below is the dismissal-based announcement. */}
-                {!keyboardMode && !(whatsNewEntry?.desktopOnly && isMobile) && whatsNewActive() && (
+                {/* landingClick gate: only entries with a feature to click
+                    INTO get the landing hint (v2.1 keyboard mode).
+                    Informational entries (v2.2 works) skip it - the
+                    gallery is already on this page. */}
+                {!keyboardMode && whatsNewEntry?.landingClick === 'keyboard-mode' && !(whatsNewEntry.desktopOnly && isMobile) && whatsNewActive() && (
                   <div className="whatsnew-card">
                     <button className="whatsnew-body" onClick={() => startKeyboardMode('landing_hint')}>
                       <span className="whatsnew-badge">NEW</span>

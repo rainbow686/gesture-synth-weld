@@ -2286,6 +2286,17 @@ body {
   color: var(--neon-cyan);
   box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
 }
+.works-entry-new {
+  margin-left: 8px;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ff6ec7;
+  border: 1px solid rgba(255, 110, 199, 0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: 1px;
+}
 
 .works-modal-overlay {
   position: fixed;

@@ -23,6 +23,7 @@ import {
   trackWorkReplayed,
   trackWorksListSeen,
 } from '../analytics';
+import { whatsNewLandingBadge } from '../whatsNew';
 
 const SEEN_GUARD_KEY = 'gsw-works-seen-sent';
 
@@ -122,9 +123,12 @@ export default function WorksPanel() {
 
   return (
     <>
-      {/* Compact landing entry - a quiet link line, not a list (2026-08-18). */}
+      {/* Compact landing entry - a quiet link line, not a list (2026-08-18).
+          NEW badge only while the current What's New entry asks for it AND
+          is within its announce window - expires on its own (2026-08-18). */}
       <button className="works-entry" onClick={openModal} data-tip="Replay your previous takes">
         🎵 My works ({works.length})
+        {whatsNewLandingBadge() && <span className="works-entry-new">NEW</span>}
       </button>
 
       {open && (

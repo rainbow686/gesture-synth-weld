@@ -70,6 +70,12 @@ export interface WhatsNewEntry {
    *  simply doesn't render - the feature is either already visible on
    *  the landing (works gallery) or needs no conversion assist. */
   landingClick?: 'keyboard-mode';
+  /** Optional: show a time-limited NEW badge on the landing-page element
+   *  this feature owns (e.g. the My works entry, 2026-08-18). Same
+   *  announce window as the cards - expires on its own, no dismissal,
+   *  data-driven like everything else here. Omit for entries with no
+   *  landing element of their own. */
+  landingBadge?: boolean;
 }
 
 /** How long the landing hint stays active after release. */
@@ -86,6 +92,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     // at - the works live under the start button, not in the toolbar.
     version: 'v2.2',
     releasedAt: '2026-08-18',
+    landingBadge: true, // NEW badge on the landing's My works entry (expires with the window)
     title: 'My works - saved in this browser',
     body: 'Every take you record is auto-saved now (audio and video). Come back anytime: "My works" appears under the start button - replay, re-download, or delete. Nothing is uploaded; your works live only in your browser.',
   },
@@ -115,6 +122,13 @@ export function whatsNewActive(): boolean {
   if (Number.isNaN(released)) return false;
   const msPerDay = 24 * 60 * 60 * 1000;
   return Date.now() - released <= ANNOUNCE_DAYS * msPerDay;
+}
+
+/** The current entry asks for a NEW badge on its landing element (and is
+ *  still within its announce window). Landing-page components render the
+ *  badge only while this is true - it expires on its own. */
+export function whatsNewLandingBadge(): boolean {
+  return !!WHATS_NEW[0]?.landingBadge && whatsNewActive();
 }
 
 /** The player dismissed the card — never show it again. */

@@ -193,6 +193,23 @@ fallback → same-origin /v1.0.1/ (Vercel; mainland-China safety net)
 - **Local DNS queries with a TUN proxy**: `dig` results are unreliable (UDP 53 hijacked, fake-ip `198.18.x.x` answers). Verify DNS state via HTTPS DoH (dns.google / alidns.com) instead.
 - **New Cloudflare deployments** land on `*.workers.dev` (Pages merged into Workers); the dashboard "Upload assets" flow no longer exists. Confirm actual resource URLs via the API after deploying.
 
+## For Claude — Docs Map (new session entry)
+
+> `docs/` is fully gitignored (local only). Claude sessions start by reading this table.
+
+| What to read | Where | When |
+|---|---|---|
+| Current state / next step | `docs/PROJECT-STATE.md` top `📌` | Every new session, first |
+| How to start / commands | `docs/STARTUP.md` + `docs/OPERATIONS.md` | Before work |
+| Long discussion drafts | `docs/sessions/YYYY-MM-DD-*.md` (append every 3-5 turns) | Resume after compaction |
+| Decisions (ADR) | `docs/decisions/ADR-*.md` (index: `decisions/README.md`) | Need background |
+| Daily log | `docs/memory/YYYY-MM-DD.md` | Check yesterday's breakpoint |
+| Bridge (free↔pro) | `docs/BRIDGE.md` + `bridge/contract.md` + `bridge/sync-log.md` | Cross-repo |
+| Task queue | `docs/bridge/inbox/*.md` (one file per task, `to: peer`) | Scan for new work |
+| Handbook (handover/multi-agent) | `docs/handbook/claude-handover.md` | New project / multi-agent |
+
+Rules: >10 turns discussion → create `sessions/` file and append incrementally (anti-compaction); update `PROJECT-STATE` + `memory/` immediately after each verifiable unit (session may die anytime).
+
 ## Current Version
 
 **v2.0 (B2)** - Two-hand division + full recording suite (3 modes, 3 ratios, mic sing-along, branded cover art & share)

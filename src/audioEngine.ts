@@ -313,10 +313,11 @@ export class AudioEngine {
     arpeggiate: boolean = false,
     arpSpeed: ArpSpeed = 'normal',
     octaveDown: boolean = false,
+    scaleMode: 'major' | 'minor' = 'major',
   ): void {
     if (!this.initCalled) return;
 
-    const freqs = getChordFreqs(chordIndex, mode, inversion, keyOffset, chordStyle, octaveDown);
+    const freqs = getChordFreqs(chordIndex, mode, inversion, keyOffset, chordStyle, octaveDown, scaleMode);
 
     // Calculate chord key for deduplication
     const key = freqs.map(f => f.toFixed(1)).join(',') + (arpeggiate ? '|arp' : '') + '|' + arpSpeed;

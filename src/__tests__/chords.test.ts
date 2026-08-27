@@ -31,8 +31,8 @@ describe('DIATONIC_CHORDS', () => {
     expect(majors).toEqual(['I', 'IV', 'V']);
   });
 
-  it('labels follow the C major scale (C, Dm, Em, F, G, Am, Bdim)', () => {
-    expect(DIATONIC_CHORDS.map((c) => c.label)).toEqual(['C', 'Dm', 'Em', 'F', 'G', 'Am', 'Bdim']);
+  it('labels follow the C major scale, case marks quality (C, d, e, F, G, a, bdim)', () => {
+    expect(DIATONIC_CHORDS.map((c) => c.label)).toEqual(['C', 'd', 'e', 'F', 'G', 'a', 'bdim']);
   });
 });
 
@@ -78,8 +78,12 @@ describe('getChordFreqs', () => {
 });
 
 describe('getChordName', () => {
-  it('returns root + quality for a major chord', () => {
-    expect(getChordName(0, 'major', 0)).toMatch(/^C/);
+  it('capital root for a major chord', () => {
+    expect(getChordName(0, 'major', 0)).toBe('C');
+  });
+
+  it('lowercase root for a minor chord (no m suffix)', () => {
+    expect(getChordName(0, 'minor', 0)).toBe('c');
   });
 
   it('returns root only for the root style', () => {
@@ -94,9 +98,9 @@ describe('getChordParts (HUD split)', () => {
     expect(parts.ext).toBe('');
   });
 
-  it('minor chord gets an m suffix', () => {
+  it('minor chord gets a lowercase root, no m suffix', () => {
     const parts = getChordParts(0, 'minor', 0);
-    expect(parts.base).toContain('m');
+    expect(parts.base).toBe('c');
   });
 
   it('1st inversion uses slash-bass notation', () => {

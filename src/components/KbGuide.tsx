@@ -26,83 +26,73 @@
  * auto-pop and the Help-modal replay.
  *
  * Color coding (brand-consistent):
- *   cyan (harmony)  — 1-7 scale degrees, [ ] minor/major
- *   pink (expression) — 8/9/0/- chord style, Shift 8vb, arrow sweeps
+ *   cyan (harmony)  — degree1-7 scale degrees, minor/major
+ *   pink (expression) — chordStyle1-4, octaveDown, volume/filter sweeps
  *   red (stop)      — Space
  * Unmapped keys stay dim — the contrast shows what is usable.
+ *
+ * (2026-08-10) Which physical key drives each action is player-customizable
+ * (Settings → Customize Keys) — this component takes the live `keymap` as a
+ * prop and renders everything (keycap overlays, demo script, hint line)
+ * from it instead of hardcoded literals, so a rebind (e.g. minor/major off
+ * '[' / ']', hard to reach on German QWERTZ) is reflected immediately.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ACTION_META, ACTION_ORDER, displayKey, type KbAction } from '../input/keymap';
 
 interface KbKey {
-  /** e.key value used for live highlight matching. */
+  /** e.key value used for live highlight matching (physical key identity —
+   *  NOT tied to whichever action is currently bound here). */
   key: string;
   /** Text printed on the keycap. */
   cap: string;
-  /** Function/degree label under the cap. */
+  /** Static function label — only Space uses this; every customizable key
+   *  gets its label/color from the live keymap instead (see charToAction). */
   label?: string;
   /** Width in key units (1 = standard letter key). */
   wide?: number;
-  /** Accent group. */
+  /** Static accent group — only Space uses this (see `label` above). */
   color?: 'harmony' | 'expression' | 'stop';
 }
 
-/** Keys the app maps — pressing any of these hands control to the player
- *  (demo pauses; the guide becomes a live press-to-learn display). */
-const MAPPED_KEY_SET = new Set([
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
-  '[', ']', 'Shift',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  ' ',
-]);
+/** Caption phrasing per action — kept separate from ACTION_META.label
+ *  (Settings UI copy) since the guide's teaching voice differs: lowercase
+ *  ("minor" not "Minor"), "Hold" for sustain actions, ":" separator for
+ *  the actual arrow keys (a "→" mapping arrow next to an arrow-key glyph
+ *  reads as a second key to press — bug 2026-08-09). */
+const CAPTION_TEXT: Record<KbAction, string> = {
+  degree1: 'I (tonic)', degree2: 'II', degree3: 'III', degree4: 'IV', degree5: 'V', degree6: 'VI', degree7: 'VII',
+  minor: 'minor', major: 'major',
+  chordStyle1: 'triad', chordStyle2: '1st inversion', chordStyle3: '7th chord', chordStyle4: '9th chord',
+  octaveDown: 'octave down (8vb)',
+  volumeUp: 'volume up', volumeDown: 'volume down', filterLeft: 'filter sweep left', filterRight: 'filter sweep right',
+};
+const CAPTION_HOLD = new Set<KbAction>(['octaveDown', 'volumeUp', 'volumeDown', 'filterLeft', 'filterRight']);
+const CAPTION_COLON = new Set<KbAction>(['volumeUp', 'volumeDown', 'filterLeft', 'filterRight']);
 
-/** Auto-demo script: every mapped key in teaching order, one caption each.
- *  ALL COPY IS ENGLISH — the site is English-only (SEO + UI); the captions
- *  double as the live press-to-learn text via KEY_CAPTIONS below. */
-const DEMO_STEPS: { key: string; caption: string }[] = [
-  { key: '1', caption: 'Press 1 → I (tonic)' },
-  { key: '2', caption: 'Press 2 → II' },
-  { key: '3', caption: 'Press 3 → III' },
-  { key: '4', caption: 'Press 4 → IV' },
-  { key: '5', caption: 'Press 5 → V' },
-  { key: '6', caption: 'Press 6 → VI' },
-  { key: '7', caption: 'Press 7 → VII' },
-  { key: '[', caption: 'Press [ → minor' },
-  { key: ']', caption: 'Press ] → major' },
-  { key: '8', caption: 'Press 8 → triad' },
-  { key: '9', caption: 'Press 9 → 1st inversion' },
-  { key: '0', caption: 'Press 0 → 7th chord' },
-  { key: '-', caption: 'Press - → 9th chord' },
-  { key: 'Shift', caption: 'Hold Shift → octave down (8vb)' },
-  // Arrow keys use a COLON separator (not →): the mapping arrow would
-  // read as a second key to press ("Hold → → filter sweep" = confusing,
-  // bug 2026-08-09). "Hold ↑ : volume up" is unambiguous.
-  { key: 'ArrowUp', caption: 'Hold ↑ : volume up' },
-  { key: 'ArrowDown', caption: 'Hold ↓ : volume down' },
-  { key: 'ArrowLeft', caption: 'Hold ← : filter sweep left' },
-  { key: 'ArrowRight', caption: 'Hold → : filter sweep right' },
-  { key: ' ', caption: 'Press Space → stop all notes' },
-];
-
-/** key → caption lookup, reused for the player's own presses. */
-const KEY_CAPTIONS = new Map(DEMO_STEPS.map((s) => [s.key, s.caption]));
+function captionFor(action: KbAction, key: string): string {
+  const verb = CAPTION_HOLD.has(action) ? 'Hold' : 'Press';
+  const sep = CAPTION_COLON.has(action) ? ':' : '→';
+  return `${verb} ${displayKey(key)} ${sep} ${CAPTION_TEXT[action]}`;
+}
 
 /** Demo pacing: one key per 1.4s — readable, not rushed. */
 const DEMO_MS = 1400;
 
 const ROW_0: KbKey[] = [
   { key: '`', cap: '`' },
-  { key: '1', cap: '1', label: 'I', color: 'harmony' },
-  { key: '2', cap: '2', label: 'II', color: 'harmony' },
-  { key: '3', cap: '3', label: 'III', color: 'harmony' },
-  { key: '4', cap: '4', label: 'IV', color: 'harmony' },
-  { key: '5', cap: '5', label: 'V', color: 'harmony' },
-  { key: '6', cap: '6', label: 'VI', color: 'harmony' },
-  { key: '7', cap: '7', label: 'VII', color: 'harmony' },
-  { key: '8', cap: '8', label: 'Triad', color: 'expression' },
-  { key: '9', cap: '9', label: '1st inv', color: 'expression' },
-  { key: '0', cap: '0', label: '7th', color: 'expression' },
-  { key: '-', cap: '-', label: '9th', color: 'expression' },
+  { key: '1', cap: '1' },
+  { key: '2', cap: '2' },
+  { key: '3', cap: '3' },
+  { key: '4', cap: '4' },
+  { key: '5', cap: '5' },
+  { key: '6', cap: '6' },
+  { key: '7', cap: '7' },
+  { key: '8', cap: '8' },
+  { key: '9', cap: '9' },
+  { key: '0', cap: '0' },
+  { key: '-', cap: '-' },
   { key: '=', cap: '=' },
 ];
 
@@ -117,8 +107,8 @@ const ROW_1: KbKey[] = [
   { key: 'i', cap: 'I' },
   { key: 'o', cap: 'O' },
   { key: 'p', cap: 'P' },
-  { key: '[', cap: '[', label: 'Minor', color: 'harmony' },
-  { key: ']', cap: ']', label: 'Major', color: 'harmony' },
+  { key: '[', cap: '[' },
+  { key: ']', cap: ']' },
 ];
 
 const ROW_2: KbKey[] = [
@@ -149,23 +139,40 @@ const ROW_3: KbKey[] = [
 ];
 
 const ROW_4: KbKey[] = [
-  { key: 'Shift', cap: 'Shift', label: '8vb', wide: 2.25, color: 'expression' },
+  { key: 'Shift', cap: 'Shift', wide: 2.25 },
   { key: ' ', cap: 'Space', label: 'Stop all', wide: 5.5, color: 'stop' },
-  { key: 'ArrowUp', cap: '↑', label: 'Volume', color: 'expression' },
-  { key: 'ArrowDown', cap: '↓', label: 'Volume', color: 'expression' },
-  { key: 'ArrowLeft', cap: '←', label: 'Filter', color: 'expression' },
-  { key: 'ArrowRight', cap: '→', label: 'Filter', color: 'expression' },
+  { key: 'ArrowUp', cap: '↑' },
+  { key: 'ArrowDown', cap: '↓' },
+  { key: 'ArrowLeft', cap: '←' },
+  { key: 'ArrowRight', cap: '→' },
 ];
 
 interface KbGuideProps {
+  keymap: Record<KbAction, string>;
   onDismiss: (method: 'close' | 'x' | 'overlay' | 'esc') => void;
 }
 
-export function KbGuide({ onDismiss }: KbGuideProps) {
+export function KbGuide({ keymap, onDismiss }: KbGuideProps) {
+  // Physical key → action, inverted from the live keymap — drives keycap
+  // overlays (label/color) so a rebind shows up wherever it lands, not at
+  // the old default position.
+  const charToAction = useMemo(() => {
+    const m = new Map<string, KbAction>();
+    for (const a of ACTION_ORDER) m.set(keymap[a], a);
+    return m;
+  }, [keymap]);
+
+  const mappedKeySet = useMemo(() => new Set([...Object.values(keymap), ' ']), [keymap]);
+
+  const demoSteps = useMemo(() => {
+    const steps = ACTION_ORDER.map((a) => ({ key: keymap[a], caption: captionFor(a, keymap[a]) }));
+    steps.push({ key: ' ', caption: 'Press Space → stop all notes' });
+    return steps;
+  }, [keymap]);
   // Set (not single key) so 'hold 5 + press 8' highlights both.
   const [activeKeys, setActiveKeys] = useState<ReadonlySet<string>>(new Set());
   // Auto-demo state: null = not demoing (player took over), else the
-  // current DEMO_STEPS index.
+  // current demoSteps index.
   const [demoStep, setDemoStep] = useState<number | null>(0);
   // The last mapped key the player pressed — its caption replaces the
   // demo caption once the player takes over (same teaching copy, live).
@@ -178,7 +185,7 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
       // the same tick and double-report analytics.
       // First mapped key the player presses ends the demo — they're
       // playing now; the caption line follows their own presses.
-      if (MAPPED_KEY_SET.has(e.key)) {
+      if (mappedKeySet.has(e.key)) {
         setDemoStep(null);
         setLastKey(e.key);
       }
@@ -204,36 +211,46 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', clear);
     };
-  }, [onDismiss]);
+  }, [onDismiss, mappedKeySet]);
 
   // Demo timer — loops through the script until the player takes over
   // (functional update keeps the latest state; no stale closures).
   useEffect(() => {
     const id = window.setInterval(() => {
-      setDemoStep((cur) => (cur === null ? null : (cur + 1) % DEMO_STEPS.length));
+      setDemoStep((cur) => (cur === null ? null : (cur + 1) % demoSteps.length));
     }, DEMO_MS);
     return () => window.clearInterval(id);
-  }, []);
+  }, [demoSteps.length]);
 
-  const demoKey = demoStep === null ? null : DEMO_STEPS[demoStep]?.key ?? null;
+  const demoKey = demoStep === null ? null : demoSteps[demoStep]?.key ?? null;
+  const keyCaptions = useMemo(() => new Map(demoSteps.map((s) => [s.key, s.caption])), [demoSteps]);
   const caption = demoStep !== null
-    ? DEMO_STEPS[demoStep]?.caption ?? null
+    ? demoSteps[demoStep]?.caption ?? null
     : lastKey !== null
-      ? KEY_CAPTIONS.get(lastKey) ?? null
+      ? keyCaptions.get(lastKey) ?? null
       : null;
 
   const renderRow = (row: KbKey[]) => (
     <div className="kb-row">
-      {row.map((k) => (
-        <div
-          key={k.key}
-          className={`kb-key${k.color ? ` kb-key-${k.color}` : ''}${activeKeys.has(k.key) || k.key === demoKey ? ' kb-key-active' : ''}${k.key === demoKey ? ' kb-key-demo' : ''}`}
-          style={k.wide ? { flex: `${k.wide} 1 0` } : undefined}
-        >
-          <span className="kb-key-cap">{k.cap}</span>
-          {k.label && <span className="kb-key-label">{k.label}</span>}
-        </div>
-      ))}
+      {row.map((k) => {
+        // Space keeps its static label/color (not part of the customizable
+        // keymap); every other key's overlay follows whichever action is
+        // currently bound to this physical position.
+        const action = charToAction.get(k.key);
+        const meta = action ? ACTION_META[action] : undefined;
+        const label = k.label ?? meta?.label;
+        const color = k.color ?? meta?.group;
+        return (
+          <div
+            key={k.key}
+            className={`kb-key${color ? ` kb-key-${color}` : ''}${activeKeys.has(k.key) || k.key === demoKey ? ' kb-key-active' : ''}${k.key === demoKey ? ' kb-key-demo' : ''}`}
+            style={k.wide ? { flex: `${k.wide} 1 0` } : undefined}
+          >
+            <span className="kb-key-cap">{k.cap}</span>
+            {label && <span className="kb-key-label">{label}</span>}
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -270,7 +287,7 @@ export function KbGuide({ onDismiss }: KbGuideProps) {
         Close
       </button>
       <div className="kb-guide-hint">
-        Hold 1–7 to play · [ ] minor/major · Shift = octave down · back to camera: top toolbar camera button
+        Hold {displayKey(keymap.degree1)}–{displayKey(keymap.degree7)} to play · {displayKey(keymap.minor)} {displayKey(keymap.major)} minor/major · {displayKey(keymap.octaveDown)} = octave down · back to camera: top toolbar camera button
       </div>
     </div>
   );

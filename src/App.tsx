@@ -7,6 +7,7 @@ import { audioEngine } from './audioEngine';
 import { CameraSource } from './input/cameraSource';
 import { KeyboardSource } from './input/keyboardSource';
 import type { HandFrame } from './input/types';
+import { DEFAULT_KEYMAP, displayKey, loadKeymap, saveKeymap, type KbAction } from './input/keymap';
 import { KbGuide } from './components/KbGuide';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HelpModal } from './components/HelpModal';
@@ -29,9 +30,11 @@ import WorksPanel from './components/WorksPanel';
 import { deleteWork, listWorks, type StoredWork } from './works/workStore';
 import {
   DIATONIC_CHORDS,
+  DIATONIC_CHORDS_MINOR,
   KEYS,
   getChordName,
   getChordParts,
+  getDiatonicChords,
   midiToFreq,
   type ChordStyle,
 } from './chords';
@@ -69,15 +72,11 @@ import {
 import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
 // Config imports removed — external scripts feature not currently active
 
-/** Keys KeyboardSource maps — their default browser behavior (page
- *  scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
- *  Everything else keeps native behavior (Tab, F5, …). */
-const KEYBOARD_MAPPED_KEYS = [
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-',
-  '[', ']', 'Shift',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  ' ',
-];
+/* Keys KeyboardSource maps — their default browser behavior (page
+ * scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
+ * Everything else keeps native behavior (Tab, F5, …). Player-customizable
+ * (2026-08-10) — the live set lives in the mappedKeysRef declared inside
+ * the component (derived from `keymap`), not a static list here. */
 
 /* ─── Gesture Synth Weld — Two-Hand Division System ─────────────────── */
 
@@ -133,7 +132,7 @@ export default function App() {
     chordExt: '',
     octaveDown: false,
     volume: 0.6,
-    mode: 'neutral',
+    mode: 'diatonicMajor',
     isPlaying: false,
     keyOffset: 9, // A major (matches competitor default)
     appMode: 'gesture',
@@ -302,6 +301,24 @@ export default function App() {
   });
   const keyboardModeRef = useRef(keyboardMode);
   useEffect(() => { keyboardModeRef.current = keyboardMode; }, [keyboardMode]);
+  // Player-customizable keyboard bindings (2026-08-10) — persisted so a
+  // rebind (e.g. minor/major off '[' / ']', hard to reach on German
+  // QWERTZ) survives visits. KeyboardSource resolves actions through
+  // whatever's currently set here (see input/keymap.ts).
+  const [keymap, setKeymapState] = useState<Record<KbAction, string>>(() => loadKeymap());
+  const handleKeymapChange = useCallback((map: Record<KbAction, string>) => {
+    saveKeymap(map);
+    setKeymapState(map);
+  }, []);
+  useEffect(() => {
+    keyboardSourceRef.current?.setKeymap(keymap);
+  }, [keymap]);
+  // Mirrored into a ref so the keydown/keyup effect (empty deps, see below)
+  // always reads the current bindings without re-subscribing listeners.
+  const mappedKeysRef = useRef<string[]>([...Object.values(DEFAULT_KEYMAP), ' ']);
+  useEffect(() => {
+    mappedKeysRef.current = [...Object.values(keymap), ' '];
+  }, [keymap]);
   // Data-driven pulse: the ACTIVE entry declares which toolbar control it
   // teaches (pulseTarget) — future announcements that don't teach a
   // control simply omit it and nothing pulses (user decision 2026-08-09).
@@ -530,7 +547,7 @@ export default function App() {
         // be replayed from Help while keyboard mode is off — the mapped
         // keys must not scroll the page there either, bug 2026-08-09).
         // Everything else (Tab, F5, …) keeps browser behavior.
-        if (KEYBOARD_MAPPED_KEYS.includes(e.key)) e.preventDefault();
+        if (mappedKeysRef.current.includes(e.key)) e.preventDefault();
       }
       if (keyboardModeRef.current || showKbGuideRef.current) {
         keyboardSourceRef.current?.handleKey(e, true);
@@ -542,7 +559,7 @@ export default function App() {
       // toward the depth reported on session exit. Only while a keyboard
       // session runs — guide-only presses from a camera-mode Help replay
       // (keyboardModeRef false) don't count.
-      if (keyboardModeRef.current && !e.repeat && KEYBOARD_MAPPED_KEYS.includes(e.key)) {
+      if (keyboardModeRef.current && !e.repeat && mappedKeysRef.current.includes(e.key)) {
         const s = kbSessionRef.current;
         if (s.active) {
           s.notes++;
@@ -568,7 +585,7 @@ export default function App() {
         setSynthState(prev => ({
           ...prev,
           isPlaying: false,
-          mode: 'neutral',
+          mode: 'diatonicMajor',
           arpeggiate: false,
           autoBass: false,
         }));
@@ -719,7 +736,7 @@ export default function App() {
 
     // Left Hand → Harmony (scale degree + mode)
     let chordIndex = s.chordIndex;
-    let mode: 'major' | 'minor' | 'neutral' = s.mode;
+    let mode: 'major' | 'minor' | 'diatonicMajor' | 'diatonicMinor' = s.mode;
     if (leftHand) {
       // Apply time-based stabilizer on chordIndex (catches VI/VII changes too)
       const now = performance.now();
@@ -741,7 +758,13 @@ export default function App() {
       } else {
         pinkyMemoryRef.current = 0;
       }
-      const pinky = pinkyMemoryRef.current > 0;
+      // Camera reads the smoothed memory (compensates for flaky Y-axis
+      // pinky detection); keyboard reports exact fingers instantaneously —
+      // forcing it through the memory (always 0 here) broke VI/VII
+      // (bug 2026-08-10: '6'/'7' resolved to II/III instead, since pinky
+      // was always false so the VI/VII match never fired, falling through
+      // to fingerCount 2/3).
+      const pinky = frame.source === 'camera' ? pinkyMemoryRef.current > 0 : extended.includes('pinky');
       const thumb = extended.includes('thumb');
       const index = extended.includes('index');
       const middle = extended.includes('middle');
@@ -776,9 +799,16 @@ export default function App() {
         mode = leftHand.tiltAngle >= 0 ? 'major' : 'minor';
       } else {
         // scaleLocked: use locked mode
-        mode = s.lockedMode ?? 'neutral';
+        mode = s.lockedMode ?? 'diatonicMajor';
       }
     }
+
+    // 'diatonicMajor'/'diatonicMinor' let each scale degree keep its own
+    // diatonic quality instead of forcing major/minor; scaleMode picks
+    // which scale (major- or natural-minor-relative) that quality is read
+    // from.
+    const modeOverride = (mode === 'diatonicMajor' || mode === 'diatonicMinor') ? undefined : mode;
+    const scaleMode: 'major' | 'minor' = mode === 'diatonicMinor' ? 'minor' : 'major';
 
     // Right Hand → Expression (volume + chord style)
     // CRITICAL: Right hand must have at least 1 finger raised to trigger sound
@@ -834,9 +864,10 @@ export default function App() {
     const isPlaying = !!(leftHand && rightHand && !leftFist);
     const { base: chordBase, ext: chordExt } = getChordParts(
       chordIndex,
-      mode === 'neutral' ? undefined : mode,
+      modeOverride,
       s.keyOffset,
       chordStyle,
+      scaleMode,
     );
     const chordName = chordBase + chordExt + (thumbDown ? ' (-8ve)' : '');
 
@@ -866,9 +897,10 @@ export default function App() {
       stabilizerRef.current.lastSeen = performance.now();
       audioEngine.playChord(
         chordIndex, 'sine',
-        mode === 'neutral' ? undefined : mode,
+        modeOverride,
         0, s.keyOffset, chordStyle,
         s.arpeggiate, s.arpSpeed, thumbDown,
+        scaleMode,
       );
       audioEngine.setVolume(volume);
       if (rightHand) audioEngine.updateFilterSweep(rightHand.tiltAngle);
@@ -890,7 +922,8 @@ export default function App() {
 
     // Auto bass — follows octave shift
     if (s.autoBass && isPlaying) {
-      const chord = DIATONIC_CHORDS[chordIndex % DIATONIC_CHORDS.length];
+      const bassChords = getDiatonicChords(scaleMode);
+      const chord = bassChords[chordIndex % bassChords.length];
       const bassMidi = 60 + chord.intervals[0] + s.keyOffset - (thumbDown ? 12 : 0);
       audioEngine.setBassNote(bassMidi, s.bassVolume);
     } else {
@@ -1654,41 +1687,43 @@ export default function App() {
                 toggle are the other paths; the card expires after the
                 announce window, this button doesn't — user decision
                 2026-08-09: keyboard-mode players must always be able to
-                find their way back to the camera). Always a labeled
-                capsule, both states — one control, two shapes would read
-                as two different things (user decision 2026-08-09): in
-                keyboard mode "📷 Camera", in camera mode "⌨ Keyboard".
-                Text labels avoid any icon confusion with the stop-camera
-                button; the pulse draws the eye while the What's-new card
-                teaches the switch. */}
+                find their way back to the camera).
+                (2026-08-10, reversing the 2026-08-09 "labeled capsule"
+                decision — user feedback: a single button whose label
+                names the mode you'd switch TO read as confusing, "Camera"
+                showing while you're actively IN keyboard mode. Then
+                reworked again same day — user feedback: two independently
+                clickable icon segments read as two buttons, not one
+                control.) Now a single classic switch: icon · track+dot ·
+                icon — the dot slides left (camera) or right (keyboard).
+                One click anywhere always toggles. */}
             {!isMobile && (
             <button
-              className={`icon-btn mobile-collapse mode-switch-btn${pulseModeSwitch ? ' help-pulse' : ''}`}
+              className={`mode-switch-toggle mobile-collapse${pulseModeSwitch ? ' help-pulse' : ''}`}
               onClick={() => handleKeyboardToggle(!keyboardMode, 'toolbar')}
+              role="switch"
+              aria-checked={keyboardMode}
               data-tip={keyboardMode
                 ? 'Switch to camera mode — play with hand gestures'
                 : 'Switch to keyboard mode — no camera needed'}
             >
-              {keyboardMode ? (
-                <>
-                  {/* Camera pictogram (Apple-style) — no magenta slash
-                      (that slash marks STOP on the button next to it) */}
-                  <svg width="20" height="17" viewBox="0 0 24 24" fill="none">
-                    <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.7" />
-                    <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-                    <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.7" />
-                  </svg>
-                  <span className="mode-switch-label">Camera</span>
-                </>
-              ) : (
-                <>
-                  {/* Keyboard pictogram — same glyph as the landing button */}
-                  <svg width="19" height="19" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 6a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zm2.5 1a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 9.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zM9 11.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zM5 13.5a.5.5 0 100 1 .5.5 0 000-1zm2 0a.5.5 0 100 1 .5.5 0 000-1zm4 0a.5.5 0 100 1 .5.5 0 000-1zm-1-3a.5.5 0 100 1 .5.5 0 000-1zm3 0a.5.5 0 100 1 .5.5 0 000-1z" clipRule="evenodd" />
-                  </svg>
-                  <span className="mode-switch-label">Keyboard</span>
-                </>
-              )}
+              {/* Camera pictogram (Apple-style) — no magenta slash (that
+                  slash marks STOP on the button next to it) */}
+              <svg className={`mode-switch-icon${!keyboardMode ? ' active' : ''}`} width="16" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="6.6" width="14.5" height="10" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                <path d="M7.2 6.6 L8.3 4.3 L12.4 4.3 L13.5 6.6" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
+                <circle cx="9.3" cy="11.6" r="2.4" stroke="currentColor" strokeWidth="1.9" />
+              </svg>
+              <span className="mode-switch-track">
+                <span className={`mode-switch-dot${keyboardMode ? ' right' : ''}`} />
+              </span>
+              {/* Keyboard pictogram — stroke-based to match the camera icon's
+                  style (the dot-grid glyph used on the landing button
+                  turns into an unreadable smudge at this toolbar size). */}
+              <svg className={`mode-switch-icon${keyboardMode ? ' active' : ''}`} width="16" height="13" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.9" />
+                <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14.5h12" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+              </svg>
             </button>
             )}
             {/* Stop is CAMERA-mode only (user decision 2026-08-09): in
@@ -1832,6 +1867,9 @@ export default function App() {
               keyboardMode={keyboardMode}
               isRunning={isRunning}
               onKeyboardToggle={handleKeyboardToggle}
+              keymap={keymap}
+              onKeymapChange={handleKeymapChange}
+              onOpenGuide={showKbGuidePanel}
             />
           )}
         </div>
@@ -2169,19 +2207,49 @@ export default function App() {
                 zIndex: 5,
               }}>
                 {(() => {
-                  const mkNote = (semis: number) => {
-                    const key = KEYS[(semis + synthState.keyOffset) % 12];
-                    return key?.name?.split('/')[0] ?? '?';
+                  // Case marks quality here too (chords.ts convention),
+                  // and it tracks whatever's actually LOCKED/selected right
+                  // now (2026-08-10 — a fixed diatonic-major legend was
+                  // wrong for All Major/All Minor/Diatonic Minor):
+                  //   major          → every block forced capital
+                  //   minor          → every block forced lowercase
+                  //   diatonicMajor  → per-degree, major-scale-relative table
+                  //   diatonicMinor  → per-degree, natural-minor-relative
+                  //                    table — different ROOT NOTES too,
+                  //                    not just case (mirrors scaleMode in
+                  //                    the playback logic above)
+                  // Reads the SETTING (lockedMode), not synthState.mode —
+                  // mode only gets recomputed while a note is actually
+                  // held, so it lags the dropdown until the next press
+                  // (bug 2026-08-10: guide kept showing the old pattern
+                  // right after switching lock modes, before playing a
+                  // note). scaleTilt has no fixed "selected" quality (it's
+                  // live per wrist tilt) so it still follows synthState.mode.
+                  const guideMode = synthState.leftHandMode === 'scaleLocked'
+                    ? (synthState.lockedMode ?? 'major')
+                    : synthState.mode;
+                  const guideChords = guideMode === 'diatonicMinor' ? DIATONIC_CHORDS_MINOR : DIATONIC_CHORDS;
+                  const isDegreeMinor = (i: number): boolean => {
+                    if (guideMode === 'major') return false;
+                    if (guideMode === 'minor') return true;
+                    return !guideChords[i].isMajor;
                   };
+                  const mkNote = (i: number) => {
+                    const semis = guideChords[i].intervals[0];
+                    const key = KEYS[(semis + synthState.keyOffset) % 12];
+                    const name = key?.name?.split('/')[0] ?? '?';
+                    return isDegreeMinor(i) ? name.toLowerCase() : name;
+                  };
+                  const kk = (a: KbAction) => `key ${displayKey(keymap[a])}`;
                   const keyNotes = [
-                    { note: mkNote(0),  roman: 'I',   hint: keyboardMode ? 'key 1' : '1 finger' },
-                    { note: mkNote(2),  roman: 'II',  hint: keyboardMode ? 'key 2' : '2 fingers' },
-                    { note: mkNote(4),  roman: 'III', hint: keyboardMode ? 'key 3' : '3 fingers' },
-                    { note: mkNote(5),  roman: 'IV',  hint: keyboardMode ? 'key 4' : '4 fingers' },
-                    { note: mkNote(7),  roman: 'V',   hint: keyboardMode ? 'key 5' : '5 fingers' },
-                    { note: mkNote(9),  roman: 'VI',  hint: keyboardMode ? 'key 6' : 'idx + pky' },
-                    { note: mkNote(11), roman: 'VII', hint: keyboardMode ? 'key 7' : 'i + p + t' },
-                    { note: mkNote(0),  roman: 'I\'', hint: keyboardMode ? 'Shift = 8vb' : '1 fing (oct)' },
+                    { note: mkNote(0), roman: 'I',   hint: keyboardMode ? kk('degree1') : '1 finger' },
+                    { note: mkNote(1), roman: 'II',  hint: keyboardMode ? kk('degree2') : '2 fingers' },
+                    { note: mkNote(2), roman: 'III', hint: keyboardMode ? kk('degree3') : '3 fingers' },
+                    { note: mkNote(3), roman: 'IV',  hint: keyboardMode ? kk('degree4') : '4 fingers' },
+                    { note: mkNote(4), roman: 'V',   hint: keyboardMode ? kk('degree5') : '5 fingers' },
+                    { note: mkNote(5), roman: 'VI',  hint: keyboardMode ? kk('degree6') : 'idx + pky' },
+                    { note: mkNote(6), roman: 'VII', hint: keyboardMode ? kk('degree7') : 'i + p + t' },
+                    { note: mkNote(0), roman: 'I\'', hint: keyboardMode ? `${displayKey(keymap.octaveDown)} = 8vb` : '1 fing (oct)' },
                   ];
                   return keyNotes.map((block, i) => {
                     const isActive = synthState.chordIndex === i && synthState.isPlaying;
@@ -2402,7 +2470,7 @@ export default function App() {
       </section>
 
       {/* ─── Keyboard guide overlay (first-run + replayable) ──────────── */}
-      {showKbGuide && <KbGuide onDismiss={dismissKbGuide} />}
+      {showKbGuide && <KbGuide keymap={keymap} onDismiss={dismissKbGuide} />}
 
     </div>
   );

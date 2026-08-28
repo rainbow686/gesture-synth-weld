@@ -1,2 +1,1 @@
-google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
-# Reserved for AdSense — replace pub-... with your publisher ID after approval. No ads are currently serving.
+google.com, pub-4516753695428109, DIRECT, f08c47fec0942fa0

@@ -1,38 +1,32 @@
 # Gesture Synth Weld 🎹
 
-**Play music with your hands — an open-source hand-tracking chord synth and theremin for the browser.**
+**Play music with your hands — an open-source hand-tracking chord synth for the browser.**
 
 ![Live](https://gesturesynthweld.com)
 ![License: MIT](./LICENSE)
 
 ## ✨ Features
 
-- 🎹 **Piano-quality sound** with real multi-sampled piano, strings, organ, and synth
-- ✋ **Hand tracking via MediaPipe** — left hand controls chords, right hand controls volume & timbre
-- 🎛️ **Floating control panel** — switch instruments and scales without leaving the camera view
-- ⌨️ **Keyboard mode** — no camera? Play with your keyboard (keys 1-7 for chords, arrows for volume)
-- ⏺️ **Record & Export** — save your performances as WAV files
-- 🌐 **Works in the browser** — no install, no sign-up, no paywall
+- ✋ **Two-hand instrument** — left hand picks harmony (key · scale degree I–VII · major/minor), right hand shapes expression (chord style · volume · tone · octave)
+- 🎛️ **3 modes** — Gesture (two-hand chords) · Theremin (dual-hand pitch+volume) · MonoPiano (finger-count intervals)
+- ⌨️ **Keyboard mode (desktop, no camera)** — `1-7` degrees (hold to play) · `[ / ]` minor/major (customizable) · `Shift` octave down · `8/9/0/-` chord styles · `↑/↓` volume · `←/→` filter · `Space` stop; includes a real QWERTY guide with demo animation
+- 🎚️ **Arpeggiator + Auto Bass + Filter sweep** — harp-like arpeggios, low-end root, real-time tone control
+- ⏺️ **Record up to 60s** — audio / full video / skeleton animation; `9:16 / 16:9 / 1:1`; `My works` local gallery; mic sing-along with vocal polish
+- 🌗 **Stage atmosphere** — vignette/scanlines (WYSIWYG live + recording)
+- 🌐 **Works in the browser** — no install, no sign-up, no paywall; pure sawtooth synth (intentionally minimal)
 
 ## 🚀 Try It
 
 👉 [gesturesynthweld.com](https://gesturesynthweld.com)
 
-## 🛠️ Tech Stack
-
-- Vite + React + TypeScript
-- MediaPipe Tasks Vision (HandLandmarker)
-- Tone.js (sampled instruments)
-- Web Audio API (fallback synth engine)
-
 ## 📖 How It Works
 
-1. **Click Start** and allow camera access
-2. **Left hand** — hold up 1-5 fingers to select from 7 diatonic chords (I, ii, iii, IV, V, vi, vii°). Tilt your wrist to toggle major/minor.
-3. **Right hand** — raise higher for more volume (theremin-style). Lower = quieter.
-4. **Floating panel** — switch between Piano 🎹 / Strings 🎻 / Organ 🎛️ / Synth ⚡, toggle Major/Minor, record your session.
+1. **Click Start** and allow camera access (or switch to **Keyboard mode** in Settings — no camera, no model download).
+2. **Left hand** — 1–5 fingers → I–V; `Index+Pinky = VI`, `+Thumb = VII`; wrist tilt or locked **Natural diatonic** per degree.
+3. **Right hand** — finger count → chord style (triad / 1st inv / 7th / 9th); height = volume, tilt = filter.
+4. **Both hands required** for sound; record `≤60s` and share from the result panel.
 
-No camera? Use keyboard shortcuts: `1-7` for chords, `↑↓` for volume, `Q/W/E/R` for timbre.
+No camera? See **Keyboard mode** above — `Settings → Customize Keys` supports QWERTY/QWERTZ presets and per-action rebind.
 
 ## 🏃 Getting Started Locally
 
@@ -43,7 +37,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) (Vite default is `5173` — see console).
 
 ### Build for production
 
@@ -84,7 +78,7 @@ npm install
 npm run dev
 ```
 
-The deployed version at gesturesynthweld.com includes hosting-related disclosures in its FAQ.
+The deployed version at gesturesynthweld.com includes hosting-related disclosures in its FAQ and a reserved, non-intrusive below-fold ad slot (no ads currently serving).
 
 ## 🔗 Related
 

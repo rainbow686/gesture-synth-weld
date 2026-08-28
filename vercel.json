@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/contact", "destination": "/contact.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "redirects": [

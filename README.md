@@ -11,7 +11,7 @@
 - 🎛️ **3 modes** — Gesture (two-hand chords) · Theremin (dual-hand pitch+volume) · MonoPiano (finger-count intervals)
 - ⌨️ **Keyboard mode (desktop, no camera)** — `1-7` degrees (hold to play) · `[ / ]` minor/major (customizable) · `Shift` octave down · `8/9/0/-` chord styles · `↑/↓` volume · `←/→` filter · `Space` stop; includes a real QWERTY guide with demo animation
 - 🎚️ **Arpeggiator + Auto Bass + Filter sweep** — harp-like arpeggios, low-end root, real-time tone control
-- ⏺️ **Record up to 60s** — audio / full video / skeleton animation; `9:16 / 16:9 / 1:1`; `My works` local gallery; mic sing-along with vocal polish
+- ⏺️ **Record up to 120s** — audio / full video / skeleton animation; `9:16 / 16:9 / 1:1`; `My works` local gallery; mic sing-along with vocal polish
 - 🌗 **Stage atmosphere** — vignette/scanlines (WYSIWYG live + recording)
 - 🌐 **Works in the browser** — no install, no sign-up, no paywall; pure sawtooth synth (intentionally minimal)
 
@@ -24,7 +24,7 @@
 1. **Click Start** and allow camera access (or switch to **Keyboard mode** in Settings — no camera, no model download).
 2. **Left hand** — 1–5 fingers → I–V; `Index+Pinky = VI`, `+Thumb = VII`; wrist tilt or locked **Natural diatonic** per degree.
 3. **Right hand** — finger count → chord style (triad / 1st inv / 7th / 9th); height = volume, tilt = filter.
-4. **Both hands required** for sound; record `≤60s` and share from the result panel.
+4. **Both hands required** for sound; record `≤120s` and share from the result panel.
 
 No camera? See **Keyboard mode** above — `Settings → Customize Keys` supports QWERTY/QWERTZ presets and per-action rebind.
 

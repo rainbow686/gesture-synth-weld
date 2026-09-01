@@ -83,6 +83,19 @@ const ANNOUNCE_DAYS = 14;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    // Recording length bump to 120s (2026-09-01 decision): timeout share
+    // plateaued at ~27% for the whole 60s window (57%→26% after the 30s bump),
+    // a quarter of takes genuinely hit the wall. Adding this entry also
+    // retires the v2.2 works announcement (its 14-day window ended 9/01).
+    // Informational: no landingClick (recording has no landing element), no
+    // pulseTarget/teach (the record button is not a toolbar teaching target —
+    // the record flow itself teaches the new limit), not desktopOnly.
+    version: 'v2.3',
+    releasedAt: '2026-09-01',
+    title: 'Recordings now run 120 seconds',
+    body: 'Takes auto-stop at 120s — twice the room before the wrap-up countdown. Same three modes, aspect ratios and share flow; the magenta wrap-up still warns at the last 3 seconds.',
+  },
+  {
     // Retention experiment (2026-08-17): announcing this in the PLAYING
     // scene reinforces the result panel's auto-save note - the message
     // that drives the next visit we're measuring. No landingClick: the

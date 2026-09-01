@@ -1201,7 +1201,7 @@ export default function App() {
     const oldStream = streamRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         audio: false,
       });
       oldStream?.getTracks().forEach((t) => t.stop());
@@ -1310,7 +1310,11 @@ export default function App() {
       trackingPromise.catch(() => {}); // errors surface via the await below
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        // 16:9 ideal — a 4:3 stream cover-cropped into a 16:9 window loses
+        // ~1/3 of the vertical FOV and the player reads it as "camera too
+        // close" (2026-08-31 laptop report; same fix as pro bdf301c). Devices
+        // without a 16:9 mode negotiate down and behave exactly as before.
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         audio: false,
       });
       trackCameraPermission('granted');

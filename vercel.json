@@ -4,6 +4,7 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/about", "destination": "/about.html" },
+    { "source": "/guide", "destination": "/guide.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/contact", "destination": "/contact.html" },
     { "source": "/(.*)", "destination": "/index.html" }

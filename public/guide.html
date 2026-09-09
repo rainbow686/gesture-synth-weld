@@ -38,100 +38,216 @@
 }
 </script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,system-ui,sans-serif;background:#0a0a1a;color:#d0d0e8;line-height:1.7;max-width:860px;margin:0 auto;padding:2rem 1.2rem}a{color:#00ffcc}h1{font-family:Orbitron,monospace;color:#00ffcc;font-size:1.5rem;margin-bottom:0.5rem}h2{font-family:Orbitron,monospace;color:#00ffcc;font-size:1rem;margin:1.6rem 0 0.5rem}h3{color:#e0e0ff;font-size:0.95rem;margin:1.1rem 0 0.3rem}p,li{font-size:0.9rem;color:#b0b0d0;margin-bottom:0.6rem}ul,ol{padding-left:1.2rem}.nav{margin-bottom:1.2rem;font-size:0.85rem}.nav a{margin-right:0.8rem}.muted{color:#606090;font-size:0.8rem;margin-top:2rem;border-top:1px solid rgba(0,255,204,0.12);padding-top:1rem}.cta{display:block;text-align:center;background:linear-gradient(135deg,rgba(0,255,204,.15),rgba(255,0,255,.15));border:1px solid rgba(0,255,204,.3);border-radius:12px;padding:1rem;margin:1.4rem 0;font-weight:600;color:#fff;text-decoration:none}.cta:hover{border-color:#00ffcc}table{width:100%;border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0 1rem}th{text-align:left;padding:0.5rem 0.7rem;color:#00ffcc;font-family:Orbitron,monospace;font-size:0.65rem;letter-spacing:0.08em;border-bottom:1px solid rgba(0,255,204,.2);background:rgba(0,255,204,.04)}td{padding:0.45rem 0.7rem;border-bottom:1px solid rgba(255,255,255,.06);color:#b0b0d0}.card{background:rgba(10,20,40,.5);border:1px solid rgba(0,255,204,.08);border-radius:12px;padding:1.2rem;margin-bottom:1.2rem}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#0a0a1a;color:#d0d0e8;line-height:1.7}
+.wrap{max-width:860px;margin:0 auto;padding:2rem 1.2rem 3rem}
+a{color:#00ffcc}
+.nav{margin-bottom:1.2rem;font-size:.85rem}
+.nav a{margin-right:.9rem;text-decoration:none}
+.nav a:hover{text-decoration:underline}
+/* hero */
+.hero{text-align:center;padding:2.2rem 1rem 1.6rem;margin-bottom:1.2rem;position:relative}
+.hero::before{content:"";position:absolute;inset:-40px 0 0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 50% 30%,rgba(0,255,204,.10),transparent 70%),
+             radial-gradient(ellipse 50% 40% at 70% 60%,rgba(255,0,255,.08),transparent 70%)}
+.eyebrow{display:inline-block;font-family:Orbitron,monospace;font-size:.68rem;letter-spacing:.22em;color:#0a0a1a;
+  background:linear-gradient(135deg,#00ffcc,#7dffef);border-radius:999px;padding:.28rem .9rem;margin-bottom:1rem;position:relative}
+.hero h1{font-family:Orbitron,monospace;font-size:clamp(1.4rem,4.5vw,2.1rem);line-height:1.25;margin-bottom:.7rem;position:relative;
+  background:linear-gradient(135deg,#00ffcc 20%,#7ddfff 50%,#ff00ff 80%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.lede{color:#b0b0d0;font-size:1rem;max-width:640px;margin:0 auto 1.2rem;position:relative}
+.lede strong{color:#fff}
+.cta-row{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap;position:relative}
+.btn{display:inline-block;font-weight:600;font-size:.92rem;border-radius:12px;padding:.7rem 1.5rem;text-decoration:none;transition:transform .12s ease,box-shadow .12s ease}
+.btn-primary{color:#0a0a1a;background:linear-gradient(135deg,#00ffcc,#4dffdb);box-shadow:0 0 24px rgba(0,255,204,.35)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 32px rgba(0,255,204,.5)}
+.btn-ghost{color:#00ffcc;border:1px solid rgba(0,255,204,.4);background:rgba(0,255,204,.06)}
+.btn-ghost:hover{background:rgba(0,255,204,.12)}
+.stats{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.2rem;position:relative}
+.chip{font-size:.75rem;color:#a0a0d0;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.25rem .8rem;background:rgba(255,255,255,.03)}
+.chip b{color:#00ffcc}
+/* toc */
+.toc{background:rgba(10,20,40,.5);border:1px solid rgba(0,255,204,.1);border-radius:12px;padding:1rem 1.3rem;margin-bottom:1.4rem;font-size:.85rem}
+.toc span{color:#606090;font-size:.75rem;letter-spacing:.12em}
+.toc a{margin-right:.9rem;white-space:nowrap;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+/* sections */
+.card{background:rgba(10,20,40,.5);border:1px solid rgba(0,255,204,.08);border-radius:12px;padding:1.5rem;margin-bottom:1.4rem}
+h2{font-family:Orbitron,monospace;color:#00ffcc;font-size:1.05rem;margin:0 0 .7rem;filter:drop-shadow(0 0 8px rgba(0,255,204,.2))}
+h2.magenta{color:#ff7dff;filter:drop-shadow(0 0 8px rgba(255,0,255,.2))}
+h2.amber{color:#ffcf6e;filter:drop-shadow(0 0 8px rgba(255,170,0,.2))}
+h2.red{color:#ff6e9e;filter:drop-shadow(0 0 8px rgba(255,60,120,.25))}
+h3{color:#e0e0ff;font-size:.95rem;margin:1.1rem 0 .3rem}
+p,li{font-size:.9rem;color:#b0b0d0;margin-bottom:.6rem}
+ul,ol{padding-left:1.2rem}
+p strong,li strong{color:#e8e8ff}
+/* step cards */
+.step-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.9rem;margin-top:.8rem}
+.step-card{background:rgba(10,20,40,.6);border-radius:10px;padding:1.1rem;border:1px solid rgba(0,255,204,.1)}
+.step-num{font-family:Orbitron,monospace;font-size:1.7rem;font-weight:900}
+.step-card:nth-child(1) .step-num{color:#00ffcc}
+.step-card:nth-child(2) .step-num{color:#ff00ff}
+.step-card:nth-child(3) .step-num{color:#7850ff}
+.step-card:nth-child(4) .step-num{color:#ffaa00}
+.step-card h3{margin:.4rem 0 .3rem;font-size:.9rem}
+.step-card p{font-size:.82rem;color:#a0a0d0;margin:0}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.6rem 0 1rem}
+th{text-align:left;padding:.5rem .7rem;color:#00ffcc;font-family:Orbitron,monospace;font-size:.62rem;letter-spacing:.08em;
+  border-bottom:1px solid rgba(0,255,204,.2);background:rgba(0,255,204,.04)}
+table.pink th{color:#ff7dff;border-bottom-color:rgba(255,0,255,.25);background:rgba(255,0,255,.05)}
+td{padding:.45rem .7rem;color:#c8c8e4;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top}
+tr:hover td{background:rgba(0,255,204,.03)}
+td.special{color:#ff7dff;font-weight:600}
+td em{color:#9090b8}
+/* callouts */
+.callout{border-radius:10px;padding:.9rem 1.1rem;margin:.8rem 0;font-size:.86rem}
+.callout p{margin:0;color:#c0c0dc}
+.callout.kb{border:1px solid rgba(120,80,255,.35);background:rgba(120,80,255,.07)}
+.callout.rec{border:1px solid rgba(255,60,120,.3);background:rgba(255,60,120,.06)}
+.callout.tip{border:1px solid rgba(0,255,204,.25);background:rgba(0,255,204,.05)}
+.callout b{color:#fff}
+/* mode cards */
+.mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.9rem;margin-top:.8rem}
+.mode-card{border-radius:10px;padding:1.1rem;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02)}
+.mode-card h3{margin:0 0 .3rem;font-size:.9rem}
+.mode-card p{font-size:.82rem;color:#a0a0d0;margin:0}
+.mode-card.theremin{border-color:rgba(0,255,204,.3)}
+.mode-card.piano{border-color:rgba(255,0,255,.3)}
+.mode-card.keyboard{border-color:rgba(120,80,255,.4);background:rgba(120,80,255,.05)}
+/* faq */
+details.faq{background:rgba(10,20,40,.6);border:1px solid rgba(0,255,204,.08);border-radius:10px;padding:.95rem 1.3rem;margin-bottom:.7rem}
+details.faq summary{font-weight:600;cursor:pointer;color:#e0e0ff;list-style:none;font-size:.9rem}
+details.faq summary::before{content:"▸ ";color:#00ffcc}
+details.faq p{margin:.7rem 0 0;font-size:.86rem}
+/* footer */
+.final-cta{text-align:center;padding:1.6rem 1rem;border:1px solid rgba(0,255,204,.2);border-radius:14px;
+  background:linear-gradient(135deg,rgba(0,255,204,.07),rgba(255,0,255,.07));margin:1.6rem 0 0}
+.final-cta p{color:#e0e0ff;font-size:1rem;margin-bottom:1rem}
+.muted{color:#606090;font-size:.78rem;margin-top:2rem;border-top:1px solid rgba(0,255,204,.12);padding-top:1rem;text-align:center}
+.muted a{color:#00ffcc}
+@media (max-width:640px){
+  .wrap{padding:1.2rem .9rem 2.5rem}
+  .card{padding:1.1rem}
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  th,td{padding:.35rem .5rem;font-size:.78rem;white-space:nowrap}
+  td:last-child{white-space:normal;min-width:140px}
+}
 </style>
 </head>
 <body>
-<div class="nav"><a href="/">← Gesture Synth Weld</a> <a href="/about">About</a> <a href="/privacy">Privacy</a> <a href="/contact">Contact</a></div>
+<div class="wrap">
+<div class="nav"><a href="/">← Gesture Synth Weld</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a></div>
 
-<h1>How to Play Gesture Synth Weld</h1>
-<p><strong>Gesture Synth Weld</strong> is a free, browser-based hand gesture music synthesizer — this page is the official tutorial. Your <strong>left hand picks the chord</strong>, your <strong>right hand shapes the sound</strong>. No downloads, no hardware, no accounts: open <a href="/">gesturesynthweld.com</a>, allow the camera, and play.</p>
-<a class="cta" href="/">▶ Play Gesture Synth Weld now</a>
+<header class="hero">
+  <span class="eyebrow">OFFICIAL TUTORIAL</span>
+  <h1>How to Play Gesture Synth Weld</h1>
+  <p class="lede"><strong>Gesture Synth Weld</strong> is a free, browser-based hand gesture music synthesizer.
+  Your <strong>left hand picks the chord</strong>, your <strong>right hand shapes the sound</strong> —
+  no downloads, no hardware, no accounts. This is the official guide: every gesture, mapped.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="/">▶ Play now — it's free</a>
+    <a class="btn btn-ghost" href="#quickstart">Quick start ↓</a>
+  </div>
+  <div class="stats">
+    <span class="chip"><b>100%</b> free</span>
+    <span class="chip"><b>0</b> installs · webcam only</span>
+    <span class="chip"><b>3</b> play modes</span>
+    <span class="chip"><b>120s</b> recording</span>
+  </div>
+</header>
 
-<div class="card">
-<h2>⚡ Quick start (30 seconds)</h2>
-<ol>
-<li><strong>Allow camera</strong> — click "Enable Camera" and grant permission. Your video stays on your device; nothing is uploaded.</li>
-<li><strong>Left hand: show fingers</strong> — 1–5 fingers play scale degrees I–V. See the full table below.</li>
-<li><strong>Right hand: join in</strong> — both hands must be visible for sound. Raise your right hand for volume.</li>
-</ol>
-<p style="margin-bottom:0">Defaults out of the box: key of <strong>A</strong>, Major locked, fixed Major-Triad chord style. Change them in Settings or the toolbar.</p>
+<nav class="toc"><span>ON THIS PAGE · </span><a href="#quickstart">Quick start</a><a href="#left">Left hand</a><a href="#right">Right hand</a><a href="#modes">Modes</a><a href="#recording">Recording</a><a href="#faq">FAQ</a></nav>
+
+<section class="card" id="quickstart">
+  <h2>⚡ Quick start — playing in 30 seconds</h2>
+  <div class="step-grid">
+    <div class="step-card"><div class="step-num">1</div><h3>Allow camera</h3><p>Click "Enable Camera" and grant permission. Video stays on your device — nothing is uploaded.</p></div>
+    <div class="step-card"><div class="step-num">2</div><h3>Left hand: show fingers</h3><p>1–5 fingers play scale degrees I–V. Special combos below reach VI and VII.</p></div>
+    <div class="step-card"><div class="step-num">3</div><h3>Right hand: join in</h3><p>Both hands must be visible for sound. Raise your right hand for volume.</p></div>
+    <div class="step-card"><div class="step-num">4</div><h3>Record &amp; share</h3><p>Press Record for up to 120 seconds, then download — or share straight to apps on mobile.</p></div>
+  </div>
+  <div class="callout tip"><p><b>Defaults out of the box:</b> key of A · Major locked · fixed Major-Triad style. Change key in the toolbar, everything else in Settings.</p></div>
+</section>
+
+<section class="card" id="left">
+  <h2>👈 Left hand — harmony (scale degree)</h2>
+  <p>Each finger count is a different scale degree. Examples in A Major:</p>
+  <table>
+    <thead><tr><th>Fingers</th><th>Degree</th><th>Gesture</th><th>In A Major</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>I</strong></td><td>Any 1 finger raised</td><td>A</td></tr>
+      <tr><td>2</td><td><strong>ii</strong></td><td>Any 2 fingers (not the VI combo)</td><td>Bm</td></tr>
+      <tr><td>3</td><td><strong>iii</strong></td><td>Any 3 fingers (not the VII combo)</td><td>C#m</td></tr>
+      <tr><td>4</td><td><strong>IV</strong></td><td>Any 4 fingers raised</td><td>D</td></tr>
+      <tr><td>5</td><td><strong>V</strong></td><td>All 5 fingers raised</td><td>E</td></tr>
+      <tr><td class="special">Special</td><td><strong>vi</strong></td><td><strong>Index + Pinky ONLY</strong> (middle / ring / thumb down)</td><td>F#m</td></tr>
+      <tr><td class="special">Special</td><td><strong>vii°</strong></td><td><strong>Index + Pinky + Thumb ONLY</strong> (middle / ring down)</td><td>G#dim</td></tr>
+      <tr><td>0 (fist)</td><td>—</td><td>All fingers curled</td><td><em>Mute — resumes when fingers return</em></td></tr>
+    </tbody>
+  </table>
+  <h3>🤚 Major / minor via wrist tilt</h3>
+  <p>By default the mode is locked to Major ("Scale notes only"). Switch to <strong>Scale+Tilt</strong> in Settings and your left wrist becomes the switch: <strong>tilt left = minor, tilt right = major</strong>. The toolbar key selector (C–B) transposes everything.</p>
+</section>
+
+<section class="card" id="right">
+  <h2 class="magenta">👉 Right hand — expression</h2>
+  <p>In <strong>Finger Layout</strong> mode, finger count sets chord thickness:</p>
+  <table class="pink">
+    <thead><tr><th>Fingers</th><th>Major</th><th>Minor</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Major Triad</td><td>Minor Triad</td></tr>
+      <tr><td>2</td><td>Major 1st Inversion</td><td>Minor 1st Inversion</td></tr>
+      <tr><td>3</td><td>Major 7th</td><td>Minor 7th</td></tr>
+      <tr><td>4</td><td>Major 9th</td><td>Minor 9th</td></tr>
+    </tbody>
+  </table>
+  <p>The default is <strong>Fixed Chord Style</strong> (Major Triad) — the right hand then controls only volume and tone. Or lock any of 8 styles in Settings: Major Triad · Major 1st Inv · Minor Triad · Diminished · Sus2 · Sus4 · Major 7th · Dominant 7th.</p>
+  <h3>✋ Volume · tone · octave</h3>
+  <ul>
+    <li><strong>Hand height = volume</strong> — higher is louder.</li>
+    <li><strong>Wrist tilt = tone</strong> — tilt right for brighter (filter opens), left for darker.</li>
+    <li><strong>Thumb out = octave down</strong> — drop a full octave for bass lines; tuck it back for normal.</li>
+  </ul>
+  <h3>⏹ Stopping the sound</h3>
+  <ul>
+    <li><strong>Left fist</strong> mutes (notes held, resumes when fingers return).</li>
+    <li><strong>Space</strong> stops all notes · <strong>Esc</strong> resets.</li>
+    <li>A hand leaving the frame stops sound after a short grace period.</li>
+  </ul>
+</section>
+
+<section class="card" id="modes">
+  <h2 class="amber">🎹 Three ways to play</h2>
+  <div class="mode-grid">
+    <div class="mode-card theremin"><h3>🪕 Theremin</h3><p>Right-hand height = pitch (C3→C6), left-hand height = volume. Continuous gliding, no chords.</p></div>
+    <div class="mode-card piano"><h3>🎹 Mono Piano</h3><p>Left-hand finger count picks the note (root / 3rd / 5th / octave / 9th); right hand triggers it.</p></div>
+    <div class="mode-card keyboard"><h3>⌨️ Keyboard (no camera)</h3><p>Desktop only. <b>1–7</b> degrees (hold to play) · <b>[ / ]</b> minor/major · <b>8/9/0/-</b> style · <b>Shift</b> octave down · <b>↑/↓</b> volume · <b>←/→</b> filter · <b>Space</b> stop. Recording is audio-only.</p></div>
+  </div>
+  <div class="callout tip"><p><b>Worth knowing:</b> <b>Arpeggiator</b> (Off/Slow/Normal/Fast) sweeps chord notes like a harp · <b>Auto Bass</b> adds a root note two octaves down with its own volume · <b>Metronome</b> (BPM 40–240, several time signatures — audible in recordings when on).</p></div>
+</section>
+
+<section class="card" id="recording">
+  <h2 class="red">🔴 Recording your performance</h2>
+  <p>Press <strong>Record</strong>: a 3-2-1 countdown, up to <strong>120 seconds</strong>, a 3-2-1 wrap-up before it stops. Capture <strong>audio only</strong>, <strong>full video</strong> (camera + neon skeleton), or <strong>skeleton animation</strong> (privacy-friendly, no camera feed). Aspect ratios 9:16 / 16:9 / 1:1 for TikTok, YouTube, Instagram.</p>
+  <div class="callout rec"><p><b>Sing along:</b> enable the mic to sing over your chords, then download — or share straight to apps on mobile. Finished takes also auto-save to <b>My works</b> in your browser, so your music is there when you come back.</p></div>
+</section>
+
+<section class="card" id="faq">
+  <h2>❓ Gesture Synth Weld FAQ</h2>
+  <details class="faq" open><summary>Is Gesture Synth Weld free?</summary><p>Yes — free to play and record, no sign-up. MIT-licensed open source (<a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">GitHub</a>).</p></details>
+  <details class="faq"><summary>Do I need a camera?</summary><p>No — Keyboard mode (desktop) plays the synth with physical keys only: no permission, no model download.</p></details>
+  <details class="faq"><summary>Which browsers work?</summary><p>Chrome 90+, Edge 90+, Firefox 90+, Safari 15+. Chrome or Edge recommended for the smoothest hand tracking.</p></details>
+  <details class="faq"><summary>Is my video uploaded anywhere?</summary><p>Never — hand tracking runs locally on your device; the camera feed leaves nothing behind.</p></details>
+  <details class="faq"><summary>What is Gesture Synth Weld vs a generic "gesture synth"?</summary><p>Gesture Synth Weld is this site's two-hand instrument — left hand harmony, right hand expression — with 3 modes, arpeggiator, auto bass and built-in recording. Not a hardware glove, not a DAW plugin.</p></details>
+</section>
+
+<div class="final-cta">
+  <p>Enough reading — your hands already know what to do.</p>
+  <a class="btn btn-primary" href="/">▶ Open Gesture Synth Weld and play</a>
 </div>
 
-<h2>👈 Left hand — harmony (scale degree)</h2>
-<p>Each finger count is a different scale degree (example in A Major):</p>
-<table>
-<thead><tr><th>Fingers</th><th>Degree</th><th>Gesture</th><th>In A Major</th></tr></thead>
-<tbody>
-<tr><td>1</td><td><strong>I</strong></td><td>Any 1 finger raised</td><td>A</td></tr>
-<tr><td>2</td><td><strong>ii</strong></td><td>Any 2 fingers (not the VI combo)</td><td>Bm</td></tr>
-<tr><td>3</td><td><strong>iii</strong></td><td>Any 3 fingers (not the VII combo)</td><td>C#m</td></tr>
-<tr><td>4</td><td><strong>IV</strong></td><td>Any 4 fingers raised</td><td>D</td></tr>
-<tr><td>5</td><td><strong>V</strong></td><td>All 5 fingers raised</td><td>E</td></tr>
-<tr><td>Special</td><td><strong>vi</strong></td><td><strong>Index + Pinky ONLY</strong> (middle/ring/thumb down)</td><td>F#m</td></tr>
-<tr><td>Special</td><td><strong>vii°</strong></td><td><strong>Index + Pinky + Thumb ONLY</strong> (middle/ring down)</td><td>G#dim</td></tr>
-<tr><td>0 (fist)</td><td>—</td><td>All fingers curled</td><td><em>Mute</em> (resumes when fingers return)</td></tr>
-</tbody>
-</table>
-
-<h3>🤚 Major / minor via wrist tilt</h3>
-<p>By default the mode is locked to Major ("Scale notes only"). Switch to <strong>Scale+Tilt</strong> in Settings and your left wrist becomes the switch: tilt left = minor, tilt right = major. The toolbar key selector (C–B) transposes everything.</p>
-
-<h2>👉 Right hand — expression</h2>
-<p>In <strong>Finger Layout</strong> mode, finger count sets chord thickness:</p>
-<table>
-<thead><tr><th>Fingers</th><th>Major</th><th>Minor</th></tr></thead>
-<tbody>
-<tr><td>1</td><td>Major Triad</td><td>Minor Triad</td></tr>
-<tr><td>2</td><td>Major 1st Inversion</td><td>Minor 1st Inversion</td></tr>
-<tr><td>3</td><td>Major 7th</td><td>Minor 7th</td></tr>
-<tr><td>4</td><td>Major 9th</td><td>Minor 9th</td></tr>
-</tbody>
-</table>
-<p>The default is <strong>Fixed Chord Style</strong> (Major Triad) — the right hand then controls only volume and tone, and you can lock any of 8 styles (Major Triad, Major 1st Inv, Minor Triad, Diminished, Sus2, Sus4, Major 7th, Dominant 7th) in Settings.</p>
-
-<h3>✋ Volume, tone, octave</h3>
-<ul>
-<li><strong>Hand height = volume</strong> — higher is louder.</li>
-<li><strong>Wrist tilt = tone</strong> — tilt right for brighter (filter opens), left for darker.</li>
-<li><strong>Thumb out = octave down</strong> — drop a full octave for bass lines; tuck it back for normal.</li>
-</ul>
-
-<h3>⏹ Stopping the sound</h3>
-<ul>
-<li><strong>Left fist</strong> mutes (notes held, resumes when fingers return).</li>
-<li><strong>Space</strong> stops all notes; <strong>Esc</strong> resets.</li>
-<li>A hand leaving the frame stops sound after a short grace period.</li>
-</ul>
-
-<h2>🎹 Other modes</h2>
-<ul>
-<li><strong>Theremin</strong> — right-hand height = pitch (C3→C6), left-hand height = volume. Continuous gliding, no chords.</li>
-<li><strong>Mono Piano</strong> — left-hand finger count picks the note (root / 3rd / 5th / octave / 9th), right hand triggers it.</li>
-<li><strong>Keyboard mode (no camera, desktop)</strong> — enable in Settings or the toolbar ⌨ button. Keys <strong>1–7</strong> play degrees I–VII (hold to play, release to stop), <strong>[ / ]</strong> minor/major, <strong>8/9/0/-</strong> chord style, <strong>Shift</strong> octave down, <strong>↑/↓</strong> volume, <strong>←/→</strong> filter, <strong>Space</strong> stop. Recording is audio-only.</li>
-</ul>
-
-<h2>⚙ Settings worth knowing</h2>
-<ul>
-<li><strong>Arpeggiator</strong> (Off/Slow/Normal/Fast) — sweeps chord notes like a harp.</li>
-<li><strong>Auto Bass</strong> — root note two octaves down with its own volume.</li>
-<li><strong>Metronome</strong> — BPM 40–240, several time signatures and click sounds (audible in recordings when on).</li>
-</ul>
-
-<h2>🔴 Recording your performance</h2>
-<p>Press <strong>Record</strong>: a 3-2-1 countdown, up to <strong>120 seconds</strong>, a 3-2-1 wrap-up before it stops. Capture <strong>audio only</strong>, <strong>full video</strong> (camera + neon skeleton), or <strong>skeleton animation</strong> (privacy-friendly, no camera feed). Aspect ratios 9:16 / 16:9 / 1:1 for TikTok, YouTube, Instagram. Enable the mic to sing over your chords, then download — or share straight to apps on mobile. Finished takes also auto-save to <strong>My works</strong> in your browser.</p>
-
-<h2>❓ Gesture Synth Weld FAQ</h2>
-<ul>
-<li><strong>Is Gesture Synth Weld free?</strong> Yes — free to play and record, no sign-up. MIT-licensed open source (<a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">GitHub</a>).</li>
-<li><strong>Do I need a camera?</strong> No — Keyboard mode (desktop) plays with physical keys only.</li>
-<li><strong>Which browsers?</strong> Chrome 90+, Edge 90+, Firefox 90+, Safari 15+. Chrome/Edge recommended for the smoothest tracking.</li>
-<li><strong>Is my video uploaded?</strong> Never — all tracking runs locally on your device.</li>
-<li><strong>What is Gesture Synth Weld vs a generic "gesture synth"?</strong> Gesture Synth Weld is this site's two-hand instrument (left = harmony, right = expression) with 3 modes, arpeggiator, auto bass and built-in recording — not a hardware glove or a DAW plugin.</li>
-</ul>
-
-<a class="cta" href="/">▶ Open Gesture Synth Weld and play</a>
-
 <p class="muted">Gesture Synth Weld — official tutorial. <a href="/">Play</a> · <a href="/about">About</a> · <a href="/privacy">Privacy</a> · <a href="/contact">Contact</a> · MIT License. Not affiliated with third-party tutorial sites using our name.</p>
+</div>
 </body>
 </html>

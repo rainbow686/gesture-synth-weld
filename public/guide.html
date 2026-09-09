@@ -91,6 +91,22 @@ p strong,li strong{color:#e8e8ff}
 .step-card:nth-child(4) .step-num{color:#ffaa00}
 .step-card h3{margin:.4rem 0 .3rem;font-size:.9rem}
 .step-card p{font-size:.82rem;color:#a0a0d0;margin:0}
+/* tap-through demo (pure CSS radio tabs, no JS) */
+.demo{margin-top:1rem;border:1px solid rgba(0,255,204,.15);border-radius:10px;padding:1rem;background:rgba(10,20,40,.6)}
+.demo input{position:absolute;opacity:0;pointer-events:none}
+.demo-hint{font-size:.82rem;color:#9090b8;margin:0 0 .7rem}
+.demo-hint b{color:#e0e0ff}
+.demo-stage{min-height:92px}
+.demo-panel{display:none;align-items:center;gap:1rem}
+.demo-panel .hand{font-size:2.4rem;line-height:1}
+.demo-panel .arrow{color:#00ffcc;font-size:1.4rem}
+.demo-panel .chord{font-family:Orbitron,monospace;font-weight:900;font-size:1.25rem;color:#00ffcc}
+.demo-panel .cap{font-size:.82rem;color:#a0a0d0;margin:.2rem 0 0}
+#gd1:checked~.demo-stage .p1,#gd2:checked~.demo-stage .p2,#gd3:checked~.demo-stage .p3,#gd4:checked~.demo-stage .p4{display:flex}
+.demo-dots{display:flex;gap:.5rem;margin-top:.7rem}
+.demo-dots label{width:2rem;height:2rem;border-radius:50%;border:1px solid rgba(0,255,204,.4);color:#00ffcc;
+display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;cursor:pointer}
+#gd1:checked~.demo-dots label[for=gd1],#gd2:checked~.demo-dots label[for=gd2],#gd3:checked~.demo-dots label[for=gd3],#gd4:checked~.demo-dots label[for=gd4]{background:rgba(0,255,204,.15);box-shadow:0 0 12px rgba(0,255,204,.35)}
 /* tables */
 table{width:100%;border-collapse:collapse;font-size:.86rem;margin:.6rem 0 1rem}
 th{text-align:left;padding:.5rem .7rem;color:#00ffcc;font-family:Orbitron,monospace;font-size:.62rem;letter-spacing:.08em;
@@ -170,6 +186,17 @@ details.faq p{margin:.7rem 0 0;font-size:.86rem}
     <div class="step-card"><div class="step-num">2</div><h3>Left hand: show fingers</h3><p>1–5 fingers play scale degrees I–V. Special combos below reach VI and VII.</p></div>
     <div class="step-card"><div class="step-num">3</div><h3>Right hand: join in</h3><p>Both hands must be visible for sound. Raise your right hand for volume.</p></div>
     <div class="step-card"><div class="step-num">4</div><h3>Record &amp; share</h3><p>Press Record for up to 120 seconds, then download — or share straight to apps on mobile.</p></div>
+  </div>
+  <div class="demo">
+    <input type="radio" name="gd" id="gd1" checked><input type="radio" name="gd" id="gd2"><input type="radio" name="gd" id="gd3"><input type="radio" name="gd" id="gd4">
+    <p class="demo-hint"><b>Try it in your head:</b> tap the dots — each step is one gesture you already read above.</p>
+    <div class="demo-stage">
+      <div class="demo-panel p1"><span class="hand">✋</span><span class="arrow">→</span><div><div class="chord">A major</div><p class="cap">Left hand: 1 finger (I) · Right hand: raised for volume</p></div></div>
+      <div class="demo-panel p2"><span class="hand">✋✋</span><span class="arrow">→</span><div><div class="chord">A → D</div><p class="cap">Left hand: 4 fingers (IV) — harmony moves, right hand stays</p></div></div>
+      <div class="demo-panel p3"><span class="hand">✊</span><span class="arrow">→</span><div><div class="chord">…silence</div><p class="cap">Left fist = mute. Open the hand and the chord comes back</p></div></div>
+      <div class="demo-panel p4"><span class="hand">⌨️</span><span class="arrow">→</span><div><div class="chord">No camera? Press 1–7</div><p class="cap">Keyboard mode: keys 1–7 play I–VII, no webcam needed</p></div></div>
+    </div>
+    <div class="demo-dots"><label for="gd1">1</label><label for="gd2">2</label><label for="gd3">3</label><label for="gd4">4</label></div>
   </div>
   <div class="callout tip"><p><b>Defaults out of the box:</b> key of A · Major locked · fixed Major-Triad style. Change key in the toolbar, everything else in Settings.</p></div>
 </section>

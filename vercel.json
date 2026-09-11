@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/about", "destination": "/about.html" },
     { "source": "/guide", "destination": "/guide.html" },
+    { "source": "/gesture-synth", "destination": "/gesture-synth.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/contact", "destination": "/contact.html" },
     { "source": "/(.*)", "destination": "/index.html" }

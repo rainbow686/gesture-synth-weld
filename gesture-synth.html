@@ -166,6 +166,22 @@
           "@type": "Answer",
           "text": "Yes! Gesture Synth Weld is free to use. We support the development and hosting of this tool through non-intrusive advertising. No registration, no sign-up, no paywall — just open and play."
         }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Gesture Synth Weld the same as a \"gesture synth\"?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gesture Synth Weld is one specific gesture synth: a two-hand browser instrument — left hand harmony, right hand expression — with recording built in. \"Gesture synth\" is the generic category, and it includes hardware gloves, DIY kits and DAW plugins too."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I build my own?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes — this site is MIT-licensed open source on GitHub. The stack is MediaPipe hand tracking plus a Tone.js synth, all running locally in the browser."
+        }
       }
     ]
   }
@@ -183,15 +199,20 @@
       min-height: 100vh;
     }
 
-    /* Thin hero ABOVE the instrument (Step 3 A, 2026-09-11): cold search
-       traffic lands on words first — H1/lede/CTA/stats — the instrument
-       fills the next viewport. Deliberately compact so the instrument's
-       top (Enable Camera) peeks into the first screen on desktop. */
+    /* Full-screen hero ABOVE the instrument (Step 3 A, 2026-09-11): cold
+       search traffic lands on words first — H1/lede/CTA/stats fill one
+       viewport; the instrument owns the next. Three acts, clean cuts. */
     .seo-hero {
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       max-width: 800px;
       margin: 0 auto;
-      padding: 2.2rem 1.5rem 1.4rem;
+      padding: 2rem 1.5rem 3rem;
       text-align: center;
+      position: relative;
     }
     .seo-eyebrow {
       display: inline-block;
@@ -236,6 +257,57 @@
       padding: 0.25rem 0.8rem;
     }
     .seo-chip b { color: #00ffcc; }
+    /* Scroll cue pinned to the hero's bottom edge */
+    .seo-scroll-cue {
+      position: absolute;
+      bottom: 1.2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #606090;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+    }
+    .seo-scroll-cue a {
+      color: #00ffcc;
+      text-decoration: none;
+    }
+    .seo-scroll-cue .bounce {
+      display: block;
+      text-align: center;
+      font-size: 1.1rem;
+      color: #00ffcc;
+      animation: cue-bob 2s ease-in-out infinite;
+    }
+    @keyframes cue-bob {
+      0%, 100% { transform: translateY(0); opacity: 0.7; }
+      50% { transform: translateY(6px); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .seo-scroll-cue .bounce { animation: none; }
+    }
+
+    /* Act dividers — neon hairlines marking hero → instrument → article.
+       Same cyan/magenta grammar as the h1 gradient + section borders. */
+    .act-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0.9rem 1.5rem;
+      color: #00ffcc;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+    }
+    .act-divider::before,
+    .act-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.4), rgba(255, 0, 255, 0.4), transparent);
+    }
 
     /* React mount point = full-screen camera area (second viewport) */
     #app-root {
@@ -348,6 +420,7 @@
     .step-card:nth-child(1) .step-num { color: #00ffcc; }
     .step-card:nth-child(2) .step-num { color: #ff00ff; }
     .step-card:nth-child(3) .step-num { color: #7850ff; }
+    .step-card:nth-child(4) .step-num { color: #ffaa00; }
     .step-card h3 { margin: 0.5rem 0 0.3rem; font-size: 0.95rem; }
     .step-card p { font-size: 0.85rem; color: #a0a0d0; margin: 0; }
 
@@ -375,7 +448,42 @@
       font-size: 0.9rem;
     }
 
+    /* TOC — on-this-page jump links (same chip grammar as hero stats) */
+    .seo-toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 1.5rem;
     }
+    .seo-toc a {
+      font-size: 0.78rem;
+      color: #a0a0d0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 0.25rem 0.8rem;
+      text-decoration: none;
+    }
+    .seo-toc a:hover { color: #00ffcc; border-color: rgba(0, 255, 204, 0.4); }
+    .seo-toc span {
+      align-self: center;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: #606090;
+    }
+
+    /* Callout — Bottom line under the comparison table */
+    .seo-callout {
+      background: rgba(0, 255, 204, 0.05);
+      border: 1px solid rgba(0, 255, 204, 0.2);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #d0d0e8;
+    }
+    .seo-callout b { color: #00ffcc; }
 
     /* Gesture guide tables */
     .gesture-table {
@@ -496,10 +604,16 @@
       <span class="seo-chip"><b>0</b> hardware · webcam only</span>
       <span class="seo-chip"><b>30s</b> to first note</span>
     </div>
+    <div class="seo-scroll-cue">
+      <a href="#live">The live instrument is next — one click starts it</a>
+      <span class="bounce">↓</span>
+    </div>
   </header>
 
+  <div class="act-divider" aria-hidden="true">LIVE</div>
+
   <!-- React mounts here — full-screen camera area -->
-  <div id="app-root"></div>
+  <div id="live"><div id="app-root"></div></div>
 
   <script type="module" src="/src/main.tsx"></script>
   <script>
@@ -514,9 +628,21 @@
     });
   </script>
 
+  <div class="act-divider" aria-hidden="true">READ</div>
+
   <!-- ─── SEO Content (below the fold, scrollable) ────────────────── -->
   <div class="seo-content">
     <div class="seo-inner">
+
+      <nav class="seo-toc" aria-label="On this page">
+        <span>ON THIS PAGE ·</span>
+        <a href="#what-is">What it is</a>
+        <a href="#which">Which one</a>
+        <a href="#how-it-works">What it does</a>
+        <a href="#how-to-play">How to play</a>
+        <a href="#showdown">Browser vs hardware</a>
+        <a href="#faq">FAQ</a>
+      </nav>
 
       <!-- What is a gesture synth? -->
       <div class="seo-section" id="what-is">
@@ -579,7 +705,7 @@
           trade-off: no hardware cost, just your two hands.
         </p>
 
-        <h3 style="margin-top:1.5rem">🔄 Gesture Synth Alternatives: Browser vs Hardware vs DAW</h3>
+        <h3 id="showdown" style="margin-top:1.5rem">⚔ Browser vs hardware: which gesture instrument?</h3>
         <p>Three ways to play music with gestures — here's how they compare:</p>
         <table class="gesture-table">
           <thead>
@@ -609,17 +735,18 @@
             </tr>
           </tbody>
         </table>
+        <div class="seo-callout"><p style="margin:0"><b>Bottom line:</b> hardware wins on raw precision; the browser wins on everything else — zero cost, zero setup, record and share from the same tab. That's why this page exists: press play and <a href="#live" style="color:#00ffcc">try the free one first →</a></p></div>
         <p style="margin-top:0.8rem">
           Prefer an instrument you can pick up in seconds? See the <a href="/guide" style="color:#00ffcc">step-by-step tutorial</a> — or just press play below and start with the instrument above.
           <div style="text-align:center;margin-top:0.6rem;"><button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button></div>
         </p>
 
-        <h2>💡 How It Works</h2>
+        <h2 id="how-to-play">⚡ How it plays — 30 seconds to your first chord</h2>
         <div class="step-grid">
           <div class="step-card">
             <div class="step-num">1</div>
             <h3>Allow Camera</h3>
-            <p>Click "Enable Camera" and grant camera permission. Your video stays on your device — nothing is uploaded.</p>
+            <p>Press play above, grant camera permission. Tracking runs on your device — video is never uploaded.</p>
           </div>
           <div class="step-card">
             <div class="step-num">2</div>
@@ -629,7 +756,12 @@
           <div class="step-card">
             <div class="step-num">3</div>
             <h3>Right Hand → Expression</h3>
-            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — left fist mutes it, right fist restores octave. Or lock chord style</p>
+            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — left fist mutes it, right fist restores octave. Full map: <a href="/guide" style="color:#00ffcc">gesture tutorial →</a></p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <h3>Record &amp; Share</h3>
+            <p>Up to 120 seconds per take — audio, full video, or skeleton animation — then download or share.</p>
           </div>
         </div>
       </div>
@@ -748,6 +880,27 @@
             under the MIT license for anyone who wants to study, modify, or contribute.
           </p>
         </details>
+
+        <details class="faq-item">
+          <summary>Is Gesture Synth Weld the same as a "gesture synth"?</summary>
+          <p>
+            <strong>Gesture Synth Weld</strong> is one specific gesture synth: a two-hand browser
+            instrument — left hand harmony, right hand expression — with recording built in.
+            "Gesture synth" is the generic category, and it includes hardware gloves, DIY kits
+            and DAW plugins too. If you searched the generic term, this page is the free
+            browser member of that family — press play above and try it.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I build my own?</summary>
+          <p>
+            Yes — this site is MIT-licensed
+            <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" style="color:#00ffcc">open source on GitHub</a>.
+            The stack is MediaPipe hand tracking plus a Tone.js synth, all running locally in
+            the browser.
+          </p>
+        </details>
       </div>
 
     </div>
@@ -759,9 +912,11 @@
   </div>
 
   <footer class="site-footer">
-    <p>Gesture Synth Weld — Open Source under the
+    <p>Gesture Synth Weld — the free browser gesture synth.
+      <a href="/guide">Tutorial</a> · Open Source under the
       <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">MIT License</a>
-      · <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">Star us on GitHub ⭐</a>
+      · <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">Star us on GitHub ⭐</a>.
+      Not affiliated with third-party tutorial sites using our name.
     </p>
     <div class="footer-links">
       <a href="/">Play</a>

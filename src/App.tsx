@@ -1453,19 +1453,31 @@ export default function App() {
   // never double-start. Plain CustomEvent keeps static HTML framework-free.
   useEffect(() => {
     const onSeoCta = () => {
-      const el = document.getElementById('app-root');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      const el = document.getElementById('live') ?? document.getElementById('app-root');
+      const scrollNow = () => {
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+      // Already playing/loading: scroll only, never double-start.
+      if (isRunningRef.current || isLoadingRef.current) {
+        scrollNow();
+        return;
       }
-      if (isRunningRef.current || isLoadingRef.current) return;
       if (keyboardModeRef.current) {
         void startKeyboardMode('seo_cta');
       } else {
         prefetchTracking();
         void startCamera('seo_cta');
       }
+      // The start above re-renders the instrument (landing → loading). A
+      // smooth scroll launched before that commit can be cancelled by the
+      // layout shift (seen 2026-09-11: stuck at y=0 while loading below) —
+      // so scroll AFTER the commit. Two rAFs ≈ one painted frame; the
+      // 32ms delay is imperceptible and the target position is final.
+      requestAnimationFrame(() => requestAnimationFrame(scrollNow));
     };
     window.addEventListener('gsw:seo-play', onSeoCta);
     return () => window.removeEventListener('gsw:seo-play', onSeoCta);

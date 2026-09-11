@@ -406,6 +406,11 @@
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 1rem;
     }
+    /* How-to-play: 4 text-heavy cards. auto-fit(minmax 200px) fits 3 per row
+       in the 800px column and orphans the 4th (3+1, bug 2026-09-11) — a
+       one-row 4-up would squeeze each card to ~176px. 2×2 reads clean and
+       keeps the 1→2→3→4 order left-to-right, top-to-bottom. */
+    .step-grid.steps-4 { grid-template-columns: repeat(2, 1fr); }
     .step-card {
       background: rgba(10, 20, 40, 0.6);
       border-radius: 10px;
@@ -545,6 +550,7 @@
       .seo-content { padding: 1.5rem 0 1rem; }
       .seo-inner { padding: 0 0.8rem; }
       .step-grid { grid-template-columns: 1fr; }
+      .step-grid.steps-4 { grid-template-columns: 1fr; }
 
       .seo-hero { padding: 1.5rem 0.8rem 1rem; }
       .seo-hero h1 {
@@ -670,18 +676,18 @@
         <p>The same two words mean different things to different people. Pick your path — all three are answered on this page:</p>
         <div class="step-grid">
           <div class="step-card">
-            <div class="step-num">▶</div>
+            <div class="step-num">1</div>
             <h3>Play right now</h3>
             <p>You want music in seconds, in a browser tab. That's the instrument above — one click starts it.</p>
             <p><button class="seo-play-btn" data-seo-play>▶ Play now</button></p>
           </div>
           <div class="step-card">
-            <div class="step-num">🧤</div>
+            <div class="step-num">2</div>
             <h3>Hardware / DIY builds</h3>
             <p>Sensor gloves, Arduino kits, Leap Motion rigs — real, but soldering, drivers and €100+ in parts. The zero-solder route is the instrument above.</p>
           </div>
           <div class="step-card">
-            <div class="step-num">💻</div>
+            <div class="step-num">3</div>
             <h3>Read the code</h3>
             <p>MediaPipe hand tracking + Tone.js synth, MIT open source. <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" style="color:#00ffcc">GitHub →</a></p>
           </div>
@@ -742,7 +748,7 @@
         </p>
 
         <h2 id="how-to-play">⚡ How it plays — 30 seconds to your first chord</h2>
-        <div class="step-grid">
+        <div class="step-grid steps-4">
           <div class="step-card">
             <div class="step-num">1</div>
             <h3>Allow Camera</h3>

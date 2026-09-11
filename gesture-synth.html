@@ -183,7 +183,61 @@
       min-height: 100vh;
     }
 
-    /* React mount point = full-screen camera area */
+    /* Thin hero ABOVE the instrument (Step 3 A, 2026-09-11): cold search
+       traffic lands on words first — H1/lede/CTA/stats — the instrument
+       fills the next viewport. Deliberately compact so the instrument's
+       top (Enable Camera) peeks into the first screen on desktop. */
+    .seo-hero {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2.2rem 1.5rem 1.4rem;
+      text-align: center;
+    }
+    .seo-eyebrow {
+      display: inline-block;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      color: #00ffcc;
+      border: 1px solid rgba(0, 255, 204, 0.35);
+      border-radius: 999px;
+      padding: 0.3rem 0.9rem;
+      margin-bottom: 0.9rem;
+    }
+    .seo-hero h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.5rem);
+      font-weight: 900;
+      margin: 0 0 0.7rem;
+      background: linear-gradient(135deg, #00ffcc, #ff00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .seo-lede {
+      color: #b0b0d0;
+      font-size: 1rem;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+    .seo-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 0.9rem;
+    }
+    .seo-chip {
+      font-size: 0.78rem;
+      color: #a0a0d0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 0.25rem 0.8rem;
+    }
+    .seo-chip b { color: #00ffcc; }
+
+    /* React mount point = full-screen camera area (second viewport) */
     #app-root {
       position: relative;
       width: 100vw;
@@ -230,13 +284,6 @@
       color: #b0b0d0;
       font-size: 0.95rem;
       margin-bottom: 0.8rem;
-    }
-    .seo-intro {
-      text-align: center;
-      color: #a0a0d0;
-      font-size: 1rem;
-      max-width: 600px;
-      margin: 0 auto 2rem;
     }
     .seo-section {
       background: rgba(10, 20, 40, 0.5);
@@ -391,10 +438,13 @@
       .seo-inner { padding: 0 0.8rem; }
       .step-grid { grid-template-columns: 1fr; }
 
-      .seo-content h1 {
+      .seo-hero { padding: 1.5rem 0.8rem 1rem; }
+      .seo-hero h1 {
         font-size: clamp(1.2rem, 5vw, 1.8rem);
         padding: 0 0.5rem;
       }
+      .seo-lede { font-size: 0.85rem; }
+      .seo-eyebrow { font-size: 0.55rem; }
       .seo-content h2 { font-size: 1.05rem; }
       .seo-content h3 { font-size: 0.9rem; }
       .seo-content p { font-size: 0.85rem; }
@@ -404,8 +454,6 @@
         border-radius: 8px;
         margin-bottom: 1rem;
       }
-      .seo-intro { padding: 0 0.5rem; }
-
       /* Tables: horizontal scroll on mobile */
       .gesture-table {
         display: block;
@@ -433,6 +481,23 @@
   </style>
 </head>
 <body>
+  <!-- Thin hero FIRST (Step 3 A): search traffic lands on words, then the
+       instrument. Play = one click, starts the instrument in place. -->
+  <header class="seo-hero">
+    <span class="seo-eyebrow">PLAY IN YOUR BROWSER — NO HARDWARE</span>
+    <h1>Gesture Synth — Play Music with Your Hands, No Hardware</h1>
+    <p class="seo-lede">A <strong>gesture synth</strong> — also searched as <strong>hand gesture synth</strong> — is an instrument you play with hand movements instead of keys: a camera reads your hands, software turns motion into sound. <strong>Gesture Synth Weld</strong> is a free one that runs entirely in your browser: webcam on, hands up, music out.</p>
+    <div>
+      <button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button>
+      <a class="seo-play-btn ghost" href="#what-is" style="text-decoration:none;">What is it? ↓</a>
+    </div>
+    <div class="seo-stats">
+      <span class="seo-chip"><b>100%</b> free</span>
+      <span class="seo-chip"><b>0</b> hardware · webcam only</span>
+      <span class="seo-chip"><b>30s</b> to first note</span>
+    </div>
+  </header>
+
   <!-- React mounts here — full-screen camera area -->
   <div id="app-root"></div>
 
@@ -452,17 +517,6 @@
   <!-- ─── SEO Content (below the fold, scrollable) ────────────────── -->
   <div class="seo-content">
     <div class="seo-inner">
-
-      <h1>Gesture Synth — Play Music with Your Hands, No Hardware</h1>
-      <p class="seo-intro">
-        A <strong>gesture synth</strong> — also searched as <strong>hand gesture synth</strong> — is an
-        instrument you play with hand movements instead of keys. The instrument above is
-        live. Webcam on, hands up, music out — no hardware, no downloads.
-      </p>
-      <div style="text-align:center;margin-bottom:2rem;">
-        <button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button>
-        <a class="seo-play-btn ghost" href="#what-is" style="text-decoration:none;">What is it? ↓</a>
-      </div>
 
       <!-- What is a gesture synth? -->
       <div class="seo-section" id="what-is">

@@ -1446,15 +1446,19 @@ export default function App() {
     prefetchModel().catch(() => {});
   }, []);
 
-  // SEO-CTA bridge (2026-09-11, Step 3): the /gesture-synth landing mounts
-  // this same App with static play buttons below the fold. A click scrolls
-  // to the top and runs the SAME starter as the main button (keyboard mode
-  // aware — keyboard players enter keyboard play, not the camera). Already
-  // playing/loading: scroll only, never double-start. Plain CustomEvent
-  // keeps the static HTML framework-free.
+  // SEO-CTA bridge (2026-09-11, Step 3 A): the /gesture-synth landing has
+  // a thin hero ABOVE this instrument. A Play click scrolls to the
+  // instrument AND starts it in ONE click — the SAME starter as the main
+  // button (keyboard mode aware). Already playing/loading: scroll only,
+  // never double-start. Plain CustomEvent keeps static HTML framework-free.
   useEffect(() => {
     const onSeoCta = () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const el = document.getElementById('app-root');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       if (isRunningRef.current || isLoadingRef.current) return;
       if (keyboardModeRef.current) {
         void startKeyboardMode('seo_cta');

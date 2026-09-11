@@ -123,6 +123,14 @@ export default function App() {
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // SEO-CTA bridge refs (2026-09-11, Step 3): the category landing's play
+  // buttons live OUTSIDE React (static HTML below the fold) and dispatch a
+  // window event — refs let the handler read post-mount truth (closures in
+  // a mount-once listener would freeze the first render's values).
+  const isRunningRef = useRef(false);
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
+  const isLoadingRef = useRef(false);
+  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
   const [error, setError] = useState<string | null>(null);
   const [gesture, setGesture] = useState<GestureState>({ left: null, right: null });
   const [synthState, setSynthState] = useState<SynthState>({
@@ -1271,8 +1279,8 @@ export default function App() {
     }
   }, []);
 
-  const startCamera = useCallback(async () => {
-    trackCameraClicked();
+  const startCamera = useCallback(async (source: 'main_button' | 'retry' | 'seo_cta' = 'main_button') => {
+    trackCameraClicked(source);
     setIsLoading(true);
     loadingStartRef.current = performance.now();
     loadCancelledRef.current = false;
@@ -1437,6 +1445,43 @@ export default function App() {
   const prefetchTracking = useCallback(() => {
     prefetchModel().catch(() => {});
   }, []);
+
+  // SEO-CTA bridge (2026-09-11, Step 3 A): the /gesture-synth landing has
+  // a thin hero ABOVE this instrument. A Play click scrolls to the
+  // instrument AND starts it in ONE click — the SAME starter as the main
+  // button (keyboard mode aware). Already playing/loading: scroll only,
+  // never double-start. Plain CustomEvent keeps static HTML framework-free.
+  useEffect(() => {
+    const onSeoCta = () => {
+      const el = document.getElementById('live') ?? document.getElementById('app-root');
+      const scrollNow = () => {
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+      // Already playing/loading: scroll only, never double-start.
+      if (isRunningRef.current || isLoadingRef.current) {
+        scrollNow();
+        return;
+      }
+      if (keyboardModeRef.current) {
+        void startKeyboardMode('seo_cta');
+      } else {
+        prefetchTracking();
+        void startCamera('seo_cta');
+      }
+      // The start above re-renders the instrument (landing → loading). A
+      // smooth scroll launched before that commit can be cancelled by the
+      // layout shift (seen 2026-09-11: stuck at y=0 while loading below) —
+      // so scroll AFTER the commit. Two rAFs ≈ one painted frame; the
+      // 32ms delay is imperceptible and the target position is final.
+      requestAnimationFrame(() => requestAnimationFrame(scrollNow));
+    };
+    window.addEventListener('gsw:seo-play', onSeoCta);
+    return () => window.removeEventListener('gsw:seo-play', onSeoCta);
+  }, [startKeyboardMode, startCamera, prefetchTracking]);
 
   const stopCamera = useCallback(() => {
     // Cancel any in-flight recording flow
@@ -2074,7 +2119,7 @@ export default function App() {
               <>
                 <button
                   className="enable-camera-btn"
-                  onClick={keyboardMode ? () => startKeyboardMode('main_button') : startCamera}
+                  onClick={keyboardMode ? () => startKeyboardMode('main_button') : () => startCamera()}
                   disabled={isLoading}
                   onMouseEnter={prefetchTracking}
                   onFocus={prefetchTracking}
@@ -2189,7 +2234,7 @@ export default function App() {
               </svg>
               View the full troubleshooting guide →
             </a>
-            <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
+            <button className="enable-camera-btn retry" onClick={() => startCamera('retry')}>Retry</button>
           </div>
         )}
 

@@ -32,6 +32,8 @@
 ## Pages
 
 - [Play](https://gesturesynthweld.com/)
+- [Gesture Synth](https://gesturesynthweld.com/gesture-synth): what a gesture synth is, browser vs hardware vs DIY comparison, playable instrument on the page
+- [Gesture Guide](https://gesturesynthweld.com/guide): full gesture tutorial with hand-shape illustrations (degrees I–VII, inversions, 8vb, expression controls)
 - [About](https://gesturesynthweld.com/about)
 - [Contact](https://gesturesynthweld.com/contact)
 - [Privacy Policy](https://gesturesynthweld.com/privacy)

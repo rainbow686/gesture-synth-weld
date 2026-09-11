@@ -17,6 +17,8 @@
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
     })(window, document, "clarity", "script", "xv2860e4rz");
   </script>
+  <!-- Google AdSense (manual units only; Auto/Anchor formats OFF in account) -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4516753695428109" crossorigin="anonymous"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0a0a1a" />
@@ -429,6 +431,15 @@
     .step-card h3 { margin: 0.5rem 0 0.3rem; font-size: 0.95rem; }
     .step-card p { font-size: 0.85rem; color: #a0a0d0; margin: 0; }
 
+    /* Ad slots (live units render themselves; min-height only reserves
+       layout space so the ad never pushes content when it loads) */
+    .ad-slot {
+      display: block;
+      min-height: 90px;
+      margin: 1.5rem 0;
+    }
+    .ad-slot.ad-tall { min-height: 250px; }
+
     /* FAQ */
     .faq-item {
       background: rgba(10, 20, 40, 0.6);
@@ -589,6 +600,9 @@
       }
       .faq-item summary { font-size: 0.9rem; }
       .faq-item p { font-size: 0.8rem; }
+
+      .ad-slot { min-height: 60px; margin: 1rem 0; }
+      .ad-slot.ad-tall { min-height: 200px; }
 
       .site-footer { padding: 1.5rem 1rem; font-size: 0.7rem; }
     }
@@ -773,6 +787,10 @@
           </div>
         </div>
       </div>
+
+      <!-- Ad Slot 1 (gsw-read-1, square-responsive; mirrors homepage Slot 1) -->
+      <ins class="adsbygoogle ad-slot ad-tall" style="display:block" data-ad-client="ca-pub-4516753695428109" data-ad-slot="1346129383" data-ad-format="auto" data-full-width-responsive="true"></ins>
+      <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 
       <!-- No app needed (app-intent capture: gesture synth app android/iphone/ios) -->
       <div class="seo-section" id="no-app">

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4TF2TBSZFT"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-4TF2TBSZFT');
+  </script>
+  <!-- Microsoft Clarity -->
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "xv2860e4rz");
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a1a" />
+
+  <title>Gesture Synth — Play Music with Your Hands, No Hardware</title>
+  <meta name="description" content="What is a gesture synth? An instrument you play with hand gestures. Play free in your browser — webcam only, no hardware, no downloads." />
+  <meta name="keywords" content="gesture synth, what is a gesture synth, hand gesture synth, gesture synth app, play gesture synth online, browser gesture instrument" />
+  <meta name="author" content="Gesture Synth Weld" />
+  <!-- Author identity — Google authorship signal (free; matches the GitHub repo owner) -->
+  <link rel="author" href="https://github.com/rainbow686" />
+  <link rel="canonical" href="https://gesturesynthweld.com/gesture-synth" />
+  <!-- Model CDN: warm the DNS+TCP+TLS connection while the player reads the
+       page, so the first camera start skips a full RTT (crossorigin needed
+       for the cross-origin fetch of wasm/task files). -->
+  <link rel="preconnect" href="https://assets.gesturesynthweld.com" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+  <link rel="shortcut icon" href="/favicon.svg?v=2" />
+  <link rel="apple-touch-icon" href="/favicon.svg?v=2" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Gesture Synth — Play Music with Your Hands, No Hardware" />
+  <meta property="og:description" content="A gesture synth turns hand movements into music. This one runs free in your browser — webcam only, nothing to install." />
+  <meta property="og:url" content="https://gesturesynthweld.com/gesture-synth" />
+  <meta property="og:site_name" content="Gesture Synth Weld" />
+  <meta property="og:image" content="https://gesturesynthweld.com/og-image.png" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Gesture Synth — Play Music with Your Hands, No Hardware" />
+  <meta name="twitter:description" content="Turn hand movements into music. Free in your browser — webcam only, nothing to install." />
+  <meta name="twitter:image" content="https://gesturesynthweld.com/og-image.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- WebApplication JSON-LD Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Gesture Synth Weld",
+    "url": "https://gesturesynthweld.com/gesture-synth",
+    "description": "A browser-based hand gesture music synthesizer with two-hand control. Left hand sets harmony (key, scale, major/minor), right hand controls expression (chord type, volume, tone). Includes 3 modes, arpeggiator, auto bass, and audio/video recording.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "browserRequirements": "Requires a modern browser with Web Audio API, getUserMedia, and JavaScript enabled. Chrome 90+, Firefox 90+, Edge 90+, Safari 15+.",
+    "featureList": [
+      "Two-hand gesture control with independent left/right hand roles",
+      "Left hand: 12-key selector with scale degree and major/minor toggle via wrist tilt",
+      "Right hand: dynamic chord recognition (triad, 7th, 9th) or fixed chord style (8 types)",
+      "Synthesized sawtooth wave engine with real-time filter control",
+      "Arpeggiator with 3 speed settings (Slow/Normal/Fast)",
+      "Auto Bass line generator with independent volume control",
+      "Audio & video recording (MP4/M4A, up to 120 seconds) — capture and download your performances",
+      "Theremin mode: continuous pitch and volume control with both hands",
+      "Mono Piano mode: single-note melody with finger-count intervals"
+    ],
+    "screenshot": "https://gesturesynthweld.com/og-image.png",
+    "softwareVersion": "2.0.0",
+    "license": "https://opensource.org/licenses/MIT"
+  }
+  </script>
+
+  <!-- FAQ JSON-LD Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is a gesture synth?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A gesture synth is a musical instrument played with hand or body gestures instead of keys: a sensor reads your movements and software turns them into sound. Gesture Synth Weld is a free browser-based gesture synth — your webcam tracks your hands and each finger maps to a different note."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a gesture synth app or online version?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "This page is the online version — no app to install. Scroll up and play in the browser above, or open the full instrument, allow the camera, and play. The URL is the app."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need any special equipment?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads. Prefer no camera at all? Keyboard mode turns your physical keyboard into the instrument — no webcam and no model download required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I play without a camera?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes — Keyboard Mode (desktop) turns your physical keyboard into the instrument: press 1-7 for scale degrees I-VII (hold to play, release to stop), [ / ] for minor/major, 8/9/0/- for chord styles, Shift for octave down, arrow keys for volume and filter sweeps, Space to stop. Enable it in Settings — no camera permission, no MediaPipe model download. A real-keyboard interactive guide with a demo animation teaches every key; recording captures audio (voice optional) since there's no camera feed to record as video."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What browsers are supported?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gesture Synth Weld works in any modern browser that supports Web Audio API and getUserMedia — including Chrome 90+, Firefox 90+, Edge 90+, and Safari 15+. For the best hand tracking experience, Chrome or Edge is recommended."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I record my performance?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes! Click the Record button to start capturing your performance (up to 120 seconds). A 3-2-1 countdown gets you ready, and a 3-2-1 wrap-up warns you before the recording ends. Choose from three modes: audio only, full video (camera with neon hand skeleton), or skeleton animation without the camera feed — plus an aspect ratio for social platforms (9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for Instagram). After recording, download the file or share it straight to your apps from the mobile share sheet (the share message carries our brand and gesturesynthweld.com). Your camera feed is never uploaded to any server."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What chords can I play?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes. In Finger Layout mode: 1 finger = triad, 2 fingers = 1st inversion, 3 fingers = 7th chord, 4 fingers = 9th chord. In Fixed Chord mode, choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished, Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt to switch between them with left-hand wrist tilt."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What makes Gesture Synth Weld different from other gesture synthesizers?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gesture Synth Weld features a unique two-hand division system: your left hand controls harmony (key selection, scale degree, major/minor toggle) while your right hand controls expression (chord complexity, volume, tone). Unlike basic gesture synths, it includes an arpeggiator for harp-like sweeps, an auto bass generator for low-end foundation, support for 7 diatonic chords with VI/VII special gestures, 8 fixed chord styles, and built-in MP4/M4A recording. It's also open source under the MIT license."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Gesture Synth Weld free?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes! Gesture Synth Weld is free to use. We support the development and hosting of this tool through non-intrusive advertising. No registration, no sign-up, no paywall — just open and play."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    /* ─── Critical CSS — prevents FOUC before React loads ─────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #0a0a1a;
+      color: #e0e0ff;
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* React mount point = full-screen camera area */
+    #app-root {
+      position: relative;
+      width: 100vw;
+      height: 100svh;
+      overflow: hidden;
+    }
+
+    /* SEO content area below the fold */
+    .seo-content {
+      background: linear-gradient(180deg, #0a0a1a 0%, #0d0d2b 5%, #111133 100%);
+      padding: 3rem 0 2rem;
+    }
+    .seo-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+    .seo-content h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(1.6rem, 4vw, 2.5rem);
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #00ffcc, #ff00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .seo-content h2 {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.3rem;
+      color: #00ffcc;
+      margin: 2.5rem 0 1rem;
+      filter: drop-shadow(0 0 8px rgba(0, 255, 204, 0.2));
+    }
+    .seo-content h3 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e0e0ff;
+      margin: 1rem 0 0.4rem;
+    }
+    .seo-content p {
+      color: #b0b0d0;
+      font-size: 0.95rem;
+      margin-bottom: 0.8rem;
+    }
+    .seo-intro {
+      text-align: center;
+      color: #a0a0d0;
+      font-size: 1rem;
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+    .seo-section {
+      background: rgba(10, 20, 40, 0.5);
+      border: 1px solid rgba(0, 255, 204, 0.08);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .step-card {
+      background: rgba(10, 20, 40, 0.6);
+      border-radius: 10px;
+      padding: 1.2rem;
+      border: 1px solid rgba(0, 255, 204, 0.1);
+    }
+    .step-num {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.8rem;
+      font-weight: 900;
+    }
+    .step-card:nth-child(1) .step-num { color: #00ffcc; }
+    .step-card:nth-child(2) .step-num { color: #ff00ff; }
+    .step-card:nth-child(3) .step-num { color: #7850ff; }
+    .step-card h3 { margin: 0.5rem 0 0.3rem; font-size: 0.95rem; }
+    .step-card p { font-size: 0.85rem; color: #a0a0d0; margin: 0; }
+
+    /* FAQ */
+    .faq-item {
+      background: rgba(10, 20, 40, 0.6);
+      border: 1px solid rgba(0, 255, 204, 0.08);
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .faq-item summary {
+      font-weight: 600;
+      cursor: pointer;
+      color: #e0e0ff;
+      list-style: none;
+    }
+    .faq-item summary::before {
+      content: '▸ ';
+      color: #00ffcc;
+    }
+    .faq-item p {
+      margin-top: 0.75rem;
+      color: #b0b0d0;
+      font-size: 0.9rem;
+    }
+
+    }
+
+    /* Gesture guide tables */
+    .gesture-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 0.5rem 0 1rem;
+    }
+    .gesture-table th {
+      text-align: left;
+      padding: 0.5rem 0.7rem;
+      color: #00ffcc;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+      background: rgba(0, 255, 204, 0.04);
+    }
+    .gesture-table td {
+      padding: 0.45rem 0.7rem;
+      color: #d0d0e8;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      vertical-align: top;
+    }
+    .gesture-table tr:hover td {
+      background: rgba(0, 255, 204, 0.03);
+    }
+    .gesture-table td.special {
+      color: #ff00ff;
+      font-weight: 600;
+    }
+    .gesture-table td em {
+      color: #9090b8;
+      font-style: italic;
+    }
+
+    /* Footer */
+    .site-footer {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      border-top: 1px solid rgba(0, 255, 204, 0.08);
+      color: #606090;
+      font-size: 0.8rem;
+    }
+    .site-footer a {
+      color: #00ffcc;
+      text-decoration: none;
+    }
+    .site-footer a:hover { text-decoration: underline; }
+    .footer-links { margin-top: 0.5rem; }
+    .footer-links a + a::before {
+      content: ' · ';
+      color: #606090;
+    }
+
+    @media (max-width: 768px) {
+      .seo-content { padding: 1.5rem 0 1rem; }
+      .seo-inner { padding: 0 0.8rem; }
+      .step-grid { grid-template-columns: 1fr; }
+
+      .seo-content h1 {
+        font-size: clamp(1.2rem, 5vw, 1.8rem);
+        padding: 0 0.5rem;
+      }
+      .seo-content h2 { font-size: 1.05rem; }
+      .seo-content h3 { font-size: 0.9rem; }
+      .seo-content p { font-size: 0.85rem; }
+
+      .seo-section {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+      .seo-intro { padding: 0 0.5rem; }
+
+      /* Tables: horizontal scroll on mobile */
+      .gesture-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .gesture-table::-webkit-scrollbar { display: none; }
+      .gesture-table th,
+      .gesture-table td {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
+      }
+      .gesture-table th { font-size: 0.6rem; }
+
+      .faq-item {
+        padding: 0.8rem 1rem;
+      }
+      .faq-item summary { font-size: 0.9rem; }
+      .faq-item p { font-size: 0.8rem; }
+
+      .site-footer { padding: 1.5rem 1rem; font-size: 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- React mounts here — full-screen camera area -->
+  <div id="app-root"></div>
+
+  <script type="module" src="/src/main.tsx"></script>
+
+  <!-- ─── SEO Content (below the fold, scrollable) ────────────────── -->
+  <div class="seo-content">
+    <div class="seo-inner">
+
+      <h1>Gesture Synth — Play Music with Your Hands, No Hardware</h1>
+      <p class="seo-intro">
+        A <strong>gesture synth</strong> — also searched as <strong>hand gesture synth</strong> — is an
+        instrument you play with hand movements instead of keys. Scroll up: the instrument above is
+        live. Webcam on, hands up, music out — no hardware, no downloads.
+        <a href="#faq" style="display:inline-block;margin-top:0.4rem;color:#00ffcc;font-size:0.9rem;">FAQ ↓</a>
+      </p>
+
+      <!-- What is a gesture synth? -->
+      <div class="seo-section" id="what-is">
+        <h2>🔍 What is a gesture synth?</h2>
+        <p>
+          A <strong>gesture synth</strong> — a <strong>hand gesture synth</strong> in full — replaces the
+          keyboard with movement. Instead of pressing keys, you move your hands in the air: a sensor —
+          a webcam, a depth camera, or a sensor glove — reads the position of your hands and fingers,
+          and software maps that motion onto musical parameters like pitch, volume and tone. Raise a
+          hand, the volume rises. Spread your fingers, the chord opens up.
+        </p>
+        <p>
+          <strong>Gesture Synth Weld</strong> is a browser-based gesture synth with a fixed two-hand
+          division: your <strong>left hand picks the harmony</strong> (finger count selects scale degrees
+          I–VII, wrist tilt picks major or minor) while your <strong>right hand shapes the
+          expression</strong> (height is volume, tilt is tone, finger count sets chord thickness).
+          Nothing to install, nothing to buy — if your device has a camera, you already own the
+          instrument above. The <a href="/guide" style="color:#00ffcc">full gesture tutorial</a> maps every move.
+        </p>
+      </div>
+
+      <!-- Which gesture synth are you looking for? (intent triage) -->
+      <div class="seo-section" id="which">
+        <h2>🧭 Which gesture synth are you looking for?</h2>
+        <p>The same two words mean different things to different people. Pick your path — all three are answered on this page:</p>
+        <div class="step-grid">
+          <div class="step-card">
+            <div class="step-num">▶</div>
+            <h3>Play right now</h3>
+            <p>You want music in seconds, in a browser tab. That's the instrument above — scroll up and allow the camera.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">🧤</div>
+            <h3>Hardware / DIY builds</h3>
+            <p>Sensor gloves, Arduino kits, Leap Motion rigs — real, but soldering, drivers and €100+ in parts. The zero-solder route is the instrument above.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">💻</div>
+            <h3>Read the code</h3>
+            <p>MediaPipe hand tracking + Tone.js synth, MIT open source. <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" style="color:#00ffcc">GitHub →</a></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- How It Works -->
+      <div class="seo-section" id="how-it-works">
+        <h2>🎛 What can a gesture synth do?</h2>
+        <p>
+          A gesture synth turns body movement into sound. Browser-based gesture synths use your
+          webcam to track your hands — no hardware controller needed. Gesture Synth Weld pushes
+          the format further: each finger becomes a musical command, your left hand picks harmony
+          while your right hand shapes expression, and everything runs live in the browser with
+          zero installs.
+        </p>
+        <p>
+          Compare that to hardware gesture synths (gloves, ring sensors, MIDI theremins): they're
+          powerful, but they cost hundreds of dollars and need setup. A webcam gesture synth gets
+          you the same experience for free — as long as your hands are in the frame. That's the
+          trade-off: no hardware cost, just your two hands.
+        </p>
+
+        <h3 style="margin-top:1.5rem">🔄 Gesture Synth Alternatives: Browser vs Hardware vs DAW</h3>
+        <p>Three ways to play music with gestures — here's how they compare:</p>
+        <table class="gesture-table">
+          <thead>
+            <tr><th>Approach</th><th>Cost</th><th>Setup</th><th>Pros</th><th>Cons</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Browser gesture synth</strong> (webcam + hand tracking)</td>
+              <td>Free</td>
+              <td>None — open the page, allow camera</td>
+              <td>Zero install, zero cost, runs on any device</td>
+              <td>Needs light and clear hand visibility</td>
+            </tr>
+            <tr>
+              <td><strong>Hardware gesture synth</strong> (gloves, ring sensors, MIDI theremins)</td>
+              <td>$100 – $1,000+</td>
+              <td>Drivers, calibration, MIDI wiring</td>
+              <td>Precise, low latency, works in any light</td>
+              <td>Expensive, bulky, needs setup</td>
+            </tr>
+            <tr>
+              <td><strong>DAW + MIDI controller</strong></td>
+              <td>Software + hardware cost</td>
+              <td>Install DAW, configure mappings</td>
+              <td>Full production power, unlimited tracks</td>
+              <td>Steep learning curve, desk-bound, not gesture-based</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:0.8rem">
+          Prefer an instrument you can pick up in seconds? See the <a href="/guide" style="color:#00ffcc">step-by-step tutorial</a> — or just start playing with the instrument above.
+        </p>
+
+        <h2>💡 How It Works</h2>
+        <div class="step-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3>Allow Camera</h3>
+            <p>Click "Enable Camera" and grant camera permission. Your video stays on your device — nothing is uploaded.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3>Left Hand → Harmony</h3>
+            <p>Choose a key (C–B, default A). 1–5 fingers select scale degrees I–V. Index+Pinky = VI, +Thumb = VII. Default mode is locked to Major — switch to Scale+Tilt in settings to control major/minor with wrist tilt.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3>Right Hand → Expression</h3>
+            <p>Fingers set chord complexity (1=triad, 2=inversion, 3=7th, 4=9th). Height = volume, tilt = tone. <strong>Both hands required</strong> for sound — left fist mutes it, right fist restores octave. Or lock chord style</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAQ -->
+      <div class="seo-section" id="faq">
+        <h2>❓ Frequently Asked Questions</h2>
+        <p style="margin-bottom:1rem;"><a href="#how-it-works" style="color:#00ffcc;font-size:0.9rem;">How it works ↑</a></p>
+
+        <details class="faq-item">
+          <summary>What is a gesture synth?</summary>
+          <p>
+            A gesture synth is a musical instrument played with hand or body gestures instead of keys:
+            a sensor reads your movements and software turns them into sound. Gesture Synth Weld is a
+            free browser-based gesture synth — the instrument at the top of this page. Webcam on,
+            hands up, music out.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is there a gesture synth app or online version?</summary>
+          <p>
+            This page <em>is</em> the online version — no app to install. Scroll up and play in the
+            browser above: allow the camera and you're playing. That's the whole point of a
+            browser-based hand gesture synth: the URL is the app.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Do I need any special equipment?</summary>
+          <p>
+            No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser
+            like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads.
+            Your webcam handles all the input — MediaPipe's hand tracking model runs entirely on your device.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What browsers are supported?</summary>
+          <p>
+            Gesture Synth Weld works in any modern browser that supports the Web Audio API and
+            getUserMedia — including Chrome 90+, Firefox 90+, Edge 90+, and Safari 15+.
+            For the best hand tracking experience, Chrome or Edge is recommended since they
+            support MediaPipe's WebGL2 backend most efficiently.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I record my performance?</summary>
+          <p>
+            Yes! Click the <strong>Record</strong> button to start capturing your performance (up to 120 seconds).
+            A 3-2-1 countdown gets you ready, and a 3-2-1 wrap-up warns you before the recording stops.
+            Choose what to capture: <strong>audio only</strong>, <strong>full video</strong> (camera with neon skeleton),
+            or <strong>skeleton animation</strong> (no camera feed — privacy-friendly). Pick an aspect ratio for
+            your sharing platform: 9:16 for TikTok/Reels/Shorts, 16:9 for YouTube, 1:1 for Instagram.
+            Sing along? Your <strong>microphone is mixed into the recording</strong> (toggleable) — perfect for
+            singing over your own chords. Pick your microphone in the chooser if needed (some Macs
+            default to a virtual device that records silence), and balance <strong>voice vs chords</strong> with
+            the recording-mix slider — headphones give the cleanest mix. After recording, download the
+            file — or on mobile, share it straight to your apps from the share sheet (the share message
+            carries our brand and gesturesynthweld.com). Your camera feed is never uploaded to any server.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What chords can I play?</summary>
+          <p>
+            Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes.
+            In <strong>Finger Layout mode</strong>: 1 finger = triad, 2 fingers = 1st inversion,
+            3 fingers = 7th chord, 4 fingers = 9th chord. In <strong>Fixed Chord mode</strong>,
+            choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished,
+            Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt in settings
+            to switch between major and minor with left-hand wrist tilt. See the <a href="/guide" style="color:#00ffcc">full gesture table →</a>
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Can I play without a camera?</summary>
+          <p>
+            Yes — <strong>Keyboard Mode</strong> turns your physical keyboard into the instrument
+            (desktop only, no camera permission and no model download needed). Enable it in
+            <strong>Settings → "No camera? Keyboard mode"</strong> or with the <strong>⌨ Keyboard</strong>
+            button in the top toolbar (in keyboard mode it becomes <strong>📷 Camera</strong> — one click
+            switches back to hand gestures), then press <strong>1-7</strong>
+            for scale degrees I-VII (hold to play, release to stop), <strong>[ / ]</strong> for
+            minor/major, <strong>8/9/0/-</strong> for chord styles, <strong>Shift</strong> for
+            octave down, <strong>↑/↓</strong> for volume and <strong>←/→</strong> for the filter
+            sweep, and <strong>Space</strong> to stop. A real-keyboard guide with a demo animation
+            shows you every key the first time — replayable anytime from the <strong>?</strong> help
+            panel. Recording in keyboard mode captures audio (add your voice with the mic) — video
+            modes need a camera feed, so they're hidden there.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>What makes Gesture Synth Weld different from other gesture synthesizers?</summary>
+          <p>
+            Gesture Synth Weld features a unique <strong>two-hand division system</strong>: your
+            left hand controls harmony (key selection, scale degree, major/minor toggle) while your
+            right hand controls expression (chord complexity, volume, tone, octave). Unlike basic
+            gesture synths, it includes an <strong>arpeggiator</strong> for harp-like sweeps, an
+            <strong>auto bass generator</strong> for low-end foundation, a <strong>sawtooth synth engine</strong>
+            with real-time filter sweep, support for <strong>9th chords</strong>
+            (4-finger), <strong>8 fixed chord styles</strong>, and built-in <strong>MP4/M4A recording</strong>.
+            It's also open source under the MIT license.
+          </p>
+        </details>
+
+        <details class="faq-item">
+          <summary>Is Gesture Synth Weld free?</summary>
+          <p>
+            Yes! Gesture Synth Weld is free to use. We support the development and hosting of
+            this tool through non-intrusive advertising. No registration, no sign-up, no paywall
+            — just open and play. The source code is also available
+            <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener" style="color:#00ffcc">on GitHub</a>
+            under the MIT license for anyone who wants to study, modify, or contribute.
+          </p>
+        </details>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>Gesture Synth Weld — Open Source under the
+      <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">MIT License</a>
+      · <a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">Star us on GitHub ⭐</a>
+    </p>
+    <div class="footer-links">
+      <a href="/">Play</a>
+      <a href="/guide">Guide</a>
+      <a href="/about">About</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/contact">Contact</a>
+      <a href="https://gesturesynthweld.com">gesturesynthweld.com</a>
+      <a href="https://gesturesynthweld.io">gesturesynthweld.io</a>
+    </div>
+  </footer>
+</body>
+</html>

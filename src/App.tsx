@@ -123,6 +123,14 @@ export default function App() {
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // SEO-CTA bridge refs (2026-09-11, Step 3): the category landing's play
+  // buttons live OUTSIDE React (static HTML below the fold) and dispatch a
+  // window event — refs let the handler read post-mount truth (closures in
+  // a mount-once listener would freeze the first render's values).
+  const isRunningRef = useRef(false);
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
+  const isLoadingRef = useRef(false);
+  useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
   const [error, setError] = useState<string | null>(null);
   const [gesture, setGesture] = useState<GestureState>({ left: null, right: null });
   const [synthState, setSynthState] = useState<SynthState>({
@@ -1271,8 +1279,8 @@ export default function App() {
     }
   }, []);
 
-  const startCamera = useCallback(async () => {
-    trackCameraClicked();
+  const startCamera = useCallback(async (source: 'main_button' | 'retry' | 'seo_cta' = 'main_button') => {
+    trackCameraClicked(source);
     setIsLoading(true);
     loadingStartRef.current = performance.now();
     loadCancelledRef.current = false;
@@ -1437,6 +1445,27 @@ export default function App() {
   const prefetchTracking = useCallback(() => {
     prefetchModel().catch(() => {});
   }, []);
+
+  // SEO-CTA bridge (2026-09-11, Step 3): the /gesture-synth landing mounts
+  // this same App with static play buttons below the fold. A click scrolls
+  // to the top and runs the SAME starter as the main button (keyboard mode
+  // aware — keyboard players enter keyboard play, not the camera). Already
+  // playing/loading: scroll only, never double-start. Plain CustomEvent
+  // keeps the static HTML framework-free.
+  useEffect(() => {
+    const onSeoCta = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (isRunningRef.current || isLoadingRef.current) return;
+      if (keyboardModeRef.current) {
+        void startKeyboardMode('seo_cta');
+      } else {
+        prefetchTracking();
+        void startCamera('seo_cta');
+      }
+    };
+    window.addEventListener('gsw:seo-play', onSeoCta);
+    return () => window.removeEventListener('gsw:seo-play', onSeoCta);
+  }, [startKeyboardMode, startCamera, prefetchTracking]);
 
   const stopCamera = useCallback(() => {
     // Cancel any in-flight recording flow
@@ -2074,7 +2103,7 @@ export default function App() {
               <>
                 <button
                   className="enable-camera-btn"
-                  onClick={keyboardMode ? () => startKeyboardMode('main_button') : startCamera}
+                  onClick={keyboardMode ? () => startKeyboardMode('main_button') : () => startCamera()}
                   disabled={isLoading}
                   onMouseEnter={prefetchTracking}
                   onFocus={prefetchTracking}
@@ -2189,7 +2218,7 @@ export default function App() {
               </svg>
               View the full troubleshooting guide →
             </a>
-            <button className="enable-camera-btn retry" onClick={startCamera}>Retry</button>
+            <button className="enable-camera-btn retry" onClick={() => startCamera('retry')}>Retry</button>
           </div>
         )}
 

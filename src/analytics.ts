@@ -50,9 +50,9 @@ export function trackHelpButtonClicked(): void {
 
 /* ─── Activation funnel (added 2026-08-04, see docs/sessions) ─────────── */
 
-/** Enable Camera button pressed. */
-export function trackCameraClicked(): void {
-  track('camera_button_clicked', { device: isMobileDevice() ? 'mobile' : 'desktop' });
+/** Camera start pressed — which surface converted the user. */
+export function trackCameraClicked(source: 'main_button' | 'retry' | 'seo_cta' = 'main_button'): void {
+  track('camera_button_clicked', { device: isMobileDevice() ? 'mobile' : 'desktop', source });
 }
 
 /** getUserMedia outcome for the camera permission prompt. */
@@ -197,7 +197,7 @@ export function trackScrollToPlaybook(): void {
  * exit), and bounce (session duration on exit). Session = one keyboard
  * start; exit fires on switch-back, settings-off, or page close. */
 
-export type KeyboardModeSource = 'main_button' | 'landing_hint' | 'toolbar' | 'settings';
+export type KeyboardModeSource = 'main_button' | 'landing_hint' | 'toolbar' | 'settings' | 'seo_cta';
 
 /** Keyboard mode started — which surface converted the user. */
 export function trackKeyboardModeEntered(source: KeyboardModeSource): void {

@@ -108,7 +108,7 @@
         "name": "Is there a gesture synth app or online version?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "This page is the online version — no app to install. Scroll up and play in the browser above, or open the full instrument, allow the camera, and play. The URL is the app."
+          "text": "This page is the online version — no app to install. Play in the browser above, or open the full instrument, allow the camera, and play. The URL is the app."
         }
       },
       {
@@ -244,6 +244,43 @@
       border-radius: 12px;
       padding: 1.5rem;
       margin-bottom: 1.5rem;
+    }
+    /* SEO-CTA play buttons (2026-09-11, Step 3): dispatch gsw:seo-play —
+       the React instrument above starts directly, no page jump. */
+    .seo-play-btn {
+      display: inline-block;
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      color: #06131a;
+      background: linear-gradient(135deg, #00ffcc, #66ffd9);
+      border: none;
+      border-radius: 999px;
+      padding: 0.8rem 2rem;
+      margin: 0.6rem 0.4rem 0;
+      cursor: pointer;
+      box-shadow: 0 0 24px rgba(0, 255, 204, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .seo-play-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 32px rgba(0, 255, 204, 0.5);
+    }
+    .seo-play-btn.ghost {
+      color: #00ffcc;
+      background: transparent;
+      border: 1px solid rgba(0, 255, 204, 0.4);
+      box-shadow: none;
+    }
+    .final-cta {
+      text-align: center;
+      padding: 1rem 0 0.5rem;
+    }
+    .final-cta p {
+      color: #a0a0d0;
+      font-size: 0.95rem;
+      margin-bottom: 0.2rem;
     }
     .step-grid {
       display: grid;
@@ -400,6 +437,17 @@
   <div id="app-root"></div>
 
   <script type="module" src="/src/main.tsx"></script>
+  <script>
+    // SEO-CTA bridge (2026-09-11, Step 3): static play buttons dispatch an
+    // event the React instrument listens for — no page jump. Listener is on
+    // window, so buttons work even before the bundle finishes loading
+    // (the handler scrolls to top regardless; start runs once mounted).
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-seo-play]') : null;
+      if (!btn) return;
+      window.dispatchEvent(new CustomEvent('gsw:seo-play'));
+    });
+  </script>
 
   <!-- ─── SEO Content (below the fold, scrollable) ────────────────── -->
   <div class="seo-content">
@@ -408,10 +456,13 @@
       <h1>Gesture Synth — Play Music with Your Hands, No Hardware</h1>
       <p class="seo-intro">
         A <strong>gesture synth</strong> — also searched as <strong>hand gesture synth</strong> — is an
-        instrument you play with hand movements instead of keys. Scroll up: the instrument above is
+        instrument you play with hand movements instead of keys. The instrument above is
         live. Webcam on, hands up, music out — no hardware, no downloads.
-        <a href="#faq" style="display:inline-block;margin-top:0.4rem;color:#00ffcc;font-size:0.9rem;">FAQ ↓</a>
       </p>
+      <div style="text-align:center;margin-bottom:2rem;">
+        <button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button>
+        <a class="seo-play-btn ghost" href="#what-is" style="text-decoration:none;">What is it? ↓</a>
+      </div>
 
       <!-- What is a gesture synth? -->
       <div class="seo-section" id="what-is">
@@ -441,7 +492,8 @@
           <div class="step-card">
             <div class="step-num">▶</div>
             <h3>Play right now</h3>
-            <p>You want music in seconds, in a browser tab. That's the instrument above — scroll up and allow the camera.</p>
+            <p>You want music in seconds, in a browser tab. That's the instrument above — one click starts it.</p>
+            <p><button class="seo-play-btn" data-seo-play>▶ Play now</button></p>
           </div>
           <div class="step-card">
             <div class="step-num">🧤</div>
@@ -504,7 +556,8 @@
           </tbody>
         </table>
         <p style="margin-top:0.8rem">
-          Prefer an instrument you can pick up in seconds? See the <a href="/guide" style="color:#00ffcc">step-by-step tutorial</a> — or just start playing with the instrument above.
+          Prefer an instrument you can pick up in seconds? See the <a href="/guide" style="color:#00ffcc">step-by-step tutorial</a> — or just press play below and start with the instrument above.
+          <div style="text-align:center;margin-top:0.6rem;"><button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button></div>
         </p>
 
         <h2>💡 How It Works</h2>
@@ -545,7 +598,7 @@
         <details class="faq-item">
           <summary>Is there a gesture synth app or online version?</summary>
           <p>
-            This page <em>is</em> the online version — no app to install. Scroll up and play in the
+            This page <em>is</em> the online version — no app to install. Play in the
             browser above: allow the camera and you're playing. That's the whole point of a
             browser-based hand gesture synth: the URL is the app.
           </p>
@@ -644,6 +697,11 @@
       </div>
 
     </div>
+  </div>
+
+  <div class="final-cta">
+    <p>Theory over — your hands already know what to do.</p>
+    <button class="seo-play-btn" data-seo-play>▶ Open the gesture synth and play</button>
   </div>
 
   <footer class="site-footer">

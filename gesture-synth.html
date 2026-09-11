@@ -105,10 +105,10 @@
       },
       {
         "@type": "Question",
-        "name": "Is there a gesture synth app or online version?",
+        "name": "Is there a gesture synth app for Android or iPhone?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "This page is the online version — no app to install. Play in the browser above, or open the full instrument, allow the camera, and play. The URL is the app."
+          "text": "There is deliberately no app to install — no download, no storage, no account. This page is the online version: open it on any phone, tablet or laptop, allow the camera, and play. The URL is the app; your browser's Add to Home Screen gives you the same one-tap icon."
         }
       },
       {
@@ -117,14 +117,6 @@
         "acceptedAnswer": {
           "@type": "Answer",
           "text": "No. All you need is a computer or laptop with a built-in or USB webcam, and a modern browser like Chrome, Edge, or Firefox. No MIDI controllers, no external sensors, no downloads. Prefer no camera at all? Keyboard mode turns your physical keyboard into the instrument — no webcam and no model download required."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Can I play without a camera?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes — Keyboard Mode (desktop) turns your physical keyboard into the instrument: press 1-7 for scale degrees I-VII (hold to play, release to stop), [ / ] for minor/major, 8/9/0/- for chord styles, Shift for octave down, arrow keys for volume and filter sweeps, Space to stop. Enable it in Settings — no camera permission, no MediaPipe model download. A real-keyboard interactive guide with a demo animation teaches every key; recording captures audio (voice optional) since there's no camera feed to record as video."
         }
       },
       {
@@ -149,6 +141,14 @@
         "acceptedAnswer": {
           "@type": "Answer",
           "text": "Gesture Synth Weld supports all 12 keys (C through B) with two right-hand modes. In Finger Layout mode: 1 finger = triad, 2 fingers = 1st inversion, 3 fingers = 7th chord, 4 fingers = 9th chord. In Fixed Chord mode, choose from 8 chord types: Major Triad, Major 1st Inversion, Minor Triad, Diminished, Sus2, Sus4, Major 7th, and Dominant 7th. Lock to a fixed major or minor mode, or enable Scale+Tilt to switch between them with left-hand wrist tilt."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I play without a camera?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes — Keyboard Mode (desktop) turns your physical keyboard into the instrument: press 1-7 for scale degrees I-VII (hold to play, release to stop), [ / ] for minor/major, 8/9/0/- for chord styles, Shift for octave down, arrow keys for volume and filter sweeps, Space to stop. Enable it in Settings — no camera permission, no MediaPipe model download. A real-keyboard interactive guide with a demo animation teaches every key; recording captures audio (voice optional) since there's no camera feed to record as video."
         }
       },
       {
@@ -625,8 +625,9 @@
   <script>
     // SEO-CTA bridge (2026-09-11, Step 3): static play buttons dispatch an
     // event the React instrument listens for — no page jump. Listener is on
-    // window, so buttons work even before the bundle finishes loading
-    // (the handler scrolls to top regardless; start runs once mounted).
+    // window, so buttons work even before the bundle finishes loading.
+    // The React handler scrolls to #live AND starts the instrument in one
+    // click (scroll-only when already playing/loading).
     document.addEventListener('click', function (e) {
       var btn = e.target && e.target.closest ? e.target.closest('[data-seo-play]') : null;
       if (!btn) return;
@@ -647,6 +648,7 @@
         <a href="#how-it-works">What it does</a>
         <a href="#how-to-play">How to play</a>
         <a href="#showdown">Browser vs hardware</a>
+        <a href="#no-app">Why no app</a>
         <a href="#faq">FAQ</a>
       </nav>
 
@@ -772,6 +774,24 @@
         </div>
       </div>
 
+      <!-- No app needed (app-intent capture: gesture synth app android/iphone/ios) -->
+      <div class="seo-section" id="no-app">
+        <h2>📱 Why there's no app — and why that's better</h2>
+        <p>
+          Searching for a <strong>gesture synth app</strong> for Android or iPhone? There is
+          deliberately no app to install — no App Store download, no storage space, no updates,
+          no account. <strong>The URL is the app</strong>: open this page on any phone, tablet
+          or laptop, allow the camera, and you're playing the instrument above in seconds.
+        </p>
+        <p>
+          A download would only add friction — the full instrument already runs in the browser
+          on Android and iOS alike, and a link is all it takes to share it with a friend.
+          Prefer a home-screen icon? Use your browser's "Add to Home Screen" — it opens this
+          same page, always up to date.
+          <div style="text-align:center;margin-top:0.6rem;"><button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button></div>
+        </p>
+      </div>
+
       <!-- FAQ -->
       <div class="seo-section" id="faq">
         <h2>❓ Frequently Asked Questions</h2>
@@ -788,11 +808,12 @@
         </details>
 
         <details class="faq-item">
-          <summary>Is there a gesture synth app or online version?</summary>
+          <summary>Is there a gesture synth app for Android or iPhone?</summary>
           <p>
             This page <em>is</em> the online version — no app to install. Play in the
             browser above: allow the camera and you're playing. That's the whole point of a
             browser-based hand gesture synth: the URL is the app.
+            Full answer: <a href="#no-app" style="color:#00ffcc">why there's no app →</a>
           </p>
         </details>
 

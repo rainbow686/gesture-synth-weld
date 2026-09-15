@@ -206,9 +206,10 @@ fallback → same-origin /v1.0.1/ (Vercel; mainland-China safety net)
 | Daily log | `docs/memory/YYYY-MM-DD.md` | Check yesterday's breakpoint |
 | Bridge (free↔pro) | `docs/BRIDGE.md` + `bridge/contract.md` + `bridge/sync-log.md` | Cross-repo |
 | Task queue | `docs/bridge/inbox/*.md` (one file per task, `to: peer`) | Scan for new work |
+| After change (write map) | `docs/CLOSEOUT.md` | After every change |
 | Handbook (handover/multi-agent) | `docs/handbook/claude-handover.md` | New project / multi-agent |
 
-Rules: >10 turns discussion → create `sessions/` file and append incrementally (anti-compaction); update `PROJECT-STATE` + `memory/` immediately after each verifiable unit (session may die anytime).
+Rules: >10 turns discussion → create `sessions/` file and append incrementally (anti-compaction); update `PROJECT-STATE` + `memory/` immediately after each verifiable unit (session may die anytime); after any change walk `docs/CLOSEOUT.md` write map.
 
 ## Current Version
 

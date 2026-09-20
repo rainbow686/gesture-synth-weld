@@ -23,6 +23,16 @@
   --frost-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   --frost-blur: blur(24px) saturate(180%);
 
+  /* Frost taxonomy (2026-09-21): two families, never a full-screen blur.
+     - CHROME layer (translucent --frost-bg): toolbar, settings panel,
+       mobile ⋯ panel — always-on controls, thin metallic frost.
+     - CONTENT layer (near-opaque --panel-deep-bg + frost-blur): Help,
+       rec-sheet, recordings modal, loading block — text-heavy cards over
+       the live camera view, must stay readable. Overlays never dim or
+       blur the viewport (mobile-more-backdrop precedent: transparent
+       click-catcher only). */
+  --panel-deep-bg: rgba(10, 10, 24, 0.88);
+
   --font-display: 'Orbitron', monospace;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -2322,28 +2332,31 @@ body {
   vertical-align: 1px;
 }
 
+/* Recordings overlay (2026-09-21): transparent click-catcher only — no
+   dim, no backdrop blur. Design target: same language as the settings
+   panel (background page stays normal, only the card is frosted). The
+   old full-viewport dim+blur was written for the toolbar-trapped mount
+   and only blurred a strip; once the mount was fixed it blurred the
+   whole screen (reported 2026-09-21). Outside-click + Esc still close. */
 .works-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: rgba(5, 5, 15, 0.62);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
 }
-/* Recordings modal body (2026-09-21): same frost-blur language as the
-   settings panel, but on a near-opaque ground - the modal sits over the
-   live camera view, so --frost-bg at 0.55 alpha reads as see-through
-   (user feedback 2026-09-21). Solid enough to read, blurred behind. */
+/* Recordings modal body: CONTENT layer (--panel-deep-bg + frost-blur),
+   same family as the rec-sheet — a text-heavy list over the live camera
+   view. Previously its own rgba literal; unified 2026-09-21. */
 .works-modal {
   position: relative;
   width: min(400px, 94vw);
   max-height: 72vh;
   overflow-y: auto;
-  background: rgba(10, 10, 24, 0.88);
+  background: var(--panel-deep-bg);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid rgba(120, 80, 255, 0.35);

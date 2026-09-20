@@ -1821,12 +1821,13 @@ export default function App() {
                 })}
               </svg>
             </button>
-            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { if (!showHelp) trackHelpButtonClicked(); dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             {/* Recordings library (2026-09-20, "My recordings" rename): the
                 playing-scene door to the same modal the landing entry opens.
                 Same face (RecordingsIcon) both places. Renders only when
                 there is at least one recording - no empty door while
-                playing. */}
+                playing. Toolbar order (2026-09-21): action cluster first
+                (gear, recordings), Help last before the divider, REC
+                capsule exempt as the terminal CTA. */}
             {works !== null && works.length > 0 && (
               <button
                 className="icon-btn mobile-collapse"
@@ -1837,6 +1838,7 @@ export default function App() {
                 <RecordingsIcon size={19} />
               </button>
             )}
+            <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { if (!showHelp) trackHelpButtonClicked(); dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
             <span className="divider" />
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
@@ -1936,28 +1938,35 @@ export default function App() {
             </>
           )}
 
-          {/* Settings panel — only for Gesture mode. Has its own ✕ close
-              (the gear that opened it may be folded away on portrait
-              phones — never leave the panel without a close path). */}
-          {showSettings && synthState.appMode === 'gesture' && (
-            <SettingsPanel
-              onClose={() => setShowSettings(false)}
-              synthState={synthState}
-              setSynthState={setSynthState}
-              vignetteStrength={vignetteStrength}
-              setVignetteStrength={setVignetteStrength}
-              scanlinesStrength={scanlinesStrength}
-              setScanlinesStrength={setScanlinesStrength}
-              isMobile={isMobile}
-              keyboardMode={keyboardMode}
-              isRunning={isRunning}
-              onKeyboardToggle={handleKeyboardToggle}
-              keymap={keymap}
-              onKeymapChange={handleKeymapChange}
-              onOpenGuide={showKbGuidePanel}
-            />
-          )}
         </div>
+
+        {/* ─── Settings panel — only for Gesture mode. Has its own ✕ close
+                (the gear that opened it may be folded away on portrait
+                phones — never leave the panel without a close path).
+                Direct child of camera-stage (moved 2026-09-21): the old
+                mount inside the toolbar wrapper trapped the panel in its
+                z20 stacking context + translateX(-50%), so the landing
+                brand wordmark (placeholder z30, a sibling of the wrapper)
+                floated above it. .frost-panel's own absolute top/z35 now
+                applies against the stage, above the brand. */}
+        {showSettings && synthState.appMode === 'gesture' && (
+          <SettingsPanel
+            onClose={() => setShowSettings(false)}
+            synthState={synthState}
+            setSynthState={setSynthState}
+            vignetteStrength={vignetteStrength}
+            setVignetteStrength={setVignetteStrength}
+            scanlinesStrength={scanlinesStrength}
+            setScanlinesStrength={setScanlinesStrength}
+            isMobile={isMobile}
+            keyboardMode={keyboardMode}
+            isRunning={isRunning}
+            onKeyboardToggle={handleKeyboardToggle}
+            keymap={keymap}
+            onKeymapChange={handleKeymapChange}
+            onOpenGuide={showKbGuidePanel}
+          />
+        )}
 
         {/* ─── Recordings library modal (2026-09-20, fixed 2026-09-21):
                 the landing entry and the toolbar entry open the same

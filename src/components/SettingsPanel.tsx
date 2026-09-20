@@ -111,7 +111,10 @@ export function SettingsPanel({
     );
   };
   return (
-    <div className="frost-panel" style={{ position: 'relative', top: 'auto', left: 'auto', transform: 'none', flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+    <div className="frost-panel" style={{ flexDirection: 'column', gap: '10px', padding: '16px 18px', maxWidth: '700px', fontSize: '0.65rem' }}>
+      {/* Direct child of camera-stage (moved 2026-09-21): .frost-panel's own
+          absolute top/z35 applies against the stage, above the landing brand
+          (placeholder z30). Keep only layout overrides, no position ones. */}
       <button
         onClick={onClose}
         style={{ position: 'absolute', top: '6px', right: '8px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: '4px' }}

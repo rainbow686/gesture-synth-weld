@@ -11,7 +11,7 @@
 - 🎛️ **3 modes** — Gesture (two-hand chords) · Theremin (dual-hand pitch+volume) · MonoPiano (finger-count intervals)
 - ⌨️ **Keyboard mode (desktop, no camera)** — `1-7` degrees (hold to play) · `[ / ]` minor/major (customizable) · `Shift` octave down · `8/9/0/-` chord styles · `↑/↓` volume · `←/→` filter · `Space` stop; includes a real QWERTY guide with demo animation
 - 🎚️ **Arpeggiator + Auto Bass + Filter sweep** — harp-like arpeggios, low-end root, real-time tone control
-- ⏺️ **Record up to 120s** — audio / full video / skeleton animation; `9:16 / 16:9 / 1:1`; `My works` local gallery; mic sing-along with vocal polish
+- ⏺️ **Record up to 120s** — audio / full video / skeleton animation; `9:16 / 16:9 / 1:1`; `My recordings` local gallery; mic sing-along with vocal polish
 - 🌗 **Stage atmosphere** — vignette/scanlines (WYSIWYG live + recording)
 - 🌐 **Works in the browser** — no install, no sign-up, no paywall; pure sawtooth synth (intentionally minimal)
 

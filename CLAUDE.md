@@ -31,7 +31,7 @@ Rules: >10 turns discussion → create `sessions/` file and append incrementally
 - Stack: Vite + React + TypeScript + Tone.js + MediaPipe Tasks Vision (HandLandmarker).
 - Pipeline: 任一输入源产出 `HandFrame` 走同一条音频链（filter → masterGain）。Engine 方法幂等 + 平滑过渡；App 层按 chord fingerprint 去重。
 - Inputs: CameraSource（检测 + presence 平滑）/ KeyboardSource（桌面端 hold-to-play，`src/input/keymap.ts` 是绑定单源）。UX 细节读源码，不在此展开。
-- Recording: 域 `src/recording/`（chooser → countdown → record → result；音频 / 全视频 / 骨架三模式，9:16 默认）。Mic 只进录制 tap、不进扬声器；成品 auto-save IndexedDB（My works，浏览器本地，零上传）。
+- Recording: 域 `src/recording/`（chooser → countdown → record → result；音频 / 全视频 / 骨架三模式，9:16 默认）。Mic 只进录制 tap、不进扬声器；成品 auto-save IndexedDB（My recordings，浏览器本地，零上传）。
 - Reusable layers（free→pro cherry-pick，单向不回流，台账见 `docs/bridge/sync-log.md`）: `src/input/` `src/recording/` `src/hud/` `src/works/` `src/chords.ts` `src/types.ts`。
 - File map: `src/` + `public/`（favicon/og/robots/sitemap + `vX.Y.Z/` 模型版本源）+ `index.html`（SEO + JSON-LD）+ `gesture-synth.html`（品类页）+ `vercel.json`（构建/缓存/301）+ `mediapipe-version.json`。测试 `npm test`（用例数以实跑为准）。
 

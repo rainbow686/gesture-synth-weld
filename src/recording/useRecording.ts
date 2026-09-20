@@ -463,10 +463,10 @@ export function useRecording(deps: UseRecordingDeps) {
         const filename = makeRecordingFilename(ext);
         setRecBlob({ blob, filename });
         setRecPhase('result');
-        // Local works gallery (2026-08-17): auto-save the finished take to
+        // Local recordings library (2026-08-17): auto-save the finished take to
         // IndexedDB - browser-only, zero upload. Returning players find it
         // on the landing page; fire-and-forget (quota/private mode just
-        // means an empty gallery, never a broken result panel).
+        // means an empty library, never a broken result panel).
         const type = recModeRef.current === 'audio' ? 'audio' as const : 'video' as const;
         saveWork({
           id: `w-${Date.now()}`,

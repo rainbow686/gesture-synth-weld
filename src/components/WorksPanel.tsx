@@ -1,9 +1,9 @@
 /**
- * Local works gallery (2026-08-17, retention experiment - "让用户留下资产").
+ * Local recordings library (2026-08-17, retention experiment - "让用户留下资产").
  *
- * Landing-page entry for the player's previous takes from IndexedDB
+ * Landing-page entry for the player's previous recordings from IndexedDB
  * (saved automatically on recording completion). Shows a COMPACT one-line
- * entry "🎵 My works (N)" under the start button - the landing stays
+ * entry "My recordings (N)" under the start button - the landing stays
  * focused on its Enable-Camera conversion job - and opens the list in a
  * height-capped modal (internal scroll, player capped too), so nothing
  * ever pushes the page or the status bar (feedback 2026-08-18: the
@@ -38,10 +38,43 @@ interface WorksPanelProps {
   works: StoredWork[] | null;
   /** Delete a work - App removes it from the shared list (landing + result panel sync). */
   onDelete: (id: string) => void;
+  /** Modal open state (owned by App, 2026-09-20) - the toolbar recordings
+      entry and the landing entry open the same modal. */
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
 }
 
-export default function WorksPanel({ works, onDelete }: WorksPanelProps) {
-  const [open, setOpen] = useState(false);
+/** Recordings entry glyph — frame + play head (2026-09-20, free-drawn).
+ *  Shared by the landing entry and the toolbar entry so the feature has
+ *  one face. Same stroke language as the toolbar glyphs (currentColor). */
+export function RecordingsIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M10.2 9.3 L15.2 12 L10.2 14.7 Z" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Landing entry — a quiet one-line link under the start button, not a
+ *  list (2026-08-18). NEW badge only while the current What's New entry
+ *  asks for it AND is within its announce window - expires on its own. */
+export function RecordingsEntry({ works, onOpen }: {
+  /** Shared works list (owned by App) - null = still loading. */
+  works: StoredWork[] | null;
+  /** Open the shared modal (owned by App - toolbar entry opens the same one). */
+  onOpen: () => void;
+}) {
+  if (works === null || works.length === 0) return null;
+  return (
+    <button className="works-entry" onClick={onOpen} data-tip="Replay your previous recordings">
+      <span className="works-entry-icon"><RecordingsIcon size={14} /></span> My recordings ({works.length})
+      {whatsNewLandingBadge() && <span className="works-entry-new">NEW</span>}
+    </button>
+  );
+}
+
+export default function WorksPanel({ works, onDelete, open, onOpenChange }: WorksPanelProps) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playUrl, setPlayUrl] = useState<string | null>(null);
   const lastUrlRef = useRef<string | null>(null);
@@ -55,24 +88,27 @@ export default function WorksPanel({ works, onDelete }: WorksPanelProps) {
   // running; on the landing it reaches us).
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onOpenChange(false); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [open, onOpenChange]);
 
-  if (works === null || works.length === 0) return null;
-
-  const openModal = () => {
-    setOpen(true);
-    // Seen-probe: once per session, only when there is something to see.
+  // Seen-probe: once per session, only when there is something to see.
+  // Fires off the open prop - the landing entry and the toolbar entry open
+  // the same App-owned modal, either path lands here.
+  useEffect(() => {
+    if (!open) return;
+    if (works === null || works.length === 0) return;
     if (!sessionStorage.getItem(SEEN_GUARD_KEY)) {
       sessionStorage.setItem(SEEN_GUARD_KEY, '1');
       trackWorksListSeen(works.length);
     }
-  };
+  }, [open, works]);
+
+  if (works === null || works.length === 0) return null;
 
   const closeModal = () => {
-    setOpen(false);
+    onOpenChange(false);
     if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
     lastUrlRef.current = null;
     setPlayingId(null);
@@ -106,7 +142,7 @@ export default function WorksPanel({ works, onDelete }: WorksPanelProps) {
 
   const remove = (work: StoredWork) => {
     onDelete(work.id);
-    if (works && works.length === 1) setOpen(false); // last work gone -> close modal
+    if (works && works.length === 1) onOpenChange(false); // last work gone -> close modal
     if (playingId === work.id) {
       if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
       lastUrlRef.current = null;
@@ -117,50 +153,44 @@ export default function WorksPanel({ works, onDelete }: WorksPanelProps) {
 
   const playing = works.find((w) => w.id === playingId) ?? null;
 
-  return (
-    <>
-      {/* Compact landing entry - a quiet link line, not a list (2026-08-18).
-          NEW badge only while the current What's New entry asks for it AND
-          is within its announce window - expires on its own (2026-08-18). */}
-      <button className="works-entry" onClick={openModal} data-tip="Replay your previous takes">
-        🎵 My works ({works.length})
-        {whatsNewLandingBadge() && <span className="works-entry-new">NEW</span>}
-      </button>
+  // App-level modal (2026-09-20): mounted once at App level so the landing
+  // entry AND the toolbar entry open the same modal. Returns null when
+  // closed — but hooks above still run unconditionally every render.
+  if (!open) return null;
+  if (works === null || works.length === 0) return null;
 
-      {open && (
-        <div className="works-modal-overlay" onClick={closeModal}>
-          <div className="works-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="works-modal-head">
-              <span className="works-modal-title">My works</span>
-              <button className="works-close" onClick={closeModal} aria-label="Close my works">✕</button>
-            </div>
-            <div className="works-modal-sub">Saved in this browser - replay, re-download, or delete.</div>
-            <ul className="works-list">
-              {works.map((w) => (
-                <li key={w.id} className={`works-item${playingId === w.id ? ' active' : ''}`}>
-                  <span className="works-item-icon">{w.type === 'audio' ? '🎵' : '🎬'}</span>
-                  <span className="works-item-meta">
-                    <span className="works-item-date">{formatWorkDate(w.createdAt)}</span>
-                    <span className="works-item-dur">{Math.floor(w.durationSec / 60)}:{String(w.durationSec % 60).padStart(2, '0')}</span>
-                  </span>
-                  <span className="works-item-actions">
-                    <button className="works-btn" onClick={() => replay(w)} data-tip="Replay">
-                      {playingId === w.id ? '■' : '▶'}
-                    </button>
-                    <button className="works-btn" onClick={() => download(w)} data-tip="Download">💾</button>
-                    <button className="works-btn" onClick={() => remove(w)} data-tip="Delete">🗑</button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {playing && playUrl && (playing.type === 'audio' ? (
-              <audio src={playUrl} className="works-player" controls autoPlay />
-            ) : (
-              <video src={playUrl} className="works-player" controls autoPlay playsInline />
-            ))}
-          </div>
+  return (
+    <div className="works-modal-overlay" onClick={closeModal}>
+      <div className="works-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="works-modal-head">
+          <span className="works-modal-title">My recordings</span>
+          <button className="works-close" onClick={closeModal} aria-label="Close my recordings">✕</button>
         </div>
-      )}
-    </>
+        <div className="works-modal-sub">Saved in this browser - replay, re-download, or delete.</div>
+        <ul className="works-list">
+          {works.map((w) => (
+            <li key={w.id} className={`works-item${playingId === w.id ? ' active' : ''}`}>
+              <span className="works-item-icon">{w.type === 'audio' ? '🎵' : '🎬'}</span>
+              <span className="works-item-meta">
+                <span className="works-item-date">{formatWorkDate(w.createdAt)}</span>
+                <span className="works-item-dur">{Math.floor(w.durationSec / 60)}:{String(w.durationSec % 60).padStart(2, '0')}</span>
+              </span>
+              <span className="works-item-actions">
+                <button className="works-btn" onClick={() => replay(w)} data-tip="Replay">
+                  {playingId === w.id ? '■' : '▶'}
+                </button>
+                <button className="works-btn" onClick={() => download(w)} data-tip="Download">💾</button>
+                <button className="works-btn" onClick={() => remove(w)} data-tip="Delete">🗑</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+        {playing && playUrl && (playing.type === 'audio' ? (
+          <audio src={playUrl} className="works-player" controls autoPlay />
+        ) : (
+          <video src={playUrl} className="works-player" controls autoPlay playsInline />
+        ))}
+      </div>
+    </div>
   );
 }

@@ -36,7 +36,7 @@ function openDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
       // Private-mode Safari and very old browsers lack indexedDB - the
-      // gallery simply stays empty there; callers catch and move on.
+      // library simply stays empty there; callers catch and move on.
       if (typeof indexedDB === 'undefined') {
         reject(new Error('indexedDB unavailable'));
         return;

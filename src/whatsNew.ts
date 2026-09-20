@@ -68,10 +68,10 @@ export interface WhatsNewEntry {
    *  feature to click INTO set this ('keyboard-mode' = enter keyboard
    *  mode); informational announcements omit it and the landing hint
    *  simply doesn't render - the feature is either already visible on
-   *  the landing (works gallery) or needs no conversion assist. */
+   *  the landing (recordings library) or needs no conversion assist. */
   landingClick?: 'keyboard-mode';
   /** Optional: show a time-limited NEW badge on the landing-page element
-   *  this feature owns (e.g. the My works entry, 2026-08-18). Same
+   *  this feature owns (e.g. the My recordings entry, 2026-08-18). Same
    *  announce window as the cards - expires on its own, no dismissal,
    *  data-driven like everything else here. Omit for entries with no
    *  landing element of their own. */
@@ -99,15 +99,15 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     // Retention experiment (2026-08-17): announcing this in the PLAYING
     // scene reinforces the result panel's auto-save note - the message
     // that drives the next visit we're measuring. No landingClick: the
-    // gallery is itself on the landing page, and a fresh visitor has no
-    // works to see - a hint would be noise. Not desktopOnly: IndexedDB
+    // library is itself on the landing page, and a fresh visitor has no
+    // recordings to see - a hint would be noise. Not desktopOnly: IndexedDB
     // works on phones too. No pulse/teach: no toolbar control to point
-    // at - the works live under the start button, not in the toolbar.
+    // at - the recordings live under the start button, not in the toolbar.
     version: 'v2.2',
     releasedAt: '2026-08-18',
-    landingBadge: true, // NEW badge on the landing's My works entry (expires with the window)
-    title: 'My works - saved in this browser',
-    body: 'Every take you record is auto-saved now (audio and video). Come back anytime: "My works" appears under the start button - replay, re-download, or delete. Nothing is uploaded; your works live only in your browser.',
+    landingBadge: true, // NEW badge on the landing's My recordings entry (expires with the window)
+    title: 'My recordings - saved in this browser',
+    body: 'Every recording you make is auto-saved now (audio and video). Come back anytime: "My recordings" appears under the start button - replay, re-download, or delete. Nothing is uploaded; your recordings live only in your browser.',
   },
   {
     version: 'v2.1',

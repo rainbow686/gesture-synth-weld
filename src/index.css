@@ -2305,6 +2305,11 @@ body {
   color: var(--neon-cyan);
   box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
 }
+.works-entry-icon {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-right: 2px;
+}
 .works-entry-new {
   margin-left: 8px;
   font-size: 0.52rem;
@@ -2322,6 +2327,8 @@ body {
   inset: 0;
   z-index: 90;
   background: rgba(5, 5, 15, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2333,6 +2340,8 @@ body {
   max-height: 72vh;
   overflow-y: auto;
   background: var(--frost-bg);
+  backdrop-filter: var(--frost-blur);
+  -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid rgba(120, 80, 255, 0.35);
   border-radius: 14px;
   padding: 14px 16px;

@@ -63,7 +63,7 @@ export interface RecSheetProps {
   downloadRec: () => void;
   shareRec: () => void;
   handleStartRecording: () => void;
-  // local works gallery (shared with the landing, 2026-08-18): the
+  // local recordings library (shared with the landing, 2026-08-18): the
   // history list below the preview - deleting here syncs everywhere.
   works: StoredWork[] | null;
   onDeleteWork: (id: string) => void;
@@ -295,11 +295,11 @@ export function RecSheet(props: RecSheetProps) {
               />
             );
           })()}
-          {/* Previewing an older take - say so (default = THIS recording). */}
+          {/* Previewing an earlier recording - say so (default = THIS recording). */}
           {histUrl && (
-            <div className="rec-previewing">▶ Previewing an earlier take - the buttons below still apply to this recording</div>
+            <div className="rec-previewing">▶ Previewing an earlier recording - the buttons below still apply to this recording</div>
           )}
-          {/* History list (2026-08-18, feedback - full version): the takes
+          {/* History list (2026-08-18, feedback - full version): the recordings
               from this browser, newest first (the just-saved one on top,
               matching the default preview). Click a row to preview it;
               per-row re-download or delete. Fixed height + scroll so the
@@ -307,7 +307,7 @@ export function RecSheet(props: RecSheetProps) {
               App's shared works state. */}
           {works && works.length > 0 && (
             <>
-              <div className="rec-works-title">My works ({works.length})</div>
+              <div className="rec-works-title">My recordings ({works.length})</div>
               <ul className="rec-works-list">
                 {works.map((w) => (
                   <li key={w.id} className={`rec-works-item${histId === w.id ? ' active' : ''}`}>
@@ -321,7 +321,7 @@ export function RecSheet(props: RecSheetProps) {
                         setHistId(w.id);
                         trackWorkReplayed();
                       }}
-                      title="Preview this take"
+                      title="Preview this recording"
                     >{histId === w.id ? '■' : '▶'}</button>
                     <span className="rec-works-icon">{w.type === 'audio' ? '🎵' : '🎬'}</span>
                     <span className="rec-works-date">
@@ -357,13 +357,13 @@ export function RecSheet(props: RecSheetProps) {
           {shareFailed && (
             <div className="rec-warn" style={{ marginTop: 8 }}>Sharing isn't available in this browser — use Download instead.</div>
           )}
-          {/* Local works gallery discoverability: the take was auto-saved
+          {/* Local recordings library discoverability: the recording was auto-saved
               to this browser - tell the player they have a reason to come
               back (2026-08-17 retention experiment). */}
           <div className="rec-sheet-sub" style={{ marginTop: 8 }}>
-            ✓ Auto-saved to this browser - "My works" appears under the start button on your next visit
+            ✓ Auto-saved to this browser - "My recordings" appears under the start button on your next visit
           </div>
-          {/* Pro-gate probe (result panel): the "keep the take" moment —
+          {/* Pro-gate probe (result panel): the "keep the recording" moment —
               the most natural place to test paid-intent for removal of
               limits/watermark. Click = signal, never a paywall. */}
           <div

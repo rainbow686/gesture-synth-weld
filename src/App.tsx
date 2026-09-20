@@ -26,7 +26,7 @@ import { useRecording } from './recording/useRecording';
 import { RecSheet } from './recording/RecSheet';
 import { RECORD_SECONDS, VIDEO_REC_SUPPORTED } from './recording/constants';
 import { WHATS_NEW, whatsNewActive, whatsNewDismissed, markWhatsNewDismissed } from './whatsNew';
-import WorksPanel from './components/WorksPanel';
+import WorksPanel, { RecordingsEntry, RecordingsIcon } from './components/WorksPanel';
 import { deleteWork, listWorks, type StoredWork } from './works/workStore';
 import {
   DIATONIC_CHORDS,
@@ -178,7 +178,7 @@ export default function App() {
   // disappears the moment Help opens (localStorage alone can't trigger a
   // re-render, bug 2026-08-09: the card stayed visible under Help).
   const [whatsNewDismissedState, setWhatsNewDismissedState] = useState(() => whatsNewDismissed());
-  // Local works gallery (2026-08-17): ONE shared works list owned by App,
+  // Local recordings library (2026-08-17): ONE shared works list owned by App,
   // so the landing entry and the result panel stay in sync — deleting in
   // one updates the other (feedback 2026-08-18: result panel shows the
   // history list too). null = still loading.
@@ -193,6 +193,13 @@ export default function App() {
     await deleteWork(id);
     setWorks((prev) => prev?.filter((w) => w.id !== id) ?? null);
   }, []);
+  // Recordings modal (2026-09-20): owned by App, opened from EITHER the
+  // landing entry or the toolbar entry - one modal, two doors. Mounted once
+  // at the bottom of the toolbar wrapper (always visible), NOT in the
+  // transformed toolbar div (transform breaks the fixed overlay). The modal
+  // self-guards empty (renders null), so no count check needed here.
+  const [recordingsOpen, setRecordingsOpen] = useState(false);
+  const openRecordings = useCallback(() => setRecordingsOpen(true), []);
 
   // ─── Onboarding (first visit) ─────────────────────────────────────────
   // No popups on first visit — a newcomer's intent is to try, not to
@@ -1814,6 +1821,21 @@ export default function App() {
               </svg>
             </button>
             <button className={`icon-btn ${showHelpPulse ? 'help-pulse' : ''}`} onClick={() => { if (!showHelp) trackHelpButtonClicked(); dismissHelpPulse(); setShowHelp(!showHelp); }} data-tip="How to play — hand gesture guide" style={showHelp ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>?</button>
+            {/* Recordings library (2026-09-20, "My recordings" rename): the
+                playing-scene door to the same modal the landing entry opens.
+                Same face (RecordingsIcon) both places. Renders only when
+                there is at least one recording - no empty door while
+                playing. */}
+            {works !== null && works.length > 0 && (
+              <button
+                className="icon-btn mobile-collapse"
+                onClick={openRecordings}
+                data-tip={`My recordings (${works.length}) — replay, re-download, or delete`}
+                aria-label={`Open my recordings (${works.length})`}
+              >
+                <RecordingsIcon size={19} />
+              </button>
+            )}
             <span className="divider" />
             {/* Record capsule — a horizontal bar with a red dot (REC), the most
                 prominent button at the end of the toolbar. Shows countdown
@@ -1857,6 +1879,19 @@ export default function App() {
                   </div>
                   {/* One row of icon buttons — same glyphs as the landscape/desktop toolbar */}
                   <div style={{ display: 'flex', gap: '4px' }}>
+                    {/* Recordings library door (2026-09-20): same modal as
+                        the desktop toolbar entry - closes the ⋯ panel so the
+                        fixed-overlay modal isn't trapped inside it. */}
+                    {works !== null && works.length > 0 && (
+                      <button
+                        className="icon-btn"
+                        onClick={() => { setMoreOpen(false); openRecordings(); }}
+                        data-tip={`My recordings (${works.length})`}
+                        aria-label={`Open my recordings (${works.length})`}
+                      >
+                        <RecordingsIcon size={19} />
+                      </button>
+                    )}
                     <button className={`icon-btn ${synthState.arpeggiate ? 'active' : ''}`} onClick={() => { trackSettingChanged('arpeggiate', synthState.arpeggiate ? 'off' : 'on'); setSynthState(prev => ({ ...prev, arpeggiate: !prev.arpeggiate })); }} data-tip="Arpeggiator">⟿</button>
                     <button className={`icon-btn ${synthState.autoBass ? 'active' : ''}`} onClick={() => { trackSettingChanged('auto_bass', synthState.autoBass ? 'off' : 'on'); setSynthState(prev => ({ ...prev, autoBass: !prev.autoBass })); }} data-tip="Auto Bass">∿</button>
                     <button className={`icon-btn ${showSkeleton ? 'active' : ''}`} onClick={() => setShowSkeleton(!showSkeleton)} data-tip="Hand skeleton" style={showSkeleton ? {background:'rgba(0,255,204,0.12)',borderColor:'rgba(0,255,204,0.3)',color:'var(--neon-cyan)'} : {}}>
@@ -1921,6 +1956,14 @@ export default function App() {
               onOpenGuide={showKbGuidePanel}
             />
           )}
+          {/* Recordings modal (2026-09-20): mounted once at the bottom of
+              the toolbar wrapper (always visible) - the landing entry and
+              the toolbar entry open the same modal. Sibling of the
+              transformed toolbar div, so the fixed overlay isn't trapped.
+              Esc: the modal's own handler closes it on the landing; in the
+              playing scene App's global Esc stops playback, the ✕/backdrop
+              close it (same as HelpModal). */}
+          <WorksPanel works={works} onDelete={deleteWorkById} open={recordingsOpen} onOpenChange={setRecordingsOpen} />
         </div>
 
         {/* ─── Onboarding: hands-ready badge (first stable two-hand
@@ -2147,8 +2190,8 @@ export default function App() {
                     card below is the dismissal-based announcement. */}
                 {/* landingClick gate: only entries with a feature to click
                     INTO get the landing hint (v2.1 keyboard mode).
-                    Informational entries (v2.2 works) skip it - the
-                    gallery is already on this page. */}
+                    Informational entries (v2.2 recordings) skip it - the
+                    library is already on this page. */}
                 {!keyboardMode && whatsNewEntry?.landingClick === 'keyboard-mode' && !(whatsNewEntry.desktopOnly && isMobile) && whatsNewActive() && (
                   <div className="whatsnew-card">
                     <button className="whatsnew-body" onClick={() => startKeyboardMode('landing_hint')}>
@@ -2160,11 +2203,13 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Local works gallery (2026-08-17 retention experiment):
-                    returning players find their previous takes here -
-                    browser-only (IndexedDB), zero upload. Renders nothing
-                    on a fresh browser. */}
-                <WorksPanel works={works} onDelete={deleteWorkById} />
+                {/* Local recordings library (2026-08-17 retention experiment,
+                    renamed "My recordings" 2026-09-20): returning players
+                    find their previous recordings here - browser-only
+                    (IndexedDB), zero upload. Renders nothing on a fresh
+                    browser. Opens the App-owned modal (mounted below, one
+                    modal shared with the toolbar entry). */}
+                <RecordingsEntry works={works} onOpen={openRecordings} />
               </>
             )}
             </div>

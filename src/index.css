@@ -2334,12 +2334,16 @@ body {
   justify-content: center;
   padding: 16px;
 }
+/* Recordings modal body (2026-09-21): same frost-blur language as the
+   settings panel, but on a near-opaque ground - the modal sits over the
+   live camera view, so --frost-bg at 0.55 alpha reads as see-through
+   (user feedback 2026-09-21). Solid enough to read, blurred behind. */
 .works-modal {
   position: relative;
   width: min(400px, 94vw);
   max-height: 72vh;
   overflow-y: auto;
-  background: var(--frost-bg);
+  background: rgba(10, 10, 24, 0.88);
   backdrop-filter: var(--frost-blur);
   -webkit-backdrop-filter: var(--frost-blur);
   border: 1px solid rgba(120, 80, 255, 0.35);

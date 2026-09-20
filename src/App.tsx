@@ -193,11 +193,12 @@ export default function App() {
     await deleteWork(id);
     setWorks((prev) => prev?.filter((w) => w.id !== id) ?? null);
   }, []);
-  // Recordings modal (2026-09-20): owned by App, opened from EITHER the
-  // landing entry or the toolbar entry - one modal, two doors. Mounted once
-  // at the bottom of the toolbar wrapper (always visible), NOT in the
-  // transformed toolbar div (transform breaks the fixed overlay). The modal
-  // self-guards empty (renders null), so no count check needed here.
+  // Recordings modal (2026-09-20, fixed 2026-09-21): owned by App, opened
+  // from EITHER the landing entry or the toolbar entry - one modal, two
+  // doors. Mounted as a DIRECT child of camera-stage (next to HelpModal),
+  // never inside the toolbar wrapper - its inline transform traps
+  // position:fixed. The modal self-guards empty (renders null), so no
+  // count check needed here.
   const [recordingsOpen, setRecordingsOpen] = useState(false);
   const openRecordings = useCallback(() => setRecordingsOpen(true), []);
 
@@ -1956,15 +1957,16 @@ export default function App() {
               onOpenGuide={showKbGuidePanel}
             />
           )}
-          {/* Recordings modal (2026-09-20): mounted once at the bottom of
-              the toolbar wrapper (always visible) - the landing entry and
-              the toolbar entry open the same modal. Sibling of the
-              transformed toolbar div, so the fixed overlay isn't trapped.
-              Esc: the modal's own handler closes it on the landing; in the
-              playing scene App's global Esc stops playback, the ✕/backdrop
-              close it (same as HelpModal). */}
-          <WorksPanel works={works} onDelete={deleteWorkById} open={recordingsOpen} onOpenChange={setRecordingsOpen} />
         </div>
+
+        {/* ─── Recordings library modal (2026-09-20, fixed 2026-09-21):
+                the landing entry and the toolbar entry open the same
+                modal. Direct child of camera-stage so the fixed overlay
+                covers the viewport. Esc: the modal's own handler closes
+                it on the landing; in the playing scene App's global Esc
+                stops playback, the ✕/backdrop close it (same as
+                HelpModal). */}
+        <WorksPanel works={works} onDelete={deleteWorkById} open={recordingsOpen} onOpenChange={setRecordingsOpen} />
 
         {/* ─── Onboarding: hands-ready badge (first stable two-hand
                 detection, once per session, 3s) ───────────────────── */}

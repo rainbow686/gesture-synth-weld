@@ -982,7 +982,10 @@ body {
 /* Frosted settings panel */
 .frost-panel {
   position: absolute;
-  top: 56px;
+  /* 68px = toolbar bottom (~58px: top:12 + content) + 10px breathing
+     room. Was 56px and overlapped the toolbar's bottom edge by ~2px
+     (reported 2026-09-21). */
+  top: 68px;
   left: 50%;
   transform: translateX(-50%);
   padding: 14px;

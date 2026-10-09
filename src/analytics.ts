@@ -244,57 +244,59 @@ export function trackKeyboardGuideDismissed(method: 'close' | 'x' | 'overlay' | 
   track('kb_guide_dismissed', { method });
 }
 
-/* ─── Pro 付费意图探针（2026-08-10，订阅需求验证——纯前端，不动支付）───
+/* ─── Pro-gate probe (2026-08-10; front-end only, no payment code) ─────
  *
- * 免费版画 Pro 边界（锁定图标 + 文案），但功能完全不拦截。谁"看到"、
- * 谁"点击"，即付费意愿信号——不需要 Stripe/付费墙就能先验证需求。
- * 判定阈值见 docs/analytics-events.md。 */
+ * The free build shows the Pro teaser (lock icon + copy) but never
+ * blocks a feature. seen/clicked are the engagement signals for it. */
 
 export type ProGateLocation = 'rec_chooser' | 'rec_result' | 'settings';
 
-/** Pro 边界提示对用户可见（chooser 打开 / 结果面板出现 / 设置面板打开）。 */
+/** The Pro teaser is visible (chooser open / result panel / settings panel). */
 export function trackProGateSeen(location: ProGateLocation): void {
   track('pro_gate_seen', { location });
 }
 
-/** 用户点击了 Pro 边界提示（锁定功能 → 付费意愿信号）。 */
+/** The player clicked the Pro teaser (locked-feature interest signal). */
 export function trackProGateClicked(location: ProGateLocation): void {
   track('pro_gate_clicked', { location });
 }
 
-/* ─── 本地作品集探针（2026-08-17，留存假设验证--"为作品回来"） ────────
+/* ─── Local recordings library events (2026-08-17) ────────────────────
  *
- * 录制完成后作品自动存进浏览器 IndexedDB（零上传），回访用户在落地页
- * 看到「我的作品」并可回放/重新下载。验证假设：用户会不会为了看自己
- * 的作品而回来。判定阈值见 docs/analytics-events.md：回放率 >=20% 才
- * 考虑 R2 分享链接；<5% 则跳过整个服务端。 */
+ * Finished recordings auto-save to browser IndexedDB (zero upload); a
+ * returning player sees "My recordings" on the landing page and can
+ * replay / re-download. These events measure whether the library earns
+ * return visits. */
 
-/** 录制完成、作品成功写入本地存储（分母；失败不发--保存环节健康度看
- *  work_saved / recording_completed，<30% = 保存被静默吞掉）。 */
+/** A recording finished and saved to local storage (the denominator;
+ *  never fires on failure — save health = work_saved / recording_completed). */
 export function trackWorkSaved(type: 'audio' | 'video'): void {
   track('work_saved', { type });
 }
 
-/** 用户看到作品列表（每次会话最多一次，count>0 才发）--核心分母。
- *  2026-08-18 口径修正：落地页弹层打开 OR 结果面板列表渲染，哪个先算
- *  哪个（sessionStorage 守卫）；此前只算落地页，而回放分子算了两处，
- *  导致回放率被低估。 */
+/** The player saw the recordings list (max once per session, only when
+ *  count > 0) — the core denominator. 2026-08-18 correction: whichever
+ *  list renders first counts (landing modal OR result-panel list, guarded
+ *  by sessionStorage); previously only the landing counted while replays
+ *  counted from both places, under-reporting the replay rate. */
 export function trackWorksListSeen(count: number): void {
   track('works_list_seen', { count });
 }
 
-/** 用户回放了某个作品--核心信号："为作品回来"的直接证据。 */
+/** The player replayed a recording — the direct "came back for it" signal. */
 export function trackWorkReplayed(): void {
   track('work_replayed');
 }
 
-/** 用户从列表重新下载了作品（二次带走，比回放弱的补充信号）。 */
+/** The player re-downloaded a recording from the list (a weaker signal
+ *  than replay). */
 export function trackWorkDownloaded(): void {
   track('work_downloaded');
 }
 
-/** 用户删除了一个作品（2026-08-18，负向信号：作品库被使用/维护）。
- *  source 区分删除发生的位置。低频动作。 */
+/** The player deleted a recording (2026-08-18; negative signal — the
+ *  library being used and curated). `source` records where it happened.
+ *  Low-frequency action. */
 export function trackWorkDeleted(source: 'result_panel' | 'landing'): void {
   track('work_deleted', { source });
 }

@@ -1,5 +1,5 @@
 /**
- * Local works gallery (2026-08-17, retention experiment - "让用户留下资产").
+ * Local works gallery (2026-08-17).
  *
  * Stores finished recordings in IndexedDB - the browser's built-in local
  * database - so a returning player finds their previous takes on the

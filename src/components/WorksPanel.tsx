@@ -1,5 +1,5 @@
 /**
- * Local recordings library (2026-08-17, retention experiment - "让用户留下资产").
+ * Local recordings library (2026-08-17).
  *
  * Landing-page entry for the player's previous recordings from IndexedDB
  * (saved automatically on recording completion). Shows a COMPACT one-line

@@ -2254,7 +2254,15 @@ export default function App() {
                   onClick={() => { trackProGateClicked('landing'); trackProGateOutbound('landing'); }}
                   data-tip="Hosted Pro version — realtime MIDI out, HD export, commercial license"
                 >
-                  <span className="pro-entry-lock">🔒</span> <strong>Pro</strong>: Realtime MIDI out · HD export · commercial license
+                  {/* Sheen sweep: solid gold reads as a button (not a
+                      footnote) while the colour + fill keep it clearly
+                      separate from the cyan START button above — the two
+                      never compete for the same click. */}
+                  <span className="pro-entry-sheen" aria-hidden="true" />
+                  <span className="pro-entry-label">
+                    <strong>✨ PRO</strong> Realtime MIDI out · HD export · commercial license
+                  </span>
+                  <span className="pro-entry-arrow" aria-hidden="true">→</span>
                 </a>
               </>
             )}

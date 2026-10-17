@@ -2351,34 +2351,79 @@ body {
   vertical-align: 1px;
 }
 
-/* Landing Pro line (2026-10-17): same weight as .works-entry — a quiet
-   one-liner under the start button, in the Pro amber so it reads as the
-   same family as the in-app teasers. Always visible (no window). */
+/* Landing Pro entry (2026-10-17). Deliberately NOT the quiet dashed
+   line it started as: this is the shop window, so it reads as a real
+   button. It stays out of the START button's way by DIFFERENTIATION
+   rather than volume — solid gold fill vs cyan glass, sheen sweep vs
+   breathing glow — so the two never look like the same kind of action.
+   The in-app teasers (.pro-teaser) stay quiet: they interrupt a flow
+   already in progress. */
 .pro-entry {
-  display: block;
+  position: relative;
+  /* flex so the arrow is a real flex item — it can never be orphaned
+     onto a line of its own when the label wraps on narrow screens. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: hidden;
   margin-top: 10px;
-  width: min(380px, 88vw);
-  background: transparent;
-  border: 1px dashed rgba(255, 193, 7, 0.3);
-  border-radius: 10px;
-  color: #b0a26a;
-  font-size: 0.68rem;
-  letter-spacing: 0.03em;
-  padding: 7px 14px;
+  width: min(400px, 90vw);
+  background: linear-gradient(135deg, #ffc107 0%, #ff9f1a 55%, #ff8a00 100%);
+  border: 1px solid rgba(255, 214, 102, 0.9);
+  border-radius: 50px;
+  color: #2a1a00;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  padding: 9px 16px;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: 0 0 22px rgba(255, 159, 26, 0.35), 0 2px 10px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.pro-entry-label { flex: 1 1 auto; }
+.pro-entry strong {
+  color: #1a0f00;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 .pro-entry:hover,
 .pro-entry:focus-visible {
-  border-color: rgba(255, 193, 7, 0.7);
-  color: #ffc107;
-  box-shadow: 0 0 10px rgba(255, 193, 7, 0.15);
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 0 32px rgba(255, 179, 51, 0.6), 0 4px 14px rgba(0, 0, 0, 0.4);
   outline: none;
 }
-.pro-entry strong { color: #d4b35a; }
-.pro-entry-lock { font-size: 0.62rem; }
+.pro-entry-arrow {
+  display: inline-block;
+  margin-left: 5px;
+  font-weight: 800;
+  transition: transform 0.18s ease;
+}
+.pro-entry:hover .pro-entry-arrow { transform: translateX(4px); }
+
+/* Sheen: one highlight crossing the pill every few seconds. */
+.pro-entry-sheen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  left: -60%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-18deg);
+  animation: pro-sheen 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes pro-sheen {
+  0%, 55% { left: -60%; }
+  100%    { left: 120%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pro-entry-sheen { animation: none; opacity: 0; }
+}
 
 /* Recordings overlay (2026-09-21): transparent click-catcher only — no
    dim, no backdrop blur. Design target: same language as the settings

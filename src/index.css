@@ -1876,6 +1876,10 @@ body {
    gating anything — clicks are paid-intent analytics only. Amber = premium
    (same as the 8vb badge), dashed border = "offered, not active". */
 .pro-teaser {
+  /* An <a> since 2026-10-17 (was a role=button div): block + no
+     underline so the outbound link keeps the old teaser look. */
+  display: block;
+  text-decoration: none;
   margin-top: 10px;
   padding: 7px 10px;
   border: 1px dashed rgba(255, 193, 7, 0.35);

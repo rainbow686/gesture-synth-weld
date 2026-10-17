@@ -16,6 +16,7 @@ import {
   trackDownload,
   trackMicToggled,
   trackProGateClicked,
+  trackProGateOutbound,
   trackProGateSeen,
   trackRecordingModeChanged,
   trackSettingChanged,
@@ -24,6 +25,7 @@ import {
   trackWorkReplayed,
   trackWorksListSeen,
 } from '../analytics';
+import { proUrl } from '../config';
 import { REC_RATIO_HINTS, REC_SVG_PREVIEWS, VIDEO_REC_SUPPORTED } from './constants';
 import { POST_CAPTION } from './useRecording';
 
@@ -255,17 +257,19 @@ export function RecSheet(props: RecSheetProps) {
               )}
             </div>
           </div>
-          {/* Pro-gate probe: advertises the Pro boundary without gating
-              anything — clicks = paid-intent signal (no payment involved). */}
-          <div
+          {/* Pro gate: advertises the hosted Pro build without gating
+              anything — every free feature stays unlocked (that is the
+              contract of this block). Click = interest signal + opens
+              the Pro site in a new tab. */}
+          <a
             className="pro-teaser"
-            role="button"
-            tabIndex={0}
-            onClick={() => trackProGateClicked('rec_chooser')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trackProGateClicked('rec_chooser'); } }}
+            href={proUrl('rec_chooser')}
+            target="_blank"
+            rel="noopener"
+            onClick={() => { trackProGateClicked('rec_chooser'); trackProGateOutbound('rec_chooser'); }}
           >
-            🔒 <strong>Pro</strong> (coming soon): unlimited recording · no watermark · more instruments
-          </div>
+            🔒 <strong>Pro</strong>: Realtime MIDI out · HD export · commercial license
+          </a>
           <div className="rec-actions">
             <button className="rec-btn" onClick={() => setRecPhase('idle')}>Cancel</button>
             <button className="rec-btn primary" onClick={handleStartRecording}>Start · 3s countdown</button>
@@ -380,18 +384,18 @@ export function RecSheet(props: RecSheetProps) {
           <div className="rec-sheet-sub" style={{ marginTop: 8 }}>
             ✓ Auto-saved to this browser - "My recordings" appears under the start button on your next visit
           </div>
-          {/* Pro-gate probe (result panel): the "keep the recording" moment —
-              the most natural place to test paid-intent for removal of
-              limits/watermark. Click = signal, never a paywall. */}
-          <div
+          {/* Pro gate (result panel): the "keep the recording" moment —
+              the most natural place for the outbound door. Click =
+              signal + opens the Pro site, never a paywall. */}
+          <a
             className="pro-teaser"
-            role="button"
-            tabIndex={0}
-            onClick={() => trackProGateClicked('rec_result')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trackProGateClicked('rec_result'); } }}
+            href={proUrl('rec_result')}
+            target="_blank"
+            rel="noopener"
+            onClick={() => { trackProGateClicked('rec_result'); trackProGateOutbound('rec_result'); }}
           >
-            🔒 <strong>Pro</strong> (coming soon): unlimited recording · no watermark · more instruments
-          </div>
+            🔒 <strong>Pro</strong>: Realtime MIDI out · HD export · commercial license
+          </a>
         </div>
       )}
     </>

@@ -7,22 +7,9 @@
     { "source": "/guide", "destination": "/guide.html" },
     { "source": "/gesture-synth", "destination": "/gesture-synth.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/contact", "destination": "/contact.html" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "gesturesynthweld.studio" }],
-      "destination": "https://gesturesynthweld.com/:path*",
-      "permanent": true
-    },
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "gesturesynthweld.app" }],
-      "destination": "https://gesturesynthweld.com/:path*",
-      "permanent": true
-    }
   ],
   "headers": [
     {

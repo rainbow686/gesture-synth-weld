@@ -477,7 +477,7 @@ export function useRecording(deps: UseRecordingDeps) {
             raw,
             'Gesture Synth Weld',
             'gesturesynthweld.com',
-            'Created with Gesture Synth Weld — gesturesynthweld.com',
+            'Created with Gesture Synth Weld — gesturesynthweld.com · pro: gesturesynthweld.app',
             cover
           );
         }

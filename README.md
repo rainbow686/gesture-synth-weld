@@ -5,6 +5,8 @@
 ![Live](https://gesturesynthweld.com)
 ![License: MIT](./LICENSE)
 
+> **Hosted Pro version → [gesturesynthweld.app](https://gesturesynthweld.app/?utm_source=free-site&utm_medium=readme&utm_campaign=wave-2026-10&utm_content=readme)** — the same instrument, hosted, for taking work out of the browser. This repo stays the free, MIT-licensed build.
+
 ## ✨ Features
 
 - ✋ **Two-hand instrument** — left hand picks harmony (key · scale degree I–VII · major/minor), right hand shapes expression (chord style · volume · tone · octave)
@@ -17,7 +19,21 @@
 
 ## 🚀 Try It
 
-👉 [gesturesynthweld.com](https://gesturesynthweld.com)
+👉 [gesturesynthweld.com](https://gesturesynthweld.com) — free, no sign-up, nothing to install.
+
+### What the hosted Pro version adds
+
+Everything below is optional — the free build above stays free, ungated (no login, no paywall)
+and MIT-licensed. The
+[hosted Pro build](https://gesturesynthweld.app/?utm_source=free-site&utm_medium=readme&utm_campaign=wave-2026-10&utm_content=readme)
+is a separate, closed-source deployment that adds:
+
+- **Realtime MIDI out** — play the instrument straight into a DAW.
+- **HD export** — 1080p / higher-bitrate takes, no brand marks baked in.
+- **Commercial license** — use the takes you make commercially.
+- Cloud work pages and a larger guided song library.
+
+Source, issues and contributions for *this* build: [github.com/rainbow686/gesture-synth-weld](https://github.com/rainbow686/gesture-synth-weld).
 
 ## 📖 How It Works
 
@@ -82,4 +98,5 @@ The deployed version at gesturesynthweld.com includes hosting-related disclosure
 
 ## 🔗 Related
 
-- [gesturesynth.io](https://gesturesynth.io) — Tutorials & guides for hand gesture music
+- [gesturesynthweld.app](https://gesturesynthweld.app/?utm_source=free-site&utm_medium=readme&utm_campaign=wave-2026-10&utm_content=readme) — hosted Pro build (separate site, closed source)
+- [Guide](https://gesturesynthweld.com/guide) — how to play, chord progressions and FAQ

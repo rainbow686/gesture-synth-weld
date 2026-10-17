@@ -261,6 +261,13 @@ export function trackProGateClicked(location: ProGateLocation): void {
   track('pro_gate_clicked', { location });
 }
 
+/** The player followed the Pro teaser out to the hosted Pro build.
+ *  Fires alongside pro_gate_clicked, which stays untouched so the
+ *  pre-launch click series remains comparable. */
+export function trackProGateOutbound(location: ProGateLocation): void {
+  track('pro_gate_outbound', { location });
+}
+
 /* ─── Local recordings library events (2026-08-17) ────────────────────
  *
  * Finished recordings auto-save to browser IndexedDB (zero upload); a

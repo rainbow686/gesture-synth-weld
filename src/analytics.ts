@@ -249,7 +249,13 @@ export function trackKeyboardGuideDismissed(method: 'close' | 'x' | 'overlay' | 
  * The free build shows the Pro teaser (lock icon + copy) but never
  * blocks a feature. seen/clicked are the engagement signals for it. */
 
-export type ProGateLocation = 'rec_chooser' | 'rec_result' | 'settings';
+/** Where a Pro door lives. The first three are the gated moments (chooser
+ *  open / result panel / settings panel) — they also fire pro_gate_seen, so
+ *  their seen→clicked rate is meaningful. The last three are always-on
+ *  links (landing line / What's-new card / Help modal) that fire only
+ *  clicked + outbound: there is no "seen" denominator for a link that is
+ *  simply part of the page. */
+export type ProGateLocation = 'rec_chooser' | 'rec_result' | 'settings' | 'landing' | 'whatsnew' | 'help';
 
 /** The Pro teaser is visible (chooser open / result panel / settings panel). */
 export function trackProGateSeen(location: ProGateLocation): void {

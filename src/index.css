@@ -403,6 +403,18 @@ body {
   color: #b0b0d0;
 }
 
+/* Outbound CTA inside a What's-new card (2026-10-17): the card stays a
+   description, this is the labelled door. Amber = the Pro family. */
+.whatsnew-cta {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.66rem;
+  color: #d4b35a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.whatsnew-cta:hover { color: #ffc107; }
+
 /* Camera ↔ keyboard mode switch (toolbar). Classic switch: icon · track+dot
    · icon (2026-08-10 — two independently-clickable icon segments read as
    two buttons and the box was too cramped to hold both comfortably; a
@@ -2338,6 +2350,35 @@ body {
   padding: 1px 5px;
   vertical-align: 1px;
 }
+
+/* Landing Pro line (2026-10-17): same weight as .works-entry — a quiet
+   one-liner under the start button, in the Pro amber so it reads as the
+   same family as the in-app teasers. Always visible (no window). */
+.pro-entry {
+  display: block;
+  margin-top: 10px;
+  width: min(380px, 88vw);
+  background: transparent;
+  border: 1px dashed rgba(255, 193, 7, 0.3);
+  border-radius: 10px;
+  color: #b0a26a;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  padding: 7px 14px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pro-entry:hover,
+.pro-entry:focus-visible {
+  border-color: rgba(255, 193, 7, 0.7);
+  color: #ffc107;
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.15);
+  outline: none;
+}
+.pro-entry strong { color: #d4b35a; }
+.pro-entry-lock { font-size: 0.62rem; }
 
 /* Recordings overlay (2026-09-21): transparent click-catcher only — no
    dim, no backdrop blur. Design target: same language as the settings

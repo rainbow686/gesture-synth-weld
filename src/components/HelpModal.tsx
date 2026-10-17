@@ -11,6 +11,8 @@
 import { useEffect, useState } from 'react';
 import { renderHandArt } from './HandArt';
 import { WHATS_NEW } from '../whatsNew';
+import { trackProGateClicked, trackProGateOutbound } from '../analytics';
+import { proUrl } from '../config';
 
 /** Rotating left-hand demo script (rows match DIATONIC_CHORDS order). */
 const HELP_DEMO_STEPS = [
@@ -196,6 +198,24 @@ export function HelpModal({ onClose, isMobile, gradeNameFor, onReplayKeyboardGui
           </button>
         </div>
       )}
+
+      {/* Going further (2026-10-17): the Help modal is where someone asks
+          "what else can this do?" — so the hosted Pro build belongs here,
+          as one quiet line. The free build is unchanged and ungated. */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '6px 0', paddingTop: '6px', fontSize: '0.58rem', lineHeight: 1.6 }}>
+        <span style={{ color: '#d4b35a', fontWeight: 600 }}>🔒 Pro</span>
+        <span style={{ color: '#b0b0d0' }}> — a hosted version for taking work out of the browser:{' '}
+          <a
+            href={proUrl('help')}
+            target="_blank"
+            rel="noopener"
+            onClick={() => { trackProGateClicked('help'); trackProGateOutbound('help'); }}
+            style={{ color: 'var(--neon-cyan)', textDecoration: 'underline' }}
+          >
+            realtime MIDI out · HD export · commercial license
+          </a>
+        </span>
+      </div>
     </div>
   );
 }

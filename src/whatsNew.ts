@@ -76,12 +76,33 @@ export interface WhatsNewEntry {
    *  data-driven like everything else here. Omit for entries with no
    *  landing element of their own. */
   landingBadge?: boolean;
+  /** Optional: an outbound link rendered INSIDE the playing-scene card
+   *  (2026-10-17, first used by the hosted-Pro announcement). The card
+   *  itself stays a description — this is an explicit, labelled door the
+   *  player chooses to follow. `content` is the UTM content tag, so the
+   *  Pro side can tell which surface produced the click. */
+  cta?: { label: string; content: string };
 }
 
 /** How long the landing hint stays active after release. */
 const ANNOUNCE_DAYS = 14;
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    // Hosted Pro build went live (2026-10-17, Creem review passed). This is
+    // a NEWS entry, not an ad slot: it runs its 14-day window and retires
+    // itself, and the free build stays ungated — the permanent doors are
+    // the landing line, the settings/record teasers and the Help line.
+    // No pulseTarget/teach: there is no toolbar control to point at (the
+    // pulse exists to teach a permanent control; a link teaches nothing).
+    // No landingClick: the landing carries its own always-on Pro line, so
+    // a 14-day card on top of it would just double up.
+    version: 'v2.4',
+    releasedAt: '2026-10-17',
+    title: 'A hosted Pro version exists now',
+    body: 'Same instrument, hosted, for taking work out of the browser: realtime MIDI out, HD export, a commercial license. The free build here keeps every feature it has — nothing moved behind the paywall.',
+    cta: { label: 'See what Pro adds →', content: 'whatsnew' },
+  },
   {
     // Recording length bump to 120s (2026-09-01 decision): timeout share
     // plateaued at ~27% for the whole 60s window (57%→26% after the 30s bump),

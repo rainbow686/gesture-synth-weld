@@ -67,9 +67,11 @@ import {
   trackKeyboardFirstNote,
   trackKeyboardGuideShown,
   trackKeyboardGuideDismissed,
+  trackProGateClicked,
+  trackProGateOutbound,
   type KeyboardModeSource,
 } from './analytics';
-import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD } from './config';
+import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD, proUrl } from './config';
 // Config imports removed — external scripts feature not currently active
 
 /* Keys KeyboardSource maps — their default browser behavior (page
@@ -2036,6 +2038,19 @@ export default function App() {
                     {whatsNewEntry.teach[keyboardMode ? 'keyboard' : 'camera'] ?? whatsNewEntry.teach.camera}
                   </span>
                 )}
+                {/* Outbound CTA (2026-10-17): the card stays a description —
+                    this is a labelled door the player chooses to follow. */}
+                {whatsNewEntry.cta && (
+                  <a
+                    className="whatsnew-cta"
+                    href={proUrl(whatsNewEntry.cta.content)}
+                    target="_blank"
+                    rel="noopener"
+                    onClick={() => { trackProGateClicked('whatsnew'); trackProGateOutbound('whatsnew'); }}
+                  >
+                    {whatsNewEntry.cta.label}
+                  </a>
+                )}
               </span>
             </div>
           </div>
@@ -2223,6 +2238,24 @@ export default function App() {
                     browser. Opens the App-owned modal (mounted below, one
                     modal shared with the toolbar entry). */}
                 <RecordingsEntry works={works} onOpen={openRecordings} />
+
+                {/* Hosted Pro version — the quiet permanent door on the
+                    landing (2026-10-17). One line, same weight as the
+                    recordings entry: the free site keeps saying "open and
+                    play", this only answers "is there more?". Always
+                    visible (unlike the 14-day What's-new cards) and
+                    UTM-tagged, so the free→pro handoff is measurable per
+                    surface. */}
+                <a
+                  className="pro-entry"
+                  href={proUrl('landing')}
+                  target="_blank"
+                  rel="noopener"
+                  onClick={() => { trackProGateClicked('landing'); trackProGateOutbound('landing'); }}
+                  data-tip="Hosted Pro version — realtime MIDI out, HD export, commercial license"
+                >
+                  <span className="pro-entry-lock">🔒</span> <strong>Pro</strong>: Realtime MIDI out · HD export · commercial license
+                </a>
               </>
             )}
             </div>

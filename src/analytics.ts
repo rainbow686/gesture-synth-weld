@@ -115,6 +115,22 @@ export function initTrafficSource(): void {
 }
 
 /**
+ * Coarse duration buckets for the loading screen. A raw millisecond value
+ * is unique per user, so the Data API can't aggregate it (everything folds
+ * into "(other)"); the bucket is what makes the distribution readable.
+ * Registered as a GA4 custom dimension in docs/ga4/admin-dims.mjs — keep
+ * the two in sync if the edges change.
+ */
+function loadDurationBucket(ms: number): string {
+  if (ms < 1000) return '0-1s';
+  if (ms < 3000) return '1-3s';
+  if (ms < 6000) return '3-6s';
+  if (ms < 15000) return '6-15s';
+  if (ms < 30000) return '15-30s';
+  return '30s+';
+}
+
+/**
  * Loading screen exposure: how long users actually stared at the loading
  * UI (cache hits skip it entirely, so model_load duration alone overstates
  * the ad window). Fired at the end of every camera start, success or not.
@@ -122,6 +138,7 @@ export function initTrafficSource(): void {
 export function trackLoadingScreenVisible(durationMs: number, result: 'success' | 'failed'): void {
   track('loading_screen_visible', {
     duration_ms: Math.round(durationMs),
+    duration_bucket: loadDurationBucket(durationMs),
     result,
     cached: durationMs < 300, // sub-300ms ≈ browser-cached model, screen barely shows
   });

@@ -39,7 +39,8 @@ Rules: >10 turns discussion → create a `sessions/` file and append incremental
 
 - `/` (Vite SPA): brand-keyword home; a full-viewport (100svh) instrument first, SEO reading area below the fold.
 - `/gesture-synth` (Vite multi-entry, same `src/main.tsx`): category-keyword landing; text hero → live instrument → READ body; the Play button dispatches `gsw:seo-play` (scroll + start, one click).
-- AdSense: manual units in reading areas only — `gsw-read-1` (homepage, mid reading area), `gsw-read-2` (`/gesture-synth`, top of the READ section after the TOC) and `gsw-read-3` (`/guide`, mid-article between the gesture tables and the songs); each unit is attributed separately. Auto/Anchor stay off. The play area / `app-root` / interactive flows never carry ads.
+- `/hand-synthesizer` (Vite multi-entry, same `src/main.tsx`): the non-brand "hand synthesizer" cluster — camera / glove / ring / theremin comparison, the two-hand harmony-vs-expression mapping, hand synth vs keyboard vs MIDI controller. Deliberately a separate page: `/gesture-synth` carries the brand-word rankings and its title must not be repointed at generic terms. Cross-linked both ways.
+- AdSense: manual units in reading areas only — `gsw-read-1` (homepage, mid reading area), `gsw-read-2` (`/gesture-synth` and `/hand-synthesizer`, top of the READ section after the TOC) and `gsw-read-3` (`/guide`, mid-article between the gesture tables and the songs). Auto/Anchor stay off. The play area / `app-root` / interactive flows never carry ads.
 
 ## Deployment
 

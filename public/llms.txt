@@ -35,6 +35,7 @@
 
 - [Play](https://gesturesynthweld.com/)
 - [Gesture Synth](https://gesturesynthweld.com/gesture-synth): what a gesture synth is, browser vs hardware vs DIY comparison, playable instrument on the page
+- [Hand Synthesizer](https://gesturesynthweld.com/hand-synthesizer): synthesizers played with hands instead of keys — camera, glove, ring and theremin compared, the two-hand harmony/expression mapping, hand synth vs keyboard vs MIDI controller, playable instrument on the page
 - [Gesture Guide](https://gesturesynthweld.com/guide): full gesture tutorial with hand-shape illustrations (degrees I–VII, inversions, 8vb, expression controls) plus five song progressions to play (I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, i–VII–VI–V)
 - [About](https://gesturesynthweld.com/about)
 - [Contact](https://gesturesynthweld.com/contact)

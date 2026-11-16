@@ -6,6 +6,7 @@
     { "source": "/about", "destination": "/about.html" },
     { "source": "/guide", "destination": "/guide.html" },
     { "source": "/gesture-synth", "destination": "/gesture-synth.html" },
+    { "source": "/hand-synthesizer", "destination": "/hand-synthesizer.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/contact", "destination": "/contact.html" },

@@ -2265,26 +2265,29 @@ export default function App() {
                   <span className="pro-entry-arrow" aria-hidden="true">→</span>
                 </a>
 
-                {/* Affiliate line (2026-11-19) — deliberately the weakest
-                    element on this screen: no fill, no border, no motion.
-                    It speaks only to the visitor who already produces in a
-                    DAW and was never going to press START. Every other
-                    clickable here takes its clicks out of START almost
-                    1:1, so this one is tracked separately as
-                    location=home_preview and can be reverted if the play
-                    rate it costs outweighs what it earns. The visible
-                    "affiliate" tag is the disclosure — required by AdSense
-                    policy and FTC, and too small to add a second line. */}
+                {/* Affiliate pill (2026-11-19) — a real second option, not a
+                    footnote. Same footprint as the gold Pro capsule but
+                    outline-only (amber border on a faint tint, no fill, no
+                    sheen), so it sits one visible step below it. Amber is
+                    the colour the content-page affiliate modules already
+                    use, so the programme reads as one thing.
+
+                    Tracked separately as location=home_preview: every
+                    clickable on this screen takes its clicks out of START
+                    almost 1:1, so this placement is judged on the START
+                    rate it costs versus the clicks it earns. */}
                 <a
-                  className="affiliate-line"
+                  className="affiliate-entry"
                   href={AFFILIATE_URL}
                   target="_blank"
                   rel="sponsored nofollow noopener"
                   onClick={() => trackAffiliateClick('home_preview')}
                   data-tip="Affiliate link — we may earn a commission, at no extra cost to you"
                 >
-                  Produce in a DAW? Plugin Boutique →
-                  <span className="affiliate-line-tag"> affiliate</span>
+                  <span>
+                    <strong>IN A DAW?</strong> Plugin Boutique — plugins, effects &amp; samples →
+                  </span>
+                  <span className="affiliate-entry-tag">affiliate</span>
                 </a>
               </>
             )}

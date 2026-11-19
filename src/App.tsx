@@ -69,10 +69,10 @@ import {
   trackKeyboardGuideDismissed,
   trackProGateClicked,
   trackProGateOutbound,
+  trackAffiliateClick,
   type KeyboardModeSource,
 } from './analytics';
-import { AFFILIATE_CARD_URL, ENABLE_AFFILIATE_CARD, proUrl } from './config';
-// Config imports removed — external scripts feature not currently active
+import { AFFILIATE_URL, proUrl } from './config';
 
 /* Keys KeyboardSource maps — their default browser behavior (page
  * scrolling for ↑/↓/Space) is blocked while keyboard mode is active.
@@ -2263,6 +2263,28 @@ export default function App() {
                     <strong>✨ PRO</strong> Realtime MIDI out · HD export · commercial license
                   </span>
                   <span className="pro-entry-arrow" aria-hidden="true">→</span>
+                </a>
+
+                {/* Affiliate line (2026-11-19) — deliberately the weakest
+                    element on this screen: no fill, no border, no motion.
+                    It speaks only to the visitor who already produces in a
+                    DAW and was never going to press START. Every other
+                    clickable here takes its clicks out of START almost
+                    1:1, so this one is tracked separately as
+                    location=home_preview and can be reverted if the play
+                    rate it costs outweighs what it earns. The visible
+                    "affiliate" tag is the disclosure — required by AdSense
+                    policy and FTC, and too small to add a second line. */}
+                <a
+                  className="affiliate-line"
+                  href={AFFILIATE_URL}
+                  target="_blank"
+                  rel="sponsored nofollow noopener"
+                  onClick={() => trackAffiliateClick('home_preview')}
+                  data-tip="Affiliate link — we may earn a commission, at no extra cost to you"
+                >
+                  Produce in a DAW? Plugin Boutique →
+                  <span className="affiliate-line-tag"> affiliate</span>
                 </a>
               </>
             )}

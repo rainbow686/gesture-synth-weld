@@ -6,15 +6,6 @@ export const ENABLE_EXTERNAL_SCRIPTS = import.meta.env.VITE_ENABLE_EXTERNAL_SCRI
 // AdSense publisher ID (approved 2026-09-11)
 export const EXTERNAL_SCRIPT_CLIENT_ID = 'ca-pub-4516753695428109';
 
-/**
- * Affiliate card on the loading screen. OFF until tomorrow's funnel data
- * proves the loading window is long enough (non-cached share + duration).
- * Flip to true and fill AFFILIATE_CARD_URL after registering (Soundtrap/
- * BandLab/Splice).
- */
-export const ENABLE_AFFILIATE_CARD = false;
-export const AFFILIATE_CARD_URL = 'https://www.soundtrap.com/';
-
 /* ─── Pro (hosted build) link ─────────────────────────────────────────
  *
  * The free site advertises the hosted Pro build but never gates anything.
@@ -39,3 +30,13 @@ export function proUrl(content: string): string {
   url.searchParams.set('utm_content', content);
   return url.toString();
 }
+
+/* ─── Affiliate (Beatport Group programme) ────────────────────────────
+ *
+ * Plugin Boutique / Beatport / DJcity. The id below is a public credit tag,
+ * not a secret — the same `a_aid` also appears literally in the static
+ * content pages, which this file does not reach. A fork must replace it, or
+ * its visitors' clicks will credit this project (see README). */
+
+/** Affiliate destination for the landing-screen line. */
+export const AFFILIATE_URL = 'https://www.pluginboutique.com/?a_aid=iw3298ya3o9h5';

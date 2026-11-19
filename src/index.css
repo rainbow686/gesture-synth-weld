@@ -2425,6 +2425,32 @@ body {
   .pro-entry-sheen { animation: none; opacity: 0; }
 }
 
+/* Affiliate line (2026-11-19) — the weakest interactive element on the
+   landing screen, on purpose. No fill, no border, no motion: it must not
+   compete with the cyan START button or the gold Pro capsule, because the
+   measured behaviour is that anything clickable on this screen takes its
+   clicks out of START almost 1:1. It only addresses the visitor who
+   already produces in a DAW and was never going to press START. */
+.affiliate-line {
+  margin-top: 12px;
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: #6a6a90;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  transition: color 0.15s ease;
+}
+.affiliate-line:hover,
+.affiliate-line:focus-visible {
+  color: #9a9ac4;
+  text-decoration: underline;
+  outline: none;
+}
+.affiliate-line-tag {
+  color: #4c4c6a;
+  font-size: 0.58rem;
+}
+
 /* Recordings overlay (2026-09-21): transparent click-catcher only — no
    dim, no backdrop blur. Design target: same language as the settings
    panel (background page stays normal, only the card is frosted). The

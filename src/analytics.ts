@@ -291,6 +291,21 @@ export function trackProGateOutbound(location: ProGateLocation): void {
   track('pro_gate_outbound', { location });
 }
 
+/* ─── Affiliate (Beatport Group programme, 2026-11-19) ───────────────
+ *
+ * The static content pages fire this same event name from an inline
+ * listener (they cannot reach this module); this function covers the
+ * React surfaces. Keep the location names identical across both. */
+
+/** Where an affiliate link lives. Each surface is separate so the
+ *  landing-screen placement can be judged on its own — it is the one
+ *  that trades against the START rate. */
+export type AffiliateLocation = 'home_preview' | 'hand_synthesizer' | 'gesture_synth' | 'guide';
+
+export function trackAffiliateClick(location: AffiliateLocation): void {
+  track('affiliate_click', { location });
+}
+
 /* ─── Local recordings library events (2026-08-17) ────────────────────
  *
  * Finished recordings auto-save to browser IndexedDB (zero upload); a

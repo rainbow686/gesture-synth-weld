@@ -772,6 +772,45 @@
         <div class="seo-callout"><p style="margin:0"><b>The trade:</b> hardware buys precision and works in the dark; the camera buys zero cost and zero setup. That's why this page starts with the camera version — <a href="#live" style="color:#00ffcc">the instrument above is already running →</a></p></div>
       </div>
 
+      <!-- Affiliate module (Beatport Group programme: Plugin Boutique /
+           Beatport / DJcity). Sits directly after the hardware comparison:
+           the reader has just seen what the three non-camera routes cost,
+           which is the moment a free software route is a fair answer.
+           rel="sponsored nofollow" per Google's guidance on monetised links;
+           the disclosure line is required by AdSense policy and FTC/GDPR. -->
+      <div class="affiliate-module">
+        <div class="affiliate-eyebrow">THE SOFTWARE ROUTE</div>
+        <h3>If you already work in a DAW</h3>
+        <p>
+          Everything above is hardware, or the camera you already own. There is a fifth route that
+          costs nothing up front and is what most people actually do: stay in software. If you
+          already run a DAW, the instruments and effects you would add next come from a shop rather
+          than a browser — Plugin Boutique is where we point people, including the cheap starter
+          plugins most people begin with.
+        </p>
+        <a class="affiliate-cta"
+           href="https://www.pluginboutique.com/?a_aid=iw3298ya3o9h5"
+           target="_blank" rel="sponsored nofollow noopener"
+           data-affiliate="hand_synthesizer">Browse Plugin Boutique →</a>
+        <p class="affiliate-disclosure">
+          Affiliate link — if you buy through it we may earn a commission, at no extra cost to you.
+        </p>
+      </div>
+
+      <script>
+        // Affiliate click tracking. Static pages can't reach src/analytics.ts,
+        // but gtag is already shimmed in <head>, so one delegated listener is
+        // enough. Same hostname guard as the React bundle (forks swap the ID).
+        (function () {
+          if (!/(^|\.)gesturesynthweld\.com$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(location.hostname)) return;
+          document.addEventListener('click', function (e) {
+            var a = e.target && e.target.closest ? e.target.closest('[data-affiliate]') : null;
+            if (!a || typeof window.gtag !== 'function') return;
+            window.gtag('event', 'affiliate_click', { location: a.getAttribute('data-affiliate') });
+          });
+        })();
+      </script>
+
       <!-- How hands map to music -->
       <div class="seo-section" id="mapping">
         <h2>🎛 How two hands become a chord</h2>
@@ -852,45 +891,6 @@
         <div class="seo-callout"><p style="margin:0"><b>If you already play keys</b>, a hand synthesizer is not a substitute — it is a second instrument with a different trick: chords you can hear and change at arm's length, with both hands free. <b>If you don't play keys</b>, that is the point — there is no chord shape to memorise, only a finger count.</p></div>
         <p style="margin-top:0.8rem;text-align:center;"><button class="seo-play-btn" data-seo-play>▶ Play now — it's free</button></p>
       </div>
-
-      <!-- Affiliate module (Beatport Group programme: Plugin Boutique /
-           Beatport / DJcity). Placed after the keyboard-vs-MIDI comparison
-           because that is the point where the reader is already thinking
-           about production gear — the link extends the page's own argument
-           instead of interrupting it. rel="sponsored nofollow" per Google's
-           guidance for monetised links; disclosure line is required by
-           AdSense policy and FTC/GDPR. -->
-      <div class="affiliate-module">
-        <div class="affiliate-eyebrow">IF YOU PRODUCE MUSIC</div>
-        <h3>Where the instruments come from</h3>
-        <p>
-          Nothing on this page needs a DAW — that is the point of it. But if you already work
-          inside one, the built-in synth here will feel thin next to a proper plugin. Plugin
-          Boutique is the shop we point people to: instruments, effects and sample packs,
-          including the cheap starter plugins that most people begin with.
-        </p>
-        <a class="affiliate-cta"
-           href="https://www.pluginboutique.com/?a_aid=iw3298ya3o9h5"
-           target="_blank" rel="sponsored nofollow noopener"
-           data-affiliate="hand_synthesizer">Browse Plugin Boutique →</a>
-        <p class="affiliate-disclosure">
-          Affiliate link — if you buy through it we may earn a commission, at no extra cost to you.
-        </p>
-      </div>
-
-      <script>
-        // Affiliate click tracking. Static pages can't reach src/analytics.ts,
-        // but gtag is already shimmed in <head>, so one delegated listener is
-        // enough. Same hostname guard as the React bundle (forks swap the ID).
-        (function () {
-          if (!/(^|\.)gesturesynthweld\.com$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(location.hostname)) return;
-          document.addEventListener('click', function (e) {
-            var a = e.target && e.target.closest ? e.target.closest('[data-affiliate]') : null;
-            if (!a || typeof window.gtag !== 'function') return;
-            window.gtag('event', 'affiliate_click', { location: a.getAttribute('data-affiliate') });
-          });
-        })();
-      </script>
 
       <!-- FAQ -->
       <div class="seo-section" id="faq">

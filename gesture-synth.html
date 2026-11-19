@@ -606,6 +606,51 @@
 
       .site-footer { padding: 1.5rem 1rem; font-size: 0.7rem; }
     }
+
+    /* Affiliate module — deliberately NOT styled like an ad unit. AdSense
+       forbids affiliate links being mistaken for ads, so this uses editorial
+       grammar (left rule + body typography) instead of a bordered ad box. */
+    .affiliate-module {
+      margin: 2rem 0 0.5rem;
+      padding: 0.2rem 0 0.2rem 1.2rem;
+      border-left: 3px solid #ffaa00;
+    }
+    .affiliate-eyebrow {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: #ffaa00;
+      margin-bottom: 0.4rem;
+    }
+    .affiliate-module h3 {
+      color: #e0e0ff;
+      font-size: 1rem;
+      margin: 0 0 0.5rem;
+    }
+    .affiliate-module p {
+      color: #b0b0d0;
+      font-size: 0.88rem;
+      margin-bottom: 0.6rem;
+    }
+    .affiliate-cta {
+      display: inline-block;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #0a0a1a;
+      background: #ffaa00;
+      border-radius: 6px;
+      padding: 0.5rem 1.1rem;
+      text-decoration: none;
+    }
+    .affiliate-cta:hover { background: #ffc233; }
+    .affiliate-disclosure {
+      font-size: 0.72rem !important;
+      color: #7a7a9c !important;
+      margin: 0.55rem 0 0 !important;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -722,6 +767,44 @@
           </div>
         </div>
       </div>
+
+      <!-- Affiliate module (Beatport Group programme: Plugin Boutique /
+           Beatport / DJcity). Sits right after the three-route triage: the
+           reader has just been told what the hardware card costs, so a
+           software answer is fair rather than an interruption. rel="sponsored
+           nofollow" per Google's guidance on monetised links; disclosure
+           required by AdSense policy and FTC. -->
+      <div class="affiliate-module">
+        <div class="affiliate-eyebrow">THE SOFTWARE ROUTE</div>
+        <h3>If you already work in a DAW</h3>
+        <p>
+          The hardware card above is honest about the cost — gloves, kits and rigs all need parts
+          and drivers. There is a cheaper fourth path: stay in software. If you already run a DAW,
+          the instruments and effects you would add next come from a shop rather than a browser.
+          Plugin Boutique is where we point people, including the cheap starter plugins most
+          producers begin with.
+        </p>
+        <a class="affiliate-cta"
+           href="https://www.pluginboutique.com/?a_aid=iw3298ya3o9h5"
+           target="_blank" rel="sponsored nofollow noopener"
+           data-affiliate="gesture_synth">Browse Plugin Boutique →</a>
+        <p class="affiliate-disclosure">
+          Affiliate link — if you buy through it we may earn a commission, at no extra cost to you.
+        </p>
+      </div>
+
+      <script>
+        // Affiliate click tracking — same delegated-listener pattern as the
+        // other static content pages (gtag is already shimmed in <head>).
+        (function () {
+          if (!/(^|\.)gesturesynthweld\.com$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(location.hostname)) return;
+          document.addEventListener('click', function (e) {
+            var a = e.target && e.target.closest ? e.target.closest('[data-affiliate]') : null;
+            if (!a || typeof window.gtag !== 'function') return;
+            window.gtag('event', 'affiliate_click', { location: a.getAttribute('data-affiliate') });
+          });
+        })();
+      </script>
 
       <!-- How It Works -->
       <div class="seo-section" id="how-it-works">

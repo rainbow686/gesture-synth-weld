@@ -94,7 +94,15 @@ npm install
 npm run dev
 ```
 
-The deployed version at gesturesynthweld.com includes hosting-related disclosures in its FAQ and a reserved, non-intrusive below-fold ad slot (no ads currently serving).
+The deployed version at gesturesynthweld.com carries its hosting costs with a few non-intrusive ad units and one affiliate link, all kept out of the instrument itself — the play area, the loading screen and the recording flow never show either.
+
+**Forking?** None of that is part of the open-source offer, and you should remove or replace it before you deploy your own copy. There are three identifiers to swap in `index.html`, `gesture-synth.html`, `hand-synthesizer.html` and `public/*.html`:
+
+- the AdSense publisher id (`ca-pub-…`)
+- the GA4 measurement id (`G-…`) and the Clarity project id
+- the affiliate id (`a_aid=…` on the two content pages)
+
+Analytics calls are hostname-guarded, so a fork will not report into this project's accounts — but ad units will still render and affiliate links will still credit this project's id unless you replace them.
 
 ## 🔗 Related
 

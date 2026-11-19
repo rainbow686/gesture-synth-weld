@@ -150,6 +150,11 @@ td em{color:#9090b8}
 .callout.kb{border:1px solid rgba(120,80,255,.35);background:rgba(120,80,255,.07)}
 .callout.rec{border:1px solid rgba(255,60,120,.3);background:rgba(255,60,120,.06)}
 .callout.tip{border:1px solid rgba(0,255,204,.25);background:rgba(0,255,204,.05)}
+/* Affiliate callout — amber, not teal: visually distinct from the ad units
+   (AdSense requires affiliate links not be mistaken for ads). */
+.callout.aff{border:1px solid rgba(255,170,0,.3);background:rgba(255,170,0,.06)}
+.callout.aff a{color:#ffaa00;font-weight:600}
+.aff-disclosure{display:block;margin-top:.4rem;font-size:.72rem;color:#7a7a9c}
 .callout b{color:#fff}
 /* mode cards */
 .mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.9rem;margin-top:.8rem}
@@ -342,6 +347,18 @@ details.faq p{margin:.7rem 0 0;font-size:.86rem}
   <div class="callout rec"><p><b>Sing along:</b> enable the mic to sing over your chords, then download — or share straight to apps on mobile. Finished recordings also auto-save to <b>My recordings</b> in your browser, so your music is there when you come back.</p></div>
 </section>
 
+<!-- Affiliate (Beatport Group programme). Sits at the end of the tutorial,
+     after the reader has learned the instrument — the "what next" moment
+     rather than an interruption. rel="sponsored nofollow" per Google's
+     guidance for monetised links; disclosure required by AdSense policy. -->
+<div class="callout aff">
+  <p><b>Produce already?</b> This synth lives in the browser — nothing to install. If you want
+  these ideas inside a DAW, <a href="https://www.pluginboutique.com/?a_aid=iw3298ya3o9h5"
+  target="_blank" rel="sponsored nofollow noopener" data-affiliate="guide">Plugin Boutique</a>
+  is where we point people: instruments, effects and sample packs.
+  <span class="aff-disclosure">Affiliate link — we may earn a commission if you buy through it, at no extra cost to you.</span></p>
+</div>
+
 <section class="card" id="faq">
   <h2>❓ Gesture Synth Weld FAQ</h2>
   <details class="faq" open><summary>Is Gesture Synth Weld free?</summary><p>Yes — free to play and record, no sign-up. MIT-licensed open source (<a href="https://github.com/rainbow686/gesture-synth-weld" target="_blank" rel="noopener">GitHub</a>).</p></details>
@@ -361,6 +378,20 @@ details.faq p{margin:.7rem 0 0;font-size:.86rem}
 </div>
 <script>
 (function(){var order=["gd1","gd2","gd3","gd4"],i=0,timer=null,manual=false,demo=document.querySelector(".demo");if(!demo||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;function step(){i=(i+1)%order.length;document.getElementById(order[i]).checked=true;}function start(){if(!timer&&!manual)timer=setInterval(step,2600);}function stop(){if(timer){clearInterval(timer);timer=null;}}start();demo.addEventListener("mouseenter",stop);demo.addEventListener("mouseleave",start);demo.addEventListener("change",function(e){manual=true;stop();i=order.indexOf(e.target.id);});})();
+</script>
+<script>
+// Affiliate click tracking. This page is static (no React bundle), but gtag is
+// already shimmed in <head>, so one delegated listener covers it. Same
+// hostname guard as src/analytics.ts — a fork that swaps the GA4 id also
+// stops reporting to us.
+(function(){
+  if(!/(^|\.)gesturesynthweld\.com$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(location.hostname))return;
+  document.addEventListener("click",function(e){
+    var a=e.target&&e.target.closest?e.target.closest("[data-affiliate]"):null;
+    if(!a||typeof window.gtag!=="function")return;
+    window.gtag("event","affiliate_click",{location:a.getAttribute("data-affiliate")});
+  });
+})();
 </script>
 </body>
 </html>
